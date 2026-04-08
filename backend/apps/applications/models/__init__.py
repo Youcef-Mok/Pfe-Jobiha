@@ -1,0 +1,1 @@
+from .candidature import Candidature
