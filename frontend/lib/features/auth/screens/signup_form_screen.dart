@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/auth_logo.dart';
+import '../widgets/auth_header.dart';
 
 class SignupFormScreen extends StatefulWidget {
   const SignupFormScreen({super.key});
@@ -132,37 +134,21 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
+        child: Column(
+          children: [
+            AuthHeader(onBackPressed: () => Navigator.pop(context)),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 24),
 
-              // ── Back arrow + Logo ─────────────────────────────────────
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, size: 18),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                  ),
-                  const Spacer(),
-                  const Row(children: [
-                    Icon(Icons.directions_walk, color: Color(0xFF6B35D9), size: 20),
-                    SizedBox(width: 4),
-                    Text('Jobiha',
-                        style: TextStyle(color: Color(0xFF6B35D9), fontWeight: FontWeight.bold, fontSize: 16)),
-                  ]),
-                  const Spacer(),
-                  const SizedBox(width: 40),
-                ],
+              const Center(
+                    child: Text('Créer votre compte',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
               ),
-
-              const SizedBox(height: 24),
-
-              const Text('Créer votre compte',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
 
               const SizedBox(height: 24),
 
@@ -179,7 +165,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
                       bottom: 0, right: 0,
                       child: Container(
                         width: 26, height: 26,
-                        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF6B35D9)),
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF3A1B5E)),
                         child: const Icon(Icons.add, color: Colors.white, size: 16),
                       ),
                     ),
@@ -318,7 +304,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
                     GestureDetector(
                       onTap: () => Navigator.pushNamed(context, '/login'),
                       child: const Text('Se connecter',
-                          style: TextStyle(color: Color(0xFF6B35D9), fontWeight: FontWeight.bold, fontSize: 13)),
+                      style: TextStyle(color: Color(0xFF3A1B5E), fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ],
                 ),
@@ -329,7 +315,10 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
           ),
         ),
       ),
-    );
+    ],
+  ),
+),
+);
   }
 
   Widget _buildTextField({

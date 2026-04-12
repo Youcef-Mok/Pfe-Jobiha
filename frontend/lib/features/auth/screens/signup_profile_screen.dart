@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/auth_logo.dart';
+import '../widgets/auth_header.dart';
 
 class LanguageItem {
   String name;
@@ -507,28 +509,13 @@ class _SignupProfileScreenState extends State<SignupProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F5FF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-              child: Row(
-                children: [
-                  IconButton(icon: const Icon(Icons.arrow_back_ios, size: 18),
-                      onPressed: () => Navigator.pop(context), padding: EdgeInsets.zero),
-                  const Spacer(),
-                  Row(children: [
-                    Icon(Icons.directions_walk, color: primaryColor, size: 20),
-                    const SizedBox(width: 4),
-                    Text('Jobiha', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ]),
-                  const Spacer(),
-                  const SizedBox(width: 40),
-                ],
-              ),
-            ),
+            AuthHeader(onBackPressed: () => Navigator.pop(context)),
 
+            const SizedBox(height: 24),
             const Text('Complétez votre profil',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
 

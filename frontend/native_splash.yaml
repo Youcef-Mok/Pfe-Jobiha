@@ -1,0 +1,19 @@
+flutter_native_splash:
+  android: true
+  ios: true
+  web: false
+
+  color: "#401E66"
+  image: "assets/logo.png"
+  branding: "assets/Jobiha.png"
+
+  
+
+
+android_12:
+  color: "#401E66"
+  image: "assets/logo.png"
+  branding: "assets/Jobiha.png"
+
+
+
