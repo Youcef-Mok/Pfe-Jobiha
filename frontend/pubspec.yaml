@@ -1,27 +1,40 @@
-name: frontend
-description: A new Flutter project.
+name: job_app
+description: "Application de recrutement pour petits jobs"
+publish_to: 'none'
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
 
 dependencies:
   flutter:
     sdk: flutter
+
+  # State management
   flutter_riverpod: ^2.5.1
-  go_router: ^13.2.0
-  dio: ^5.4.3
-  shared_preferences: ^2.2.3
-  image_picker: ^1.1.2
-  cached_network_image: ^3.3.1
-  flutter_map: ^6.1.0
-  latlong2: ^0.9.1
+  riverpod_annotation: ^2.3.5
+
+  # Formatting
   intl: ^0.19.0
-  flutter_native_splash: ^2.4.7
+
+  # Fonts
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+
+  # Code generation Riverpod (optionnel, pour la v2 avec annotations)
+  riverpod_generator: ^2.4.0
+  build_runner: ^2.4.9
+
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true
+
+  # Assets
+  # assets:
+  #   - assets/logos/
+  #   - assets/
