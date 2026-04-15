@@ -160,6 +160,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
         job != null ? SubmitStatus.success : SubmitStatus.error;
 
     if (job != null) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Brouillon sauvegardé ✓'),
         backgroundColor: AppColors.violet,
@@ -187,6 +188,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
         job != null ? SubmitStatus.success : SubmitStatus.error;
 
     if (job != null) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Annonce publiée avec succès 🚀"),
         backgroundColor: AppColors.violet,

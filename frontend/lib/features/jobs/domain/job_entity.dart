@@ -16,6 +16,8 @@ class JobEntity {
   final int viewCount;
   final String? logoAsset;
   final bool isPublished;
+  final List<JobCandidateEntity> candidates; // Ajout
+  final List<JobCommentEntity> comments;     // Ajout
 
   const JobEntity({
     required this.id,
@@ -28,6 +30,8 @@ class JobEntity {
     required this.viewCount,
     this.logoAsset,
     required this.isPublished,
+    this.candidates = const [], // Ajout
+    this.comments = const [],   // Ajout
   });
 
   bool get isActive => status == JobStatus.searching;
@@ -39,6 +43,42 @@ class JobEntity {
 
   @override
   int get hashCode => id.hashCode;
+}
+
+class JobCandidateEntity {
+  final String initials;
+  final String name;
+  final String role;
+  final double rating;
+  final String? avatarUrl;
+
+  const JobCandidateEntity({
+    required this.initials,
+    required this.name,
+    required this.role,
+    required this.rating,
+    this.avatarUrl,
+  });
+}
+
+class JobCommentEntity {
+  final String initials;
+  final String authorName;
+  final String date;
+  final String question;
+  final String recruitorLabel;
+  final String recruitorDate;
+  final String reply;
+
+  const JobCommentEntity({
+    required this.initials,
+    required this.authorName,
+    required this.date,
+    required this.question,
+    required this.recruitorLabel,
+    required this.recruitorDate,
+    required this.reply,
+  });
 }
 
 class CreateJobForm {

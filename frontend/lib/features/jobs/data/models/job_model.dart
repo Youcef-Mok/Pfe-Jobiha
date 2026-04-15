@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 
 /// Modèle de données (DTO) — représente la forme brute venue de l'API/JSON.
@@ -15,6 +13,8 @@ class JobModel {
   final int viewCount;
   final String? logoAsset;
   final bool isPublished;
+  final List<JobCandidateModel> candidates;
+  final List<JobCommentModel> comments;
 
   const JobModel({
     required this.id,
@@ -27,6 +27,8 @@ class JobModel {
     required this.viewCount,
     this.logoAsset,
     required this.isPublished,
+    this.candidates = const [],
+    this.comments = const [],
   });
 
   /// Désérialisation depuis JSON (API REST)
@@ -41,6 +43,14 @@ class JobModel {
         viewCount: json['view_count'] as int? ?? 0,
         logoAsset: json['logo_asset'] as String?,
         isPublished: json['is_published'] as bool? ?? false,
+        candidates: (json['candidates'] as List<dynamic>?)
+                ?.map((e) => JobCandidateModel.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        comments: (json['comments'] as List<dynamic>?)
+                ?.map((e) => JobCommentModel.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
       );
 
   /// Sérialisation vers JSON
@@ -55,6 +65,8 @@ class JobModel {
         'view_count': viewCount,
         'logo_asset': logoAsset,
         'is_published': isPublished,
+        'candidates': candidates.map((e) => e.toJson()).toList(),
+        'comments': comments.map((e) => e.toJson()).toList(),
       };
 
   /// Conversion vers l'entité métier
@@ -69,6 +81,8 @@ class JobModel {
         viewCount: viewCount,
         logoAsset: logoAsset,
         isPublished: isPublished,
+        candidates: candidates.map((e) => e.toEntity()).toList(),
+        comments: comments.map((e) => e.toEntity()).toList(),
       );
 
   /// Conversion depuis l'entité métier (pour sauvegarder)
@@ -83,6 +97,8 @@ class JobModel {
         viewCount: entity.viewCount,
         logoAsset: entity.logoAsset,
         isPublished: entity.isPublished,
+        candidates: entity.candidates.map((e) => JobCandidateModel.fromEntity(e)).toList(),
+        comments: entity.comments.map((e) => JobCommentModel.fromEntity(e)).toList(),
       );
 
   static JobStatus _parseStatus(String value) => switch (value) {
@@ -99,4 +115,112 @@ class JobModel {
         'freelance' => ContractType.freelance,
         _ => ContractType.cdi,
       };
+}
+
+class JobCandidateModel {
+  final String initials;
+  final String name;
+  final String role;
+  final double rating;
+  final String? avatarUrl;
+
+  const JobCandidateModel({
+    required this.initials,
+    required this.name,
+    required this.role,
+    required this.rating,
+    this.avatarUrl,
+  });
+
+  factory JobCandidateModel.fromJson(Map<String, dynamic> json) => JobCandidateModel(
+        initials: json['initials'] as String,
+        name: json['name'] as String,
+        role: json['role'] as String,
+        rating: (json['rating'] as num).toDouble(),
+        avatarUrl: json['avatarUrl'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'initials': initials,
+        'name': name,
+        'role': role,
+        'rating': rating,
+        'avatarUrl': avatarUrl,
+      };
+
+  JobCandidateEntity toEntity() => JobCandidateEntity(
+        initials: initials,
+        name: name,
+        role: role,
+        rating: rating,
+        avatarUrl: avatarUrl,
+      );
+
+  factory JobCandidateModel.fromEntity(JobCandidateEntity entity) => JobCandidateModel(
+        initials: entity.initials,
+        name: entity.name,
+        role: entity.role,
+        rating: entity.rating,
+        avatarUrl: entity.avatarUrl,
+      );
+}
+
+class JobCommentModel {
+  final String initials;
+  final String authorName;
+  final String date;
+  final String question;
+  final String recruitorLabel;
+  final String recruitorDate;
+  final String reply;
+
+  const JobCommentModel({
+    required this.initials,
+    required this.authorName,
+    required this.date,
+    required this.question,
+    required this.recruitorLabel,
+    required this.recruitorDate,
+    required this.reply,
+  });
+
+  factory JobCommentModel.fromJson(Map<String, dynamic> json) => JobCommentModel(
+        initials: json['initials'] as String,
+        authorName: json['authorName'] as String,
+        date: json['date'] as String,
+        question: json['question'] as String,
+        recruitorLabel: json['recruitorLabel'] as String,
+        recruitorDate: json['recruitorDate'] as String,
+        reply: json['reply'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'initials': initials,
+        'authorName': authorName,
+        'date': date,
+        'question': question,
+        'recruitorLabel': recruitorLabel,
+        'recruitorDate': recruitorDate,
+        'reply': reply,
+      };
+
+  JobCommentEntity toEntity() => JobCommentEntity(
+        initials: initials,
+        authorName: authorName,
+        date: date,
+        question: question,
+        recruitorLabel: recruitorLabel,
+        recruitorDate: recruitorDate,
+        reply: reply,
+      );
+
+  factory JobCommentModel.fromEntity(JobCommentEntity entity) => JobCommentModel(
+        initials: entity.initials,
+        authorName: entity.authorName,
+        date: entity.date,
+        question: entity.question,
+        recruitorLabel: entity.recruitorLabel,
+        recruitorDate: entity.recruitorDate,
+        reply: entity.reply,
+      );
 }
