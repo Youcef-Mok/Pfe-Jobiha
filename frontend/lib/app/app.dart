@@ -7,7 +7,8 @@ import 'package:job_app/features/auth/screens/signup_profile_screen.dart';
 import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
 import 'package:job_app/features/auth/screens/preferences_screen.dart';
 import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
-
+import 'package:job_app/features/messaging/screens/chat_list_screen.dart';
+import 'package:job_app/features/messaging/screens/chat_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -16,16 +17,17 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: '/welcome',
+      initialRoute: '/messages',
       routes: {
-        '/welcome':              (context) => const WelcomeScreen(),
-        '/login':                (context) => const LoginScreen(),
-        '/signup':               (context) => const SignupRoleScreen(),
-        '/signup-form':          (context) => const SignupFormScreen(),
-        '/signup-profile':       (context) => const SignupProfileScreen(),
-        '/recruiter-profile':    (context) => const RecruiterProfileScreen(),
-        '/preferences':           (context) => PreferencesScreen(),
-
+        '/welcome':           (context) => const WelcomeScreen(),
+        '/login':             (context) => const LoginScreen(),
+        '/signup':            (context) => const SignupRoleScreen(),
+        '/signup-form':       (context) => const SignupFormScreen(),
+        '/signup-profile':    (context) => const SignupProfileScreen(),
+        '/recruiter-profile': (context) => const RecruiterProfileScreen(),
+        '/preferences':       (context) => const PreferencesScreen(),
+        '/jobs':              (context) => const JobsListScreen(),
+        '/messages':          (context) => const ChatListScreen(),
       },
     );
   }
