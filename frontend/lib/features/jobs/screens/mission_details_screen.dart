@@ -184,8 +184,20 @@ class _MissionHeader extends StatelessWidget {
                 color: AppColors.slate100,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.restaurant,
-                  size: 32, color: AppColors.slate400),
+              child: mission.imageUrl != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        mission.imageUrl!,
+                        width: 75,
+                        height: 75,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.restaurant, size: 32, color: AppColors.slate400),
+                      ),
+                    )
+                  : const Icon(Icons.restaurant,
+                      size: 32, color: AppColors.slate400),
             ),
           ),
 
@@ -390,17 +402,37 @@ class _EmployeeCard extends StatelessWidget {
                   color: AppColors.slate100,
                   shape: BoxShape.circle,
                 ),
-                child: Center(
-                  child: Text(
-                    member.name[0],
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      color: AppColors.violet,
-                    ),
-                  ),
-                ),
+                child: member.avatarUrl != null
+                    ? ClipOval(
+                        child: Image.network(
+                          member.avatarUrl!,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              member.name[0],
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 20,
+                                color: AppColors.violet,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          member.name[0],
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                            color: AppColors.violet,
+                          ),
+                        ),
+                      ),
               ),
               Positioned(
                 right: 0,

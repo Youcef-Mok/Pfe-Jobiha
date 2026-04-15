@@ -245,6 +245,7 @@ class _EditJobScreenState extends ConsumerState<EditJobScreen> {
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (job != null) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Annonce mise à jour ✓'),
         backgroundColor: AppColors.violet,
@@ -279,6 +280,7 @@ class _EditJobScreenState extends ConsumerState<EditJobScreen> {
     if (confirm != true || !mounted) return;
     await ref.read(editJobFormProvider(widget.job).notifier).delete();
     if (!mounted) return;
+    if (!context.mounted) return;
     Navigator.of(context).pop();
   }
 }
@@ -448,7 +450,7 @@ class _CoverImageSection extends StatelessWidget {
             width: 26.5,
             height: 26.5,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               shape: BoxShape.circle,
               boxShadow: const [
                 BoxShadow(
@@ -486,7 +488,7 @@ class _EditFieldWrapper extends StatelessWidget {
               width: 9,
               height: 9,
               decoration: BoxDecoration(
-                color: const Color(0xFF334155).withOpacity(0.6),
+                color: const Color(0xFF334155).withValues(alpha: 0.6),
                 shape: BoxShape.circle,
               ),
             ),

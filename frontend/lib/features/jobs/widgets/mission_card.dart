@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/features/jobs/widgets/expiry_badge.dart';
 
 class MissionCard extends StatelessWidget {
   final MissionEntity mission;
@@ -38,7 +39,6 @@ class MissionCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildTopSection(),
-              // Pas d'actions de bas de carte pour les missions (enlevé Modifier / Candidats)
             ],
           ),
         ),
@@ -75,7 +75,19 @@ class MissionCard extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(Icons.business, color: AppColors.slate400, size: 28),
+      child: mission.imageUrl != null
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                mission.imageUrl!,
+                width: 64,
+                height: 64,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.business, color: AppColors.slate400, size: 28),
+              ),
+            )
+          : const Icon(Icons.business, color: AppColors.slate400, size: 28),
     );
   }
 
@@ -98,6 +110,11 @@ class MissionCard extends StatelessWidget {
           '${mission.companyName} • ${_formatPeriod()}',
           style: AppTextStyles.bodyMedium,
         ),
+        if (mission.status == 'in_progress')
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+            child: ExpiryBadge(label: _getExpiryLabel(mission.endDate)),
+          ),
         const SizedBox(height: 12),
       ],
     );
@@ -107,6 +124,14 @@ class MissionCard extends StatelessWidget {
     final start = DateFormat('d MMM', 'fr_FR').format(mission.startDate);
     final end = DateFormat('d MMM', 'fr_FR').format(mission.endDate);
     return 'Du $start au $end';
+  }
+
+  String _getExpiryLabel(DateTime endDate) {
+    final diff = endDate.difference(DateTime.now());
+    if (diff.isNegative) return 'Expiré';
+    if (diff.inDays > 7) return '${diff.inDays ~/ 7} sem.';
+    if (diff.inDays > 0) return '${diff.inDays} jours';
+    return '${diff.inHours} h';
   }
 }
 

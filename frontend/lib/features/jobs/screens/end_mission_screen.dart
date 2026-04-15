@@ -91,6 +91,7 @@ class _EndMissionScreenState extends ConsumerState<EndMissionScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Mission terminée · Avis publié ✓'),
         backgroundColor: AppColors.violet,

@@ -11,8 +11,10 @@ import 'package:job_app/features/jobs/widgets/mission_card.dart';
 import 'package:job_app/features/jobs/screens/create_job_screen.dart';
 import 'package:job_app/features/jobs/screens/edit_job_screen.dart';
 import 'package:job_app/features/jobs/screens/mission_details_screen.dart';
+import 'package:job_app/features/jobs/screens/job_details_screen.dart';
 import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
-
+import 'package:job_app/features/profile/screens/recruiter_profile_screen.dart';
+import 'package:job_app/features/notifications/screens/notifications_screen.dart';
 
 /// ────────────────
 /// ENTRY POINT
@@ -81,19 +83,13 @@ class JobsListScreen extends ConsumerWidget {
 class _Header extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final missionsAsync = ref.watch(missionsNotifierProvider);
-    final totalMissions = missionsAsync.whenOrNull(
-          data: (missions) => missions.length,
-        ) ?? 0;
-
-
     return Container(
-      color: AppColors.surface,
+      color: AppColors.background,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           Expanded(
-            child: Text('Mes Annonces', style: AppTextStyles.heading1),
+            child: Text('Mes annonces', style: AppTextStyles.heading1),
           ),
           Stack(
             children: [
@@ -102,7 +98,12 @@ class _Header extends ConsumerWidget {
                   Icons.notifications_none_outlined,
                   color: AppColors.slate700,
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  );
+                },
               ),
               Positioned(
                 right: 8,
@@ -149,18 +150,19 @@ class _TabBar extends ConsumerWidget {
     final missionsAsync = ref.watch(missionsNotifierProvider);
     final missionCount = missionsAsync.whenOrNull(
           data: (missions) => missions.length,
-        ) ?? 0;
+        ) ??
+        0;
 
     final tabs = [
-      (JobsTab.missions, 'Actifs ($missionCount)'),
-      (JobsTab.myJobs, 'My jobs'),
+      (JobsTab.myJobs, 'Mes annonces'),
+      (JobsTab.missions, 'Mes missions ($missionCount)'),
       (JobsTab.drafts, 'Brouillons'),
     ];
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.background,
         border: Border(
           bottom: BorderSide(color: AppColors.violetBorder),
         ),
@@ -170,22 +172,17 @@ class _TabBar extends ConsumerWidget {
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: constraints.maxWidth - 32,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: tabs.map((tab) {
-                  final (value, label) = tab;
-                  final isActive = currentTab == value;
-                  return _TabItem(
-                    label: label,
-                    isActive: isActive,
-                    onTap: () => ref.read(jobsTabProvider.notifier).state = value,
-                  );
-                }).toList(),
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: tabs.map((tab) {
+                final (value, label) = tab;
+                final isActive = currentTab == value;
+                return _TabItem(
+                  label: label,
+                  isActive: isActive,
+                  onTap: () => ref.read(jobsTabProvider.notifier).state = value,
+                );
+              }).toList(),
             ),
           );
         },
@@ -226,9 +223,8 @@ class _TabItem extends StatelessWidget {
         child: Center(
           child: Text(
             label,
-            style: isActive
-                ? AppTextStyles.tabActive
-                : AppTextStyles.tabInactive,
+            style:
+                isActive ? AppTextStyles.tabActive : AppTextStyles.tabInactive,
           ),
         ),
       ),
@@ -267,7 +263,7 @@ class _JobsBody extends ConsumerWidget {
       data: (items) {
         final List<Object> filtered = switch (currentTab) {
           JobsTab.drafts => controller.filterDrafts(items as List<JobEntity>),
-          JobsTab.myJobs => items as List<Object>,
+          JobsTab.myJobs => items,
           _ => [],
         };
 
@@ -287,7 +283,7 @@ class _JobsBody extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             itemBuilder: (context, index) {
               final item = filtered[index];
-              
+
               if (item is MissionEntity) {
                 return MissionCard(
                   mission: item,
@@ -304,16 +300,19 @@ class _JobsBody extends ConsumerWidget {
                   },
                 );
               }
-              
+
               if (item is JobEntity) {
                 return JobCard(
                   job: item,
                   onEdit: () => _handleEdit(context, item),
                   onViewCandidates: () => _handleViewCandidates(context, item),
                   onComplete: () => _handleComplete(context, item),
+                  onTap: item.status == JobStatus.searching
+                      ? () => _handleViewDetails(context, item)
+                      : null,
                 );
               }
-              
+
               return const SizedBox.shrink();
             },
           ),
@@ -373,6 +372,12 @@ class _JobsBody extends ConsumerWidget {
     );
   }
 
+  void _handleViewDetails(BuildContext context, JobEntity job) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => JobDetailsScreen(job: job)),
+    );
+  }
 
   void _handleViewCandidates(BuildContext context, JobEntity job) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -385,12 +390,9 @@ class _JobsBody extends ConsumerWidget {
   }
 
   void _handleComplete(BuildContext context, JobEntity job) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Compléter l'annonce : ${job.title}"),
-        backgroundColor: AppColors.violet,
-        behavior: SnackBarBehavior.floating,
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => EditJobScreen(job: job)),
     );
   }
 }
@@ -482,14 +484,16 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.slate400),
+            const Icon(Icons.error_outline,
+                size: 48, color: AppColors.slate400),
             const SizedBox(height: 16),
             Text(
               'Une erreur est survenue',
               style: AppTextStyles.heading3.copyWith(color: AppColors.slate600),
             ),
             const SizedBox(height: 8),
-            Text(message, style: AppTextStyles.bodyMedium, textAlign: TextAlign.center),
+            Text(message,
+                style: AppTextStyles.bodyMedium, textAlign: TextAlign.center),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: onRetry,
@@ -546,7 +550,7 @@ class _AddJobFAB extends StatelessWidget {
         borderRadius: BorderRadius.circular(9999),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7F13EC).withOpacity(0.4),
+            color: const Color(0xFF7F13EC).withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 8),
             spreadRadius: -6,
@@ -589,11 +593,34 @@ class _BottomNavBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _NavItem(icon: Icons.home_outlined, label: 'Mes jobs', isActive: true),
-          _NavItem(icon: Icons.notifications_none_outlined, label: 'Notif', isActive: false),
+          _NavItem(
+              icon: Icons.home_outlined, label: 'Mes jobs', isActive: true),
+          _NavItem(
+            icon: Icons.notifications_none_outlined,
+            label: 'Notif',
+            isActive: false,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+            },
+          ),
           const SizedBox(width: 56), // Espace pour le FAB centré
           _NavItem(icon: Icons.menu_outlined, label: 'menu', isActive: false),
-          _NavItem(icon: Icons.person_outline, label: 'Profil', isActive: false),
+          _NavItem(
+            icon: Icons.person_outline,
+            label: 'Profil',
+            isActive: false,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ProfileScreen(),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -604,11 +631,13 @@ class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
+  final VoidCallback? onTap;
 
   const _NavItem({
     required this.icon,
     required this.label,
     required this.isActive,
+    this.onTap,
   });
 
   @override
@@ -616,7 +645,7 @@ class _NavItem extends StatelessWidget {
     final color = isActive ? AppColors.violet : AppColors.slate400;
     return Expanded(
       child: GestureDetector(
-        onTap: () {},
+        onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
