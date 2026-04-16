@@ -23,6 +23,36 @@ class Utilisateur(models.Model):
     def __str__(self):
         return f"{self.prenom} {self.nom}"
 
+    # ---- DRF / JWT compatibility properties (no DB changes) ----
+
+    @property
+    def is_authenticated(self):
+        """Required by DRF's IsAuthenticated permission."""
+        return True
+
+    @property
+    def is_anonymous(self):
+        """Required by DRF internals."""
+        return False
+
+    @property
+    def role(self):
+        """
+        Determine user role by checking which child profile exists
+        via multi-table inheritance reverse accessors.
+        """
+        try:
+            self.candidat
+            return 'candidat'
+        except Exception:
+            pass
+        try:
+            self.recruteur
+            return 'recruteur'
+        except Exception:
+            pass
+        return None
+
     def sinscrire(self):
         pass
 

@@ -6,8 +6,9 @@ from django.db import models
 # ---------------------------------------------------------------------------
 
 class Media(models.Model):
-    url = models.URLField()
+    url = models.URLField(blank=True)
     type = models.CharField(max_length=50)
+    description = models.CharField(max_length=300, blank=True, null=True)
     date_ajout = models.DateField(auto_now_add=True)
 
     class Meta:
