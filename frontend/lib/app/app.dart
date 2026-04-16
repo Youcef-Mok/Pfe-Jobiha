@@ -5,7 +5,7 @@ import 'package:job_app/features/auth/screens/signup_role_screen.dart';
 import 'package:job_app/features/auth/screens/signup_form_screen.dart';
 import 'package:job_app/features/auth/screens/signup_profile_screen.dart';
 import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
-//import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
+import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
 
 import 'package:job_app/features/settings/screens/settings_screen.dart';
 import 'package:job_app/features/settings/screens/saved_screen.dart';
@@ -22,6 +22,17 @@ import 'package:job_app/features/settings/screens/help_center_screen.dart';
 import 'package:job_app/features/settings/screens/privacy_policy_screen.dart';
 import 'package:job_app/features/settings/screens/terms_conditions_screen.dart';
 
+// ── Placeholder home screens (replace with real screens when ready) ─────────
+class _CandidatHomeScreen extends StatelessWidget {
+  const _CandidatHomeScreen();
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Candidat Dashboard')),
+    body: const Center(child: Text('Bienvenue, candidat! 🎉')),
+  );
+}
+
+
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -31,11 +42,14 @@ class App extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       
-      home: const SettingsScreen(),
-      
       //home: const JobsListApp(),
+      //home: const SettingsScreen(),
+       home: const WelcomeScreen(),
+      
       routes: {
  
+       '/home-candidat':         (context) => const _CandidatHomeScreen(),
+       '/home-recruteur':         (context) => const JobsListApp(), //just to test
        '/welcome':              (context) => const WelcomeScreen(),
        '/login':                (context) => const LoginScreen(),
        '/signup':               (context) => const SignupRoleScreen(),

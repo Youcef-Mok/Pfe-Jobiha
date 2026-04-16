@@ -1,0 +1,121 @@
+// lib/features/auth/data/auth_repository.dart
+
+import 'package:dio/dio.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
+import '../../../core/storage/token_storage.dart';
+import 'models/auth_response.dart';
+import 'models/register_request.dart';
+
+class AuthRepository {
+  final Dio _dio = ApiClient.instance;
+
+  // ── Register candidat ──────────────────────────────────────────────────────
+  Future<AuthResponse> registerCandidat(RegisterCandidatRequest req) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.registerCandidat,
+        data: req.toJson(),
+      );
+      return _saveAndReturn(response.data);
+    } on DioException catch (e) {
+      throw Exception(_friendlyError(e));
+    }
+  }
+
+  // ── Register recruteur ─────────────────────────────────────────────────────
+  Future<AuthResponse> registerRecruteur(RegisterRecruteurRequest req) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.registerRecruteur,
+        data: req.toJson(),
+      );
+      return _saveAndReturn(response.data);
+    } on DioException catch (e) {
+      throw Exception(_friendlyError(e));
+    }
+  }
+
+  // ── Login ──────────────────────────────────────────────────────────────────
+  Future<AuthResponse> login(String email, String password) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.login,
+        data: {'email': email, 'mot_de_passe': password},
+      );
+      return _saveAndReturn(response.data);
+    } on DioException catch (e) {
+      throw Exception(_friendlyError(e));
+    }
+  }
+
+  // ── Logout ─────────────────────────────────────────────────────────────────
+  Future<void> logout() async {
+    try {
+      await _dio.post(ApiEndpoints.logout);
+    } catch (_) {
+      // Ignore server errors on logout.
+    } finally {
+      await TokenStorage.clear();
+    }
+  }
+
+  // ── Restore session on app start ───────────────────────────────────────────
+  Future<({String role, int userId})?> restoreSession() async {
+    final hasSession = await TokenStorage.hasSession();
+    if (!hasSession) return null;
+
+    final role   = await TokenStorage.getRole();
+    final userId = await TokenStorage.getUserId();
+    if (role == null || userId == null) return null;
+
+    return (role: role, userId: userId);
+  }
+
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  Future<AuthResponse> _saveAndReturn(Map<String, dynamic> json) async {
+    final auth = AuthResponse.fromJson(json);
+    await TokenStorage.saveSession(
+      access:  auth.access,
+      refresh: auth.refresh,
+      role:    auth.role,
+      userId:  auth.userId,
+    );
+    return auth;
+  }
+
+  /// Convert a DioException into a user-facing French string.
+  String _friendlyError(DioException e) {
+    final status = e.response?.statusCode;
+    final data   = e.response?.data;
+
+    // Status-specific messages
+    if (status == 409) return 'Un compte avec cet email existe déjà.';
+    if (status == 401) return 'Email ou mot de passe incorrect.';
+    if (status == 403) return 'Accès refusé.';
+    if (status == 404) return 'Ressource introuvable.';
+
+    // DRF field-level errors: { "field": ["msg", ...] } or { "detail": "..." }
+    if (data is Map) {
+      if (data.containsKey('detail')) return data['detail'] as String;
+      final messages = <String>[];
+      data.forEach((key, value) {
+        if (value is List) messages.add(value.join(' '));
+      });
+      if (messages.isNotEmpty) return messages.join('\n');
+    }
+
+    // Network / timeout errors
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout    ||
+        e.type == DioExceptionType.sendTimeout) {
+      return 'Délai d\'attente dépassé. Vérifiez votre connexion.';
+    }
+    if (e.type == DioExceptionType.connectionError) {
+      return 'Impossible de joindre le serveur. Vérifiez votre connexion.';
+    }
+
+    return 'Erreur inattendue (${status ?? "réseau"}).';
+  }
+}

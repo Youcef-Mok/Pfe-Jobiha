@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_providers.dart';
 
 class LanguageItem {
   String name;
@@ -32,14 +34,14 @@ class ExperienceItem {
   });
 }
 
-class SignupProfileScreen extends StatefulWidget {
+class SignupProfileScreen extends ConsumerStatefulWidget {
   const SignupProfileScreen({super.key});
 
   @override
-  State<SignupProfileScreen> createState() => _SignupProfileScreenState();
+  ConsumerState<SignupProfileScreen> createState() => _SignupProfileScreenState();
 }
 
-class _SignupProfileScreenState extends State<SignupProfileScreen> {
+class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
   final List<LanguageItem> _languages = [];
   final List<SkillItem> _skills = [];
   final List<FormationItem> _formations = [];
@@ -506,6 +508,9 @@ class _SignupProfileScreenState extends State<SignupProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final profileState = ref.watch(profileProvider);
+    final isSaving = profileState is AsyncLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F5FF),
       body: SafeArea(
@@ -600,15 +605,36 @@ class _SignupProfileScreenState extends State<SignupProfileScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/preferences'),
+                  onPressed: isSaving ? null : () async {
+                    if (_skills.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Ajoutez au moins une compétence')),
+                      );
+                      return;
+                    }
+                    final success = await ref.read(profileProvider.notifier).saveCandidatProfile(
+                      competences: _skills.map((s) => s.name).toList(),
+                      experience: _experiences.isNotEmpty
+                          ? _experiences.map((e) => e.poste + ' chez ' + e.societe).join(', ')
+                          : '',
+                    );
+                    if (success && mounted) {
+                      Navigator.pushReplacementNamed(context, '/home-candidat');
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     elevation: 0,
                   ),
-                  child: const Text('Enregistrer mon profil',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 22, height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Enregistrer mon profil',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
             ),

@@ -1,17 +1,24 @@
+// lib/features/auth/screens/login_screen.dart
+// Replace your existing _handleSignIn and add ConsumerStatefulWidget.
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_providers.dart';
+import '../data/models/auth_state.dart';
 import '../widgets/social_login_button.dart';
 
-class LoginScreen extends StatefulWidget {
+// Change StatefulWidget → ConsumerStatefulWidget
+// Change State         → ConsumerState
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController = TextEditingController();
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final TextEditingController _emailController    = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
   bool _keepMeSignedIn = false;
   bool _obscurePassword = true;
 
@@ -22,20 +29,52 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // ── Watch auth state and react to changes ──────────────────────────────────
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // We use a listener (see build) instead of reacting here so we can
+    // show SnackBars and navigate from the correct context.
+  }
+
   void _handleSignIn() {
-    // Frontend only for now — backend will be connected later
-    debugPrint('Signing in with: ${_emailController.text.trim()}');
+    final email    = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez remplir tous les champs')),
+      );
+      return;
+    }
+
+    // Trigger login — AuthNotifier updates state, listener below reacts.
+    ref.read(authProvider.notifier).login(email, password);
   }
 
   @override
   Widget build(BuildContext context) {
+    // ── Listen for auth state changes ──────────────────────────────────────
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.status == AuthStatus.authenticated) {
+        // Navigate based on role returned by backend.
+        final route = next.role == 'candidat' ? '/home-candidat' : '/home-recruteur';
+        Navigator.pushReplacementNamed(context, route);
+      } else if (next.status == AuthStatus.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(next.errorMessage ?? 'Identifiants invalides')),
+        );
+        ref.read(authProvider.notifier).clearError();
+      }
+    });
+
+    final isLoading = ref.watch(authProvider).isLoading;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      // ── Column so we can pin the signup link to the bottom ──────────────
       body: SafeArea(
         child: Column(
           children: [
-            // ── Scrollable content ───────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 28.0),
@@ -43,8 +82,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-
-                    // ── Back arrow + Logo ──────────────────────────────
                     Row(
                       children: [
                         IconButton(
@@ -53,49 +90,35 @@ class _LoginScreenState extends State<LoginScreen> {
                           padding: EdgeInsets.zero,
                         ),
                         const Spacer(),
-                        const Row(
-                          children: [
-                            Icon(Icons.directions_walk, color: Color(0xFF6B35D9), size: 20),
-                            SizedBox(width: 4),
-                            Text('Jobiha',
-                                style: TextStyle(
-                                    color: Color(0xFF6B35D9),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16)),
-                          ],
-                        ),
+                        const Row(children: [
+                          Icon(Icons.directions_walk, color: Color(0xFF6B35D9), size: 20),
+                          SizedBox(width: 4),
+                          Text('Jobiha',
+                              style: TextStyle(
+                                  color: Color(0xFF6B35D9),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
+                        ]),
                         const Spacer(),
                         const SizedBox(width: 40),
                       ],
                     ),
-
                     const SizedBox(height: 32),
-
-                    // ── Title — centered ───────────────────────────────
                     const Center(
-                      child: Text(
-                        'Sign in',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A2E),
-                        ),
-                      ),
+                      child: Text('Sign in',
+                          style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A2E))),
                     ),
-
                     const SizedBox(height: 32),
-
-                    // ── Email ──────────────────────────────────────────
                     _buildTextField(
                       controller: _emailController,
                       hint: 'Email',
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                     ),
-
                     const SizedBox(height: 16),
-
-                    // ── Password ───────────────────────────────────────
                     _buildTextField(
                       controller: _passwordController,
                       hint: 'Mot de passe',
@@ -113,10 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
-                    // ── Keep me signed in ──────────────────────────────
                     Row(
                       children: [
                         Checkbox(
@@ -131,15 +151,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(color: Colors.grey, fontSize: 13)),
                       ],
                     ),
-
                     const SizedBox(height: 24),
 
-                    // ── Sign in button ─────────────────────────────────
+                    // ── Sign in button — shows spinner while loading ────────
                     SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _handleSignIn,
+                        onPressed: isLoading ? null : _handleSignIn,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF3A1B5E),
                           foregroundColor: Colors.white,
@@ -147,14 +166,20 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(30)),
                           elevation: 0,
                         ),
-                        child: const Text('Sign in',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Sign in',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
 
                     const SizedBox(height: 20),
-
-                    // ── Forgot password ────────────────────────────────
                     Center(
                       child: TextButton(
                         onPressed: () {},
@@ -162,10 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(color: Colors.grey, fontSize: 13)),
                       ),
                     ),
-
                     const SizedBox(height: 8),
-
-                    // ── Divider ────────────────────────────────────────
                     const Row(
                       children: [
                         Expanded(child: Divider()),
@@ -177,10 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Expanded(child: Divider()),
                       ],
                     ),
-
                     const SizedBox(height: 20),
-
-                    // ── Social login buttons ───────────────────────────
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -203,20 +222,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
-
-            // ── Pinned to bottom — Don't have an account ─────────────────
             Padding(
               padding: const EdgeInsets.only(bottom: 32),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Vous n’avez pas de compte ?",
+                  const Text("Vous n'avez pas de compte ?",
                       style: TextStyle(color: Colors.grey, fontSize: 13)),
                   GestureDetector(
                     onTap: () => Navigator.pushNamed(context, '/signup'),

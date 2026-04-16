@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  dio: ^5.4.0
+  flutter_secure_storage: ^9.2.2
 
   # State management
   flutter_riverpod: ^2.5.1

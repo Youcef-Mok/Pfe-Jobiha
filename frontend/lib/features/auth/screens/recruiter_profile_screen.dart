@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_providers.dart';
 
 // ── Data Models ───────────────────────────────────────────────────────────────
 
@@ -11,14 +13,14 @@ class RecruiterProfile {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-class RecruiterProfileScreen extends StatefulWidget {
+class RecruiterProfileScreen extends ConsumerStatefulWidget {
   const RecruiterProfileScreen({super.key});
 
   @override
-  State<RecruiterProfileScreen> createState() => _RecruiterProfileScreenState();
+  ConsumerState<RecruiterProfileScreen> createState() => _RecruiterProfileScreenState();
 }
 
-class _RecruiterProfileScreenState extends State<RecruiterProfileScreen> {
+class _RecruiterProfileScreenState extends ConsumerState<RecruiterProfileScreen> {
   // Field values
   String? _companyName;
   String? _industry;
@@ -378,6 +380,9 @@ class _RecruiterProfileScreenState extends State<RecruiterProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final profileState = ref.watch(profileProvider);
+    final isSaving = profileState is AsyncLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F5FF),
       body: SafeArea(
@@ -512,7 +517,22 @@ class _RecruiterProfileScreenState extends State<RecruiterProfileScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: isSaving ? null : () async {
+                    if (_companyName == null || _industry == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Nom et secteur sont obligatoires')),
+                      );
+                      return;
+                    }
+                    final success = await ref.read(profileProvider.notifier).saveRecruteurProfile(
+                      nomStructure:  _companyName!,
+                      typeStructure: _industry!,
+                      description:   _aboutUs,
+                    );
+                    if (success && mounted) {
+                      Navigator.pushReplacementNamed(context, '/home-recruteur');
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
@@ -520,8 +540,13 @@ class _RecruiterProfileScreenState extends State<RecruiterProfileScreen> {
                         borderRadius: BorderRadius.circular(30)),
                     elevation: 0,
                   ),
-                  child: const Text('Enregistrer mon profil',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 22, height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Enregistrer mon profil',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
             ),
