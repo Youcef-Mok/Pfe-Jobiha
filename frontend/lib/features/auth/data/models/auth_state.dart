@@ -1,17 +1,19 @@
 // lib/features/auth/data/models/auth_state.dart
 
-enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
+enum AuthStatus { initial, loading, authenticated, unauthenticated, otpRequired, error }
 
 class AuthState {
   final AuthStatus status;
   final String? role;       // 'candidat' | 'recruteur'
   final int? userId;
+  final String? email;      // kept for OTP verification screen
   final String? errorMessage;
 
   const AuthState({
     this.status = AuthStatus.initial,
     this.role,
     this.userId,
+    this.email,
     this.errorMessage,
   });
 
@@ -24,14 +26,16 @@ class AuthState {
 
   AuthState copyWith({
     AuthStatus? status,
-    Object? role       = _clear,
-    Object? userId     = _clear,
+    Object? role         = _clear,
+    Object? userId       = _clear,
+    Object? email        = _clear,
     Object? errorMessage = _clear,
   }) =>
       AuthState(
         status:       status ?? this.status,
-        role:         role       == _clear ? this.role         : role       as String?,
-        userId:       userId     == _clear ? this.userId       : userId     as int?,
+        role:         role         == _clear ? this.role         : role         as String?,
+        userId:       userId       == _clear ? this.userId       : userId       as int?,
+        email:        email        == _clear ? this.email        : email        as String?,
         errorMessage: errorMessage == _clear ? this.errorMessage : errorMessage as String?,
       );
 

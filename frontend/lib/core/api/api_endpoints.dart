@@ -14,6 +14,8 @@ class ApiEndpoints {
   static const String logout            = '$_base/auth/logout';
   static const String tokenRefresh      = '$_base/auth/token/refresh';
   static const String changePassword    = '$_base/auth/password/change';
+  static const String verifyEmail       = '$_base/auth/verify-email';
+  static const String resendOtp         = '$_base/auth/resend-otp';
 
   // ── Users ───────────────────────────────────────────────────────────────────
   static const String me                = '$_base/users/me';
