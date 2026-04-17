@@ -40,11 +40,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third-party
-    'rest_framework',
-    'rest_framework_simplejwt',
-    'corsheaders',
-
     ##apps
     'apps.users',
     'apps.jobs',
@@ -60,7 +55,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -142,37 +136,3 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# ---------------------------------------------------------------------------
-# Django REST Framework
-# ---------------------------------------------------------------------------
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'apps.users.authentication.UtilisateurJWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
-}
-
-# ---------------------------------------------------------------------------
-# Simple JWT
-# ---------------------------------------------------------------------------
-from datetime import timedelta
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
-}
-
-# ---------------------------------------------------------------------------
-# CORS (allow all in development)
-# ---------------------------------------------------------------------------
-CORS_ALLOW_ALL_ORIGINS = True
-
-# ---------------------------------------------------------------------------
-# URL configuration
-# ---------------------------------------------------------------------------
-APPEND_SLASH = False
