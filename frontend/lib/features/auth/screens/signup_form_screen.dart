@@ -121,8 +121,11 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
   Widget build(BuildContext context) {
     // ── React to auth state ────────────────────────────────────────────────
     ref.listen<AuthState>(authProvider, (previous, next) {
-      if (next.status == AuthStatus.authenticated) {
-        // Registration succeeded — move to profile completion.
+      if (next.status == AuthStatus.otpRequired) {
+        // Registration succeeded — email verification needed.
+        Navigator.pushNamed(context, '/verify-email');
+      } else if (next.status == AuthStatus.authenticated) {
+        // Already verified (or OTP not required) — move to profile completion.
         final route = next.role == 'candidat'
             ? '/signup-profile'
             : '/recruiter-profile';

@@ -48,12 +48,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> registerCandidat(RegisterCandidatRequest req) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
-      final auth = await _repo.registerCandidat(req);
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        role:   auth.role,
-        userId: auth.userId,
-      );
+      final json = await _repo.registerCandidat(req);
+      _handleRegisterResponse(json, req.email);
     } catch (e) {
       state = state.copyWith(
         status:       AuthStatus.error,
@@ -66,7 +62,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> registerRecruteur(RegisterRecruteurRequest req) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
-      final auth = await _repo.registerRecruteur(req);
+      final json = await _repo.registerRecruteur(req);
+      _handleRegisterResponse(json, req.email);
+    } catch (e) {
+      state = state.copyWith(
+        status:       AuthStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Shared logic for both register responses.
+  /// If backend says `verification_required`, park on OTP screen;
+  /// otherwise save tokens and move to authenticated.
+  void _handleRegisterResponse(Map<String, dynamic> json, String email) async {
+    if (json['verification_required'] == true) {
+      state = state.copyWith(
+        status: AuthStatus.otpRequired,
+        email:  email,
+        role:   json['role'] as String?,
+      );
+    } else {
+      // Backend returned tokens directly — no OTP needed.
+      final auth = await _repo.saveRegisterResponse(json);
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        role:   auth.role,
+        userId: auth.userId,
+      );
+    }
+  }
+
+  // ── Verify email OTP ──────────────────────────────────────────────────────
+  Future<void> verifyEmail(String email, String otp) async {
+    state = state.copyWith(status: AuthStatus.loading);
+    try {
+      final auth = await _repo.verifyEmail(email, otp);
       state = state.copyWith(
         status: AuthStatus.authenticated,
         role:   auth.role,
@@ -76,6 +107,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(
         status:       AuthStatus.error,
         errorMessage: e.toString(),
+        email:        state.email, // preserve email for retry
+      );
+    }
+  }
+
+  // ── Resend OTP ────────────────────────────────────────────────────────────
+  Future<void> resendOtp(String email) async {
+    try {
+      await _repo.resendOtp(email);
+    } catch (e) {
+      state = state.copyWith(
+        status:       AuthStatus.error,
+        errorMessage: e.toString(),
+        email:        state.email,
       );
     }
   }
@@ -108,7 +153,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // ── Clear error (call after showing a SnackBar) ────────────────────────────
   void clearError() {
     if (state.status == AuthStatus.error) {
-      state = AuthState.unauthenticated;
+      // Go back to otpRequired if we have an email (mid-OTP flow),
+      // otherwise go to unauthenticated.
+      if (state.email != null) {
+        state = state.copyWith(
+          status: AuthStatus.otpRequired,
+          email:  state.email,
+          role:   state.role,
+        );
+      } else {
+        state = AuthState.unauthenticated;
+      }
     }
   }
 }

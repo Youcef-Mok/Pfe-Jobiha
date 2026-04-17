@@ -11,11 +11,39 @@ class AuthRepository {
   final Dio _dio = ApiClient.instance;
 
   // ── Register candidat ──────────────────────────────────────────────────────
-  Future<AuthResponse> registerCandidat(RegisterCandidatRequest req) async {
+  /// Returns raw JSON so the notifier can check for `verification_required`.
+  Future<Map<String, dynamic>> registerCandidat(RegisterCandidatRequest req) async {
     try {
       final response = await _dio.post(
         ApiEndpoints.registerCandidat,
         data: req.toJson(),
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(_friendlyError(e));
+    }
+  }
+
+  // ── Register recruteur ─────────────────────────────────────────────────────
+  /// Returns raw JSON so the notifier can check for `verification_required`.
+  Future<Map<String, dynamic>> registerRecruteur(RegisterRecruteurRequest req) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.registerRecruteur,
+        data: req.toJson(),
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(_friendlyError(e));
+    }
+  }
+
+  // ── Verify email OTP ──────────────────────────────────────────────────────
+  Future<AuthResponse> verifyEmail(String email, String otp) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.verifyEmail,
+        data: {'email': email, 'otp': otp},
       );
       return _saveAndReturn(response.data);
     } on DioException catch (e) {
@@ -23,14 +51,13 @@ class AuthRepository {
     }
   }
 
-  // ── Register recruteur ─────────────────────────────────────────────────────
-  Future<AuthResponse> registerRecruteur(RegisterRecruteurRequest req) async {
+  // ── Resend OTP ────────────────────────────────────────────────────────────
+  Future<void> resendOtp(String email) async {
     try {
-      final response = await _dio.post(
-        ApiEndpoints.registerRecruteur,
-        data: req.toJson(),
+      await _dio.post(
+        ApiEndpoints.resendOtp,
+        data: {'email': email},
       );
-      return _saveAndReturn(response.data);
     } on DioException catch (e) {
       throw Exception(_friendlyError(e));
     }
@@ -85,6 +112,11 @@ class AuthRepository {
     return auth;
   }
 
+  /// Persist tokens from a raw register response (when backend returns them
+  /// directly, i.e. no OTP required).
+  Future<AuthResponse> saveRegisterResponse(Map<String, dynamic> json) =>
+      _saveAndReturn(json);
+
   /// Convert a DioException into a user-facing French string.
   String _friendlyError(DioException e) {
     final status = e.response?.statusCode;
@@ -118,4 +150,5 @@ class AuthRepository {
 
     return 'Erreur inattendue (${status ?? "réseau"}).';
   }
-}
+}
+
