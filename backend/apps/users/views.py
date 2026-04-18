@@ -10,9 +10,11 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.files.storage import default_storage
+from django.core.mail import send_mail
 from django.conf import settings
-
-from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP
 from apps.uploads.models import Media
 from apps.users.serializers import (
     RegisterCandidatSerializer, RegisterRecruteurSerializer,
@@ -25,6 +27,21 @@ from apps.users.serializers import (
 )
 from core.permissions import IsCandidat, IsRecruteur, IsAdmin
 from core.pagination import StandardPagination
+
+
+# ===========================================================================
+# Helpers
+# ===========================================================================
+
+def send_otp_email(email, code):
+    """Send the OTP code via email (console backend in dev)."""
+    send_mail(
+        subject='Jobiha — Code de vérification',
+        message=f'Votre code de vérification est : {code}',
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        fail_silently=False,
+    )
 
 
 # ===========================================================================
@@ -47,7 +64,7 @@ class RegisterCandidatView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        # Create Candidat (auto-creates Utilisateur row via multi-table inheritance)
+        # Create Candidat with est_verifie=False (default)
         candidat = Candidat(
             nom=data['nom'],
             prenom=data['prenom'],
@@ -61,15 +78,13 @@ class RegisterCandidatView(APIView):
         )
         candidat.save()
 
-        # Fetch the base Utilisateur for token generation & serialization
-        utilisateur = Utilisateur.objects.get(pk=candidat.pk)
-        refresh = RefreshToken.for_user(utilisateur)
+        # Generate and send OTP
+        otp = EmailOTP.generate(data['email'])
+        send_otp_email(data['email'], otp.code)
 
         return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
+            'verification_required': True,
             'role': 'candidat',
-            'user': UtilisateurSerializer(utilisateur).data,
         }, status=status.HTTP_201_CREATED)
 
 
@@ -102,14 +117,13 @@ class RegisterRecruteurView(APIView):
         )
         recruteur.save()
 
-        utilisateur = Utilisateur.objects.get(pk=recruteur.pk)
-        refresh = RefreshToken.for_user(utilisateur)
+        # Generate and send OTP
+        otp = EmailOTP.generate(data['email'])
+        send_otp_email(data['email'], otp.code)
 
         return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
+            'verification_required': True,
             'role': 'recruteur',
-            'user': UtilisateurSerializer(utilisateur).data,
         }, status=status.HTTP_201_CREATED)
 
 
@@ -140,6 +154,13 @@ class LoginView(APIView):
             return Response(
                 {'detail': 'Account is disabled.'},
                 status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Block unverified users
+        if not utilisateur.est_verifie:
+            return Response(
+                {'detail': 'Email not verified. Please verify your email first.'},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         refresh = RefreshToken.for_user(utilisateur)
@@ -202,6 +223,84 @@ class ChangePasswordView(APIView):
         utilisateur.save(update_fields=['mot_de_passe'])
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VerifyEmailView(APIView):
+    """POST /auth/verify-email"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        otp_code = request.data.get('otp')
+
+        if not email or not otp_code:
+            return Response(
+                {'detail': 'Email and OTP are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            otp = EmailOTP.objects.get(email=email, code=otp_code)
+        except EmailOTP.DoesNotExist:
+            return Response(
+                {'detail': 'Invalid or expired OTP.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if otp.is_expired:
+            otp.delete()
+            return Response(
+                {'detail': 'OTP has expired. Please request a new one.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Mark user as verified
+        try:
+            utilisateur = Utilisateur.objects.get(email=email)
+        except Utilisateur.DoesNotExist:
+            return Response(
+                {'detail': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        utilisateur.est_verifie = True
+        utilisateur.save(update_fields=['est_verifie'])
+        otp.delete()
+
+        # Issue JWT tokens now that user is verified
+        refresh = RefreshToken.for_user(utilisateur)
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'role': utilisateur.role,
+            'user': UtilisateurSerializer(utilisateur).data,
+        })
+
+
+class ResendOtpView(APIView):
+    """POST /auth/resend-otp"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+
+        if not email:
+            return Response(
+                {'detail': 'Email is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not Utilisateur.objects.filter(email=email).exists():
+            return Response(
+                {'detail': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        otp = EmailOTP.generate(email)
+        send_otp_email(email, otp.code)
+
+        return Response({'detail': 'OTP sent.'})
 
 
 # ===========================================================================
@@ -497,3 +596,114 @@ class AdminSanctionView(APIView):
         utilisateur.save(update_fields=['statut_compte'])
 
         return Response(UtilisateurSerializer(utilisateur).data)
+
+
+
+
+class GoogleLoginView(APIView):
+    """POST /auth/google"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = request.data.get('token')  # Google ID token from frontend
+        if not token:
+            return Response({'detail': 'Token is required.'}, status=400)
+
+        try:
+            # Verify the token with Google
+            idinfo = id_token.verify_oauth2_token(
+                token,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID
+            )
+        except ValueError:
+            return Response({'detail': 'Invalid Google token.'}, status=401)
+
+        email = idinfo.get('email')
+        nom = idinfo.get('family_name', '')
+        prenom = idinfo.get('given_name', '')
+
+        # Existing user → issue JWT immediately
+        try:
+            utilisateur = Utilisateur.objects.get(email=email)
+        except Utilisateur.DoesNotExist:
+            # New user → ask frontend to pick a role first
+            return Response({
+                'requires_role_selection': True,
+                'email': email,
+                'nom': nom,
+                'prenom': prenom,
+            }, status=200)
+
+        # Issue your JWT
+        refresh = RefreshToken.for_user(utilisateur)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'role': utilisateur.role,
+            'user': UtilisateurSerializer(utilisateur).data,
+        })
+
+
+class GoogleCompleteView(APIView):
+    """POST /auth/google/complete
+    Creates the user after Google sign-in once the role has been chosen.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        nom = request.data.get('nom', '')
+        prenom = request.data.get('prenom', '')
+        role = request.data.get('role')
+
+        if not email or role not in ('candidat', 'recruteur'):
+            return Response(
+                {'detail': 'email and role (candidat|recruteur) are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Prevent duplicate accounts
+        if Utilisateur.objects.filter(email=email).exists():
+            return Response(
+                {'detail': 'A user with this email already exists.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if role == 'recruteur':
+            nom_structure = request.data.get('nom_structure')
+            type_structure = request.data.get('type_structure')
+            if not nom_structure or not type_structure:
+                return Response(
+                    {'detail': 'nom_structure and type_structure are required for recruteur.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            utilisateur = Recruteur.objects.create(
+                nom=nom,
+                prenom=prenom,
+                email=email,
+                mot_de_passe=make_password(None),
+                est_verifie=True,
+                telephone='',
+                nom_structure=nom_structure,
+                type_structure=type_structure,
+            )
+        else:
+            utilisateur = Candidat.objects.create(
+                nom=nom,
+                prenom=prenom,
+                email=email,
+                mot_de_passe=make_password(None),
+                est_verifie=True,
+                telephone='',
+            )
+
+        refresh = RefreshToken.for_user(utilisateur)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'role': utilisateur.role,
+            'user': UtilisateurSerializer(utilisateur).data,
+        })
+
+

@@ -1,6 +1,7 @@
 // lib/features/auth/providers/auth_providers.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../data/auth_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/models/auth_state.dart';
@@ -134,6 +135,99 @@ class AuthNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         role:   auth.role,
         userId: auth.userId,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status:       AuthStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  // ── Google login ───────────────────────────────────────────────────────────
+  Future<void> loginWithGoogle() async {
+    state = state.copyWith(status: AuthStatus.loading);
+    try {
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email'],
+        serverClientId: '39485857347-uisgnsfairc8gu33kuf1v9cv7uhr4dqk.apps.googleusercontent.com',
+      );
+
+      await googleSignIn.signOut(); // TODO: remove this line //i added it to force the sign out on every launch
+      final account = await googleSignIn.signIn();
+
+      if (account == null) {
+        // User cancelled the picker — go back to unauthenticated silently.
+        state = state.copyWith(status: AuthStatus.unauthenticated);
+        return;
+      }
+
+      final googleAuth = await account.authentication;
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Impossible de récupérer le token Google.');
+      }
+
+      final json = await _repo.loginWithGoogleRaw(idToken);
+
+      if (json['requires_role_selection'] == true) {
+        // New user — park on role selection screen.
+        state = state.copyWith(
+          status: AuthStatus.pendingRoleSelection,
+          pendingGoogleUser: {
+            'email':  json['email']  as String,
+            'nom':    json['nom']    as String,
+            'prenom': json['prenom'] as String,
+          },
+        );
+      } else {
+        // Existing user — save tokens and authenticate.
+        final auth = await _repo.saveRegisterResponse(json);
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          role:   auth.role,
+          userId: auth.userId,
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        status:       AuthStatus.error,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  // ── Complete Google sign-up (after role selection) ──────────────────────────
+  Future<void> completeGoogleSignUp({
+    required String role,
+    String? nomStructure,
+    String? typeStructure,
+  }) async {
+    final pending = state.pendingGoogleUser;
+    if (pending == null) {
+      state = state.copyWith(
+        status:       AuthStatus.error,
+        errorMessage: 'Données Google manquantes.',
+      );
+      return;
+    }
+
+    state = state.copyWith(status: AuthStatus.loading);
+    try {
+      final auth = await _repo.completeGoogleSignUp(
+        email:         pending['email']!,
+        nom:           pending['nom']!,
+        prenom:        pending['prenom']!,
+        role:          role,
+        nomStructure:  nomStructure,
+        typeStructure: typeStructure,
+      );
+      state = state.copyWith(
+        status:            AuthStatus.authenticated,
+        role:              auth.role,
+        userId:            auth.userId,
+        pendingGoogleUser: null,
       );
     } catch (e) {
       state = state.copyWith(

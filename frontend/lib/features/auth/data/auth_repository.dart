@@ -76,6 +76,47 @@ class AuthRepository {
     }
   }
 
+  // ── Google login (raw) ───────────────────────────────────────────────────────
+  /// Returns raw JSON so the notifier can check for `requires_role_selection`.
+  Future<Map<String, dynamic>> loginWithGoogleRaw(String idToken) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.googleLogin,
+        data: {'token': idToken},
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(_friendlyError(e));
+    }
+  }
+
+  // ── Complete Google sign-up ─────────────────────────────────────────────────
+  Future<AuthResponse> completeGoogleSignUp({
+    required String email,
+    required String nom,
+    required String prenom,
+    required String role,
+    String? nomStructure,
+    String? typeStructure,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.googleComplete,
+        data: {
+          'email': email,
+          'nom': nom,
+          'prenom': prenom,
+          'role': role,
+          if (nomStructure != null)  'nom_structure': nomStructure,
+          if (typeStructure != null) 'type_structure': typeStructure,
+        },
+      );
+      return _saveAndReturn(response.data);
+    } on DioException catch (e) {
+      throw Exception(_friendlyError(e));
+    }
+  }
+
   // ── Logout ─────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     try {

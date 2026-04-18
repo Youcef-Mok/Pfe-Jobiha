@@ -14,6 +14,10 @@ urlpatterns = [
     path('auth/logout', views.LogoutView.as_view(), name='logout'),
     path('auth/token/refresh', views.CustomTokenRefreshView.as_view(), name='token-refresh'),
     path('auth/password/change', views.ChangePasswordView.as_view(), name='change-password'),
+    path('auth/verify-email', views.VerifyEmailView.as_view(), name='verify-email'),
+    path('auth/resend-otp', views.ResendOtpView.as_view(), name='resend-otp'),
+    path('auth/google', views.GoogleLoginView.as_view(), name='google-login'),
+    path('auth/google/complete', views.GoogleCompleteView.as_view(), name='google-complete'),
 
     # --- Users ---
     path('users/me', views.UserMeView.as_view(), name='user-me'),

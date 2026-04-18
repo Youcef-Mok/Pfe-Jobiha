@@ -60,6 +60,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // Navigate based on role returned by backend.
         final route = next.role == 'candidat' ? '/home-candidat' : '/home-recruteur';
         Navigator.pushReplacementNamed(context, route);
+      } else if (next.status == AuthStatus.pendingRoleSelection) {
+        Navigator.pushNamed(context, '/signup');
       } else if (next.status == AuthStatus.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.errorMessage ?? 'Identifiants invalides')),
@@ -212,7 +214,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         SocialLoginButton(
                           fallbackIcon: Icons.g_mobiledata,
                           color: const Color(0xFFDB4437),
-                          onTap: () {},
+                          onTap: isLoading
+                              ? () {}
+                              : () => ref.read(authProvider.notifier).loginWithGoogle(),
                         ),
                         const SizedBox(width: 16),
                         SocialLoginButton(

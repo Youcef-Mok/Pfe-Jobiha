@@ -3,3 +3,4 @@ from .administrateur import Administrateur
 from .candidat import Candidat
 from .recruteur import Recruteur
 from .disponibilite import Disponibilite
+from .otp import EmailOTP
