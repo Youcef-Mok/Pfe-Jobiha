@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_providers.dart';
 
-class PreferencesScreen extends StatefulWidget {
+class PreferencesScreen extends ConsumerStatefulWidget {
   const PreferencesScreen({super.key});
 
   @override
-  State<PreferencesScreen> createState() => _PreferencesScreenState();
+  ConsumerState<PreferencesScreen> createState() => _PreferencesScreenState();
 }
 
-class _PreferencesScreenState extends State<PreferencesScreen> {
+class _PreferencesScreenState extends ConsumerState<PreferencesScreen> {
   // ── Constants ─────────────────────────────────────────────────────────────
   static const Color _primary = Color(0xFF3A1B5E);
   static const Color _accent  = Color(0xFF6B35D9);
@@ -40,8 +42,11 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 
   // ── Submit ────────────────────────────────────────────────────────────────
   void _handleTerminer() {
-    // TODO: persist preferences & navigate to home / dashboard
-    Navigator.pushNamedAndRemoveUntil(context, '/welcome', (_) => false);
+    // TODO: persist preferences before navigating
+
+    final role = ref.read(authProvider).role;
+    final route = role == 'recruteur' ? '/home-recruteur' : '/home-candidat';
+    Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -320,7 +325,6 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card header
           Row(
             children: [
               Icon(icon, color: _primary, size: 22),

@@ -145,34 +145,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   // ── Google login ───────────────────────────────────────────────────────────
+  // FIX: removed forced googleSignIn.signOut() that was causing loading on every tap
   Future<void> loginWithGoogle() async {
-    state = state.copyWith(status: AuthStatus.loading);
     try {
       final googleSignIn = GoogleSignIn(
         scopes: ['email'],
         serverClientId: '39485857347-uisgnsfairc8gu33kuf1v9cv7uhr4dqk.apps.googleusercontent.com',
       );
-
-      await googleSignIn.signOut(); // TODO: remove this line //i added it to force the sign out on every launch
+ 
       final account = await googleSignIn.signIn();
-
+ 
       if (account == null) {
-        // User cancelled the picker — go back to unauthenticated silently.
+        // User cancelled — stay unauthenticated silently, no loading flash
         state = state.copyWith(status: AuthStatus.unauthenticated);
         return;
       }
-
+ 
+      // Only set loading AFTER the user has picked an account
+      state = state.copyWith(status: AuthStatus.loading);
+ 
       final googleAuth = await account.authentication;
       final idToken = googleAuth.idToken;
-
+ 
       if (idToken == null) {
         throw Exception('Impossible de récupérer le token Google.');
       }
-
+ 
       final json = await _repo.loginWithGoogleRaw(idToken);
-
+ 
       if (json['requires_role_selection'] == true) {
-        // New user — park on role selection screen.
         state = state.copyWith(
           status: AuthStatus.pendingRoleSelection,
           pendingGoogleUser: {
@@ -182,7 +183,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           },
         );
       } else {
-        // Existing user — save tokens and authenticate.
         final auth = await _repo.saveRegisterResponse(json);
         state = state.copyWith(
           status: AuthStatus.authenticated,

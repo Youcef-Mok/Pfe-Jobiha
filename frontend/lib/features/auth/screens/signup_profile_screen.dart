@@ -390,7 +390,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
           actions: [_dialogButton('Enregistrer', () {
             final text = ctrl.text.trim();
             if (text.isEmpty) { setS(() => error = 'Ce champ est obligatoire'); return; }
-            if (text.length < 10) { setS(() => error = 'Minimum 10 caractères'); return; }
+            if (text.length > 10) { setS(() => error = 'Minimum 10 caractères'); return; }
             setState(() => _description = text);
             Navigator.pop(ctx);
           })],
@@ -605,6 +605,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
+                  // Merged: save profile data (HEAD) then navigate to /preferences (Feriel)
                   onPressed: isSaving ? null : () async {
                     if (_skills.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -619,7 +620,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
                           : '',
                     );
                     if (success && mounted) {
-                      Navigator.pushReplacementNamed(context, '/home-candidat');
+                      Navigator.pushNamed(context, '/preferences');
                     }
                   },
                   style: ElevatedButton.styleFrom(

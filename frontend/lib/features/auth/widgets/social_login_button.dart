@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 class SocialLoginButton extends StatelessWidget {
   final IconData fallbackIcon;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap; // nullable so disabled state works
+  final bool isLoading;
 
   const SocialLoginButton({
     super.key,
     required this.fallbackIcon,
     required this.color,
     required this.onTap,
+    this.isLoading = false,
   });
 
   @override
@@ -22,7 +24,7 @@ class SocialLoginButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: color.withValues(alpha: 0.4),
+            color: color.withValues(alpha: onTap == null ? 0.2 : 0.4),
             width: 1.5,
           ),
           color: Colors.white,
@@ -35,7 +37,20 @@ class SocialLoginButton extends StatelessWidget {
           ],
         ),
         child: Center(
-          child: Icon(fallbackIcon, color: color, size: 24),
+          child: isLoading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: color,
+                  ),
+                )
+              : Icon(
+                  fallbackIcon,
+                  color: color.withValues(alpha: onTap == null ? 0.3 : 1.0),
+                  size: 24,
+                ),
         ),
       ),
     );

@@ -23,6 +23,8 @@ import 'package:job_app/features/settings/screens/blocked_users_screen.dart';
 import 'package:job_app/features/settings/screens/help_center_screen.dart';
 import 'package:job_app/features/settings/screens/privacy_policy_screen.dart';
 import 'package:job_app/features/settings/screens/terms_conditions_screen.dart';
+import 'package:job_app/features/auth/screens/preferences_screen.dart';
+
 
 // ── Placeholder home screens (replace with real screens when ready) ─────────
 class _CandidatHomeScreen extends StatelessWidget {
@@ -74,7 +76,7 @@ class App extends StatelessWidget {
        '/help-center':          (context) => const HelpCenterScreen(),
        '/privacy-policy':       (context) => const PrivacyPolicyScreen(),
        '/terms-conditions':     (context) => const TermsConditionsScreen(),
-
+       '/preferences':          (context) => const PreferencesScreen(),
 
 
 
