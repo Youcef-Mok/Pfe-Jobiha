@@ -15,6 +15,7 @@ class MissionModel {
   final String recruiterFeedback;
   final String status;
   final String? summary;
+  final String? imageUrl;
   final List<MissionMemberModel> team;
 
   const MissionModel({
@@ -33,6 +34,7 @@ class MissionModel {
     required this.status,
     required this.team,
     this.summary,
+    this.imageUrl,
   });
 
   factory MissionModel.fromJson(Map<String, dynamic> json) => MissionModel(
@@ -50,6 +52,7 @@ class MissionModel {
         recruiterFeedback: json['recruiter_feedback'] as String,
         status: json['status'] as String,
         summary: json['summary'] as String?,
+        imageUrl: json['image_url'] as String?,
         team: (json['team'] as List<dynamic>?)
                 ?.map((e) => MissionMemberModel.fromJson(e as Map<String, dynamic>))
                 .toList() ??
@@ -71,6 +74,7 @@ class MissionModel {
         'recruiter_feedback': recruiterFeedback,
         'status': status,
         'summary': summary,
+        'image_url': imageUrl,
         'team': team.map((e) => e.toJson()).toList(),
       };
 
@@ -89,6 +93,7 @@ class MissionModel {
         recruiterFeedback: recruiterFeedback,
         status: status,
         summary: summary,
+        imageUrl: imageUrl,
         team: team.map((e) => e.toEntity()).toList(),
       );
 
@@ -107,6 +112,7 @@ class MissionModel {
         recruiterFeedback: entity.recruiterFeedback,
         status: entity.status,
         summary: entity.summary,
+        imageUrl: entity.imageUrl,
         team: entity.team.map((e) => MissionMemberModel.fromEntity(e)).toList(),
       );
 }
@@ -115,11 +121,13 @@ class MissionMemberModel {
   final String name;
   final String role;
   final double rating;
+  final String? avatarUrl;
 
   const MissionMemberModel({
     required this.name,
     required this.role,
     required this.rating,
+    this.avatarUrl,
   });
 
   factory MissionMemberModel.fromJson(Map<String, dynamic> json) =>
@@ -127,18 +135,21 @@ class MissionMemberModel {
         name: json['name'] as String,
         role: json['role'] as String,
         rating: (json['rating'] as num).toDouble(),
+        avatarUrl: json['avatar_url'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'role': role,
         'rating': rating,
+        'avatar_url': avatarUrl,
       };
 
   MissionMemberEntity toEntity() => MissionMemberEntity(
         name: name,
         role: role,
         rating: rating,
+        avatarUrl: avatarUrl,
       );
 
   factory MissionMemberModel.fromEntity(MissionMemberEntity entity) =>
@@ -146,5 +157,6 @@ class MissionMemberModel {
         name: entity.name,
         role: entity.role,
         rating: entity.rating,
+        avatarUrl: entity.avatarUrl,
       );
 }

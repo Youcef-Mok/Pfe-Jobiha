@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class MissionEntity {
   final String id;
   final String jobTitle;
@@ -15,6 +13,7 @@ class MissionEntity {
   final String candidateFeedback;
   final String recruiterFeedback;
   final String? summary;
+  final String? imageUrl;
   final List<MissionMemberEntity> team;
 
   const MissionEntity({
@@ -32,6 +31,7 @@ class MissionEntity {
     this.candidateFeedback = '',
     this.recruiterFeedback = '',
     this.summary,
+    this.imageUrl,
     this.team = const [],
   });
 
@@ -42,11 +42,13 @@ class MissionMemberEntity {
   final String name;
   final String role;
   final double rating;
+  final String? avatarUrl;
 
   const MissionMemberEntity({
     required this.name,
     required this.role,
     required this.rating,
+    this.avatarUrl,
   });
 }
 

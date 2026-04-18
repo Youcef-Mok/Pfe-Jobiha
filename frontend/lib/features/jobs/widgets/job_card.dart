@@ -12,6 +12,7 @@ class JobCard extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onViewCandidates;
   final VoidCallback? onComplete;
+  final VoidCallback? onTap;
 
   const JobCard({
     super.key,
@@ -19,6 +20,7 @@ class JobCard extends StatelessWidget {
     this.onEdit,
     this.onViewCandidates,
     this.onComplete,
+    this.onTap,
   });
 
   @override
@@ -36,14 +38,21 @@ class JobCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Opacity(
-        opacity: job.isDraft ? 0.71 : 1.0,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildTopSection(),
-            _buildBottomActions(),
-          ],
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Opacity(
+            opacity: job.isDraft ? 0.71 : 1.0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTopSection(),
+                _buildBottomActions(),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -64,6 +73,9 @@ class JobCard extends StatelessWidget {
   }
 
   Widget _buildLogo() {
+    final hasImage = job.logoAsset != null;
+    final isNetwork = hasImage && job.logoAsset!.startsWith('http');
+
     return Container(
       width: 64,
       height: 64,
@@ -77,16 +89,27 @@ class JobCard extends StatelessWidget {
             offset: Offset(0, 1),
           ),
         ],
-        image: job.logoAsset != null
-            ? DecorationImage(
-                image: AssetImage(job.logoAsset!),
-                fit: BoxFit.cover,
-              )
-            : null,
       ),
-      child: job.logoAsset == null
-          ? const Icon(Icons.business, color: AppColors.slate400, size: 28)
-          : null,
+      child: hasImage
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: isNetwork
+                  ? Image.network(
+                      job.logoAsset!,
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.business, color: AppColors.slate400, size: 28),
+                    )
+                  : Image.asset(
+                      job.logoAsset!,
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                    ),
+            )
+          : const Icon(Icons.business, color: AppColors.slate400, size: 28),
     );
   }
 
@@ -113,9 +136,8 @@ class JobCard extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         // Métriques
-        if (!job.isDraft && job.status != JobStatus.searching) _buildMetrics(),
+        if (!job.isDraft) _buildMetrics(),
         if (job.isDraft) _buildDraftInfo(),
-        if (job.status == JobStatus.searching) _buildSearchingInfo(),
       ],
     );
   }
@@ -146,16 +168,6 @@ class JobCard extends StatelessWidget {
         const Icon(Icons.lock_outline, size: 12, color: AppColors.slate400),
         const SizedBox(width: 4),
         Text('Non publiée', style: AppTextStyles.captionLight),
-      ],
-    );
-  }
-
-  Widget _buildSearchingInfo() {
-    return Row(
-      children: [
-        const Icon(Icons.hourglass_bottom, size: 12, color: AppColors.searchingText),
-        const SizedBox(width: 4),
-        Text('En recherche de candidats', style: AppTextStyles.captionLight),
       ],
     );
   }
@@ -239,7 +251,7 @@ class _StatusBadge extends StatelessWidget {
     final (bg, textColor, label) = switch (status) {
       JobStatus.draft => (AppColors.draftBg, AppColors.draftText, 'BROUILLON'),
       JobStatus.closed => (AppColors.draftBg, AppColors.draftText, 'FERMÉ'),
-      JobStatus.searching => (AppColors.searchingBg, AppColors.searchingText, 'EN RECHERCHE'),
+      JobStatus.searching => (AppColors.violet, Colors.white, 'EN RECHERCHE'),
     };
 
     return Container(

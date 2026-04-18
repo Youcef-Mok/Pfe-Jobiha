@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/auth/screens/welcome_screen.dart';
 import 'package:job_app/features/auth/screens/login_screen.dart';
 import 'package:job_app/features/auth/screens/signup_role_screen.dart';
@@ -26,6 +27,16 @@ import 'package:job_app/features/settings/screens/terms_conditions_screen.dart';
 import 'package:job_app/features/auth/screens/preferences_screen.dart';
 
 
+
+
+
+import 'package:job_app/features/messaging/screens/chat_list_screen.dart';
+import 'package:job_app/features/messaging/screens/chat_screen.dart';
+import 'package:job_app/features/notifications/screens/candidate_notifications_screen.dart';
+import 'package:job_app/features/notifications/screens/notifications_screen.dart';
+
+
+
 // ── Placeholder home screens (replace with real screens when ready) ─────────
 class _CandidatHomeScreen extends StatelessWidget {
   const _CandidatHomeScreen();
@@ -35,7 +46,6 @@ class _CandidatHomeScreen extends StatelessWidget {
     body: const Center(child: Text('Bienvenue, candidat! 🎉')),
   );
 }
-
 
 
 class App extends StatelessWidget {
@@ -77,7 +87,9 @@ class App extends StatelessWidget {
        '/privacy-policy':       (context) => const PrivacyPolicyScreen(),
        '/terms-conditions':     (context) => const TermsConditionsScreen(),
        '/preferences':          (context) => const PreferencesScreen(),
-
+       '/messages':                   (context) => const ChatListScreen(),
+       '/candidate-notifications':    (context) => const CandidateNotificationsScreen(),
+       '/recruiter-notifications':    (context) => const NotificationsScreen(),
 
 
 
@@ -91,5 +103,4 @@ class App extends StatelessWidget {
     );
   }
 }
-
 

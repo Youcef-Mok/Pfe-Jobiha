@@ -21,14 +21,11 @@ dependencies:
   # Formatting
   intl: ^0.19.0
 
-  # Fonts
-  google_fonts: ^6.2.1
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # Code generation Riverpod (optionnel, pour la v2 avec annotations)
+  # Code generation
   riverpod_generator: ^2.4.0
   build_runner: ^2.4.9
 

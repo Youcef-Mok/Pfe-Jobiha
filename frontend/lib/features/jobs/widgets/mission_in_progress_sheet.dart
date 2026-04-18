@@ -31,7 +31,7 @@ class MissionInProgressSheet extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -43,14 +43,15 @@ class MissionInProgressSheet extends StatelessWidget {
               padding: const EdgeInsets.only(top: 8),
               child: _InProgressMissionView(mission: mission),
             ),
-            
+
             // Bouton fermer (croix)
             Positioned(
-              top: 16,
-              right: 16,
+              top: 3,
+              right: 7,
               child: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: AppColors.slate400, size: 20),
+                icon: const Icon(Icons.close,
+                    color: AppColors.slate400, size: 20),
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.slate100,
                   padding: const EdgeInsets.all(8),
@@ -90,8 +91,7 @@ class _MissionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateRange =
-        '${_fmt(mission.startDate)} — ${_fmt(mission.endDate)}';
+    final dateRange = '${_fmt(mission.startDate)} — ${_fmt(mission.endDate)}';
 
     return SizedBox(
       height: 153,
@@ -103,7 +103,6 @@ class _MissionHeader extends StatelessWidget {
             left: 9.75,
             child: _StatusBadge(status: mission.status),
           ),
-
           Positioned(
             top: 41,
             left: 8,
@@ -114,11 +113,22 @@ class _MissionHeader extends StatelessWidget {
                 color: AppColors.slate100,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.restaurant,
-                  size: 32, color: AppColors.slate400),
+              child: mission.imageUrl != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        mission.imageUrl!,
+                        width: 75,
+                        height: 75,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.restaurant, size: 32, color: AppColors.slate400),
+                      ),
+                    )
+                  : const Icon(Icons.restaurant,
+                      size: 32, color: AppColors.slate400),
             ),
           ),
-
           Positioned(
             top: 35,
             left: 104,
@@ -136,7 +146,6 @@ class _MissionHeader extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-
           Positioned(
             top: 67, // Ajusté pour le titre en 24px
             left: 104,
@@ -158,7 +167,6 @@ class _MissionHeader extends StatelessWidget {
               ],
             ),
           ),
-
           Positioned(
             top: 87,
             left: 104,
@@ -180,7 +188,6 @@ class _MissionHeader extends StatelessWidget {
               ],
             ),
           ),
-
           Positioned(
             top: 107,
             left: 104,
@@ -207,8 +214,7 @@ class _MissionHeader extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) =>
-      DateFormat('d MMM yyyy', 'fr_FR').format(d);
+  String _fmt(DateTime d) => DateFormat('d MMM yyyy', 'fr_FR').format(d);
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -258,14 +264,11 @@ class _MissionBody extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-
           ...mission.team.map((m) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _EmployeeCard(member: m),
               )),
-
           const SizedBox(height: 16),
-
           SizedBox(
             width: double.infinity,
             height: 56,
@@ -335,17 +338,37 @@ class _EmployeeCard extends StatelessWidget {
                   color: AppColors.slate100,
                   shape: BoxShape.circle,
                 ),
-                child: Center(
-                  child: Text(
-                    member.name[0],
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      color: AppColors.violet,
-                    ),
-                  ),
-                ),
+                child: member.avatarUrl != null
+                    ? ClipOval(
+                        child: Image.network(
+                          member.avatarUrl!,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              member.name[0],
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 20,
+                                color: AppColors.violet,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          member.name[0],
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                            color: AppColors.violet,
+                          ),
+                        ),
+                      ),
               ),
               Positioned(
                 right: 0,
@@ -418,7 +441,8 @@ class _EmployeeCard extends StatelessWidget {
               color: AppColors.slate100,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.chat_bubble_outline, size: 20, color: Color(0xFF513376)),
+            child: const Icon(Icons.chat_bubble_outline,
+                size: 20, color: Color(0xFF513376)),
           ),
         ],
       ),

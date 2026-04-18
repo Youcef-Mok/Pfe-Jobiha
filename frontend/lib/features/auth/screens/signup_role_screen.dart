@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/auth_logo.dart';
+import '../widgets/auth_header.dart';
 
 class SignupRoleScreen extends StatefulWidget {
   const SignupRoleScreen({super.key});
@@ -16,96 +18,69 @@ class _SignupRoleScreenState extends State<SignupRoleScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
+        child: Column(
+          children: [
+            AuthHeader(onBackPressed: () => Navigator.pop(context)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                child: Column(
+                  children: [
+                    const Spacer(flex: 1),
 
-              // ── Back arrow + Logo ─────────────────────────────────────
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, size: 18),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                  ),
-                  const Spacer(),
-                  const Row(
-                    children: [
-                      Icon(Icons.directions_walk,
-                          color: Color(0xFF6B35D9), size: 20),
-                      SizedBox(width: 4),
-                      Text(
-                        'Jobiha',
-                        style: TextStyle(
-                          color: Color(0xFF6B35D9),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                    _RoleCard(
+                      title: 'Recruteur',
+                      subtitle: 'Recrute des employés\nresponsables et compétents',
+                      icon: Icons.work_outline,
+                      isSelected: _selectedRole == 'recruteur',
+                      onTap: () => setState(() => _selectedRole = 'recruteur'),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    _RoleCard(
+                      title: 'Employé',
+                      subtitle: 'Trouve un job qui te convient\nrapidement et facilement',
+                      icon: Icons.person_outline,
+                      isSelected: _selectedRole == 'employe',
+                      onTap: () => setState(() => _selectedRole = 'employe'),
+                    ),
+
+                    const Spacer(flex: 2),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _selectedRole == null
+                            ? null
+                            : () {
+                                Navigator.pushNamed(context, '/signup-form',
+                                    arguments: _selectedRole);
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3A1B5E),
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Continuer →',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                       ),
-                    ],
-                  ),
-                  const Spacer(),
-                  const SizedBox(width: 40),
-                ],
-              ),
-
-              const Spacer(flex: 1),
-
-              // ── Role cards ────────────────────────────────────────────
-              _RoleCard(
-                title: 'Recruteur',
-                subtitle: 'Recrute des employés\nresponsables et compétents',
-                icon: Icons.work_outline,
-                isSelected: _selectedRole == 'recruteur',
-                onTap: () => setState(() => _selectedRole = 'recruteur'),
-              ),
-
-              const SizedBox(height: 20),
-
-              _RoleCard(
-                title: 'Employé',
-                subtitle: 'Trouve un job qui te convient\nrapidement et facilement',
-                icon: Icons.person_outline,
-                isSelected: _selectedRole == 'employe',
-                onTap: () => setState(() => _selectedRole = 'employe'),
-              ),
-
-              const Spacer(flex: 2),
-
-              // ── Continuer button ──────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  // Only active when a role is selected
-                  onPressed: _selectedRole == null
-                      ? null
-                      : () {
-                          Navigator.pushNamed(context, '/signup-form',
-                              arguments: _selectedRole);
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3A1B5E),
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
                     ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Continuer →',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
+
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: 32),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

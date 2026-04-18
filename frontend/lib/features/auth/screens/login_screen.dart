@@ -1,14 +1,14 @@
 // lib/features/auth/screens/login_screen.dart
-// Replace your existing _handleSignIn and add ConsumerStatefulWidget.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
 import '../data/models/auth_state.dart';
 import '../widgets/social_login_button.dart';
+import '../widgets/auth_logo.dart';
+import '../widgets/auth_header.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-// Change StatefulWidget → ConsumerStatefulWidget
-// Change State         → ConsumerState
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -29,12 +29,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  // ── Watch auth state and react to changes ──────────────────────────────────
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // We use a listener (see build) instead of reacting here so we can
-    // show SnackBars and navigate from the correct context.
   }
 
   void _handleSignIn() {
@@ -54,10 +51,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ── Listen for auth state changes ──────────────────────────────────────
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
-        // Navigate based on role returned by backend.
         final route = next.role == 'candidat' ? '/home-candidat' : '/home-recruteur';
         Navigator.pushReplacementNamed(context, route);
       } else if (next.status == AuthStatus.pendingRoleSelection) {
@@ -77,34 +72,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // ── Use the reusable AuthHeader widget (from Feriel) ──────────
+            AuthHeader(onBackPressed: () => Navigator.pop(context)),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 28.0),
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back_ios, size: 18),
-                          onPressed: () => Navigator.pop(context),
-                          padding: EdgeInsets.zero,
-                        ),
-                        const Spacer(),
-                        const Row(children: [
-                          Icon(Icons.directions_walk, color: Color(0xFF6B35D9), size: 20),
-                          SizedBox(width: 4),
-                          Text('Jobiha',
-                              style: TextStyle(
-                                  color: Color(0xFF6B35D9),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16)),
-                        ]),
-                        const Spacer(),
-                        const SizedBox(width: 40),
-                      ],
-                    ),
                     const SizedBox(height: 32),
                     const Center(
                       child: Text('Sign in',
@@ -145,7 +120,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           value: _keepMeSignedIn,
                           onChanged: (val) =>
                               setState(() => _keepMeSignedIn = val ?? false),
-                          activeColor: const Color(0xFF6B35D9),
+                          activeColor: const Color(0xFF3A1B5E),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(4)),
                         ),
@@ -196,7 +171,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
                           child: Text('Continuer avec',
-                              style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 12)),
                         ),
                         Expanded(child: Divider()),
                       ],
@@ -205,12 +181,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SocialLoginButton(
-                          fallbackIcon: Icons.facebook,
-                          color: const Color(0xFF1877F2),
+                        _socialButton(
+                          icon: const FaIcon(FontAwesomeIcons.facebook,
+                              color: Color(0xFF1877F2), size: 22),
                           onTap: () {},
                         ),
                         const SizedBox(width: 16),
+                        // ── Google: use SocialLoginButton with real handler ──
                         SocialLoginButton(
                           fallbackIcon: Icons.g_mobiledata,
                           color: const Color(0xFFDB4437),
@@ -219,9 +196,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : () => ref.read(authProvider.notifier).loginWithGoogle(),
                         ),
                         const SizedBox(width: 16),
-                        SocialLoginButton(
-                          fallbackIcon: Icons.alternate_email,
-                          color: const Color(0xFF1DA1F2),
+                        _socialButton(
+                          icon: const FaIcon(FontAwesomeIcons.twitter,
+                              color: Color(0xFF1DA1F2), size: 22),
                           onTap: () {},
                         ),
                       ],
@@ -242,7 +219,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onTap: () => Navigator.pushNamed(context, '/signup'),
                     child: const Text('Sign up',
                         style: TextStyle(
-                            color: Color(0xFF6B35D9),
+                            color: Color(0xFF3A1B5E),
                             fontWeight: FontWeight.bold,
                             fontSize: 13)),
                   ),
@@ -281,6 +258,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 16),
         ),
+      ),
+    );
+  }
+
+  Widget _socialButton({required Widget icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade200, width: 1.5),
+        ),
+        child: Center(child: icon),
       ),
     );
   }

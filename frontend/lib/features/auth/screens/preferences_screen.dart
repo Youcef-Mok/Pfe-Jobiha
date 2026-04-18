@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
+import '../widgets/auth_logo.dart';
+import '../widgets/auth_header.dart';
 
 class PreferencesScreen extends ConsumerStatefulWidget {
   const PreferencesScreen({super.key});
@@ -53,37 +55,14 @@ class _PreferencesScreenState extends ConsumerState<PreferencesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top bar ────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, size: 18),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                  ),
-                  const Spacer(),
-                  Row(children: [
-                    Icon(Icons.directions_walk, color: _accent, size: 20),
-                    const SizedBox(width: 4),
-                    Text('Jobiha',
-                        style: TextStyle(
-                            color: _accent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16)),
-                  ]),
-                  const Spacer(),
-                  const SizedBox(width: 40),
-                ],
-              ),
-            ),
+            AuthHeader(onBackPressed: () => Navigator.pop(context)),
 
             // ── Title ─────────────────────────────────────────────────────
+            const SizedBox(height: 24),
             const Text(
               'Vos Préférences',
               style: TextStyle(

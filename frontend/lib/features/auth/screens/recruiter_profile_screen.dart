@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
+import '../widgets/auth_logo.dart';
+import '../widgets/auth_header.dart';
 
 // ── Data Models ───────────────────────────────────────────────────────────────
 
@@ -384,36 +386,13 @@ class _RecruiterProfileScreenState extends ConsumerState<RecruiterProfileScreen>
     final isSaving = profileState is AsyncLoading;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F5FF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, size: 18),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                  ),
-                  const Spacer(),
-                  Row(children: [
-                    Icon(Icons.directions_walk, color: primaryColor, size: 20),
-                    const SizedBox(width: 4),
-                    Text('Jobiha',
-                        style: TextStyle(
-                            color: primaryColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16)),
-                  ]),
-                  const Spacer(),
-                  const SizedBox(width: 40),
-                ],
-              ),
-            ),
+            AuthHeader(onBackPressed: () => Navigator.pop(context)),
 
+            const SizedBox(height: 24),
             const Text(
               'Complétez votre profil',
               style: TextStyle(
