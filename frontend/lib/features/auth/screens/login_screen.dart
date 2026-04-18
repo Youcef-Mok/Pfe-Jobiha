@@ -182,7 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _socialButton(
-                          icon: const FaIcon(FontAwesomeIcons.facebook,
+                          icon: FaIcon(FontAwesomeIcons.facebook,
                               color: Color(0xFF1877F2), size: 22),
                           onTap: () {},
                         ),
@@ -197,7 +197,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(width: 16),
                         _socialButton(
-                          icon: const FaIcon(FontAwesomeIcons.twitter,
+                          icon: FaIcon(FontAwesomeIcons.twitter,
                               color: Color(0xFF1DA1F2), size: 22),
                           onTap: () {},
                         ),

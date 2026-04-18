@@ -13,6 +13,7 @@ dependencies:
   dio: ^5.4.0
   flutter_secure_storage: ^9.2.2
   google_sign_in: ^6.2.1
+  font_awesome_flutter: ^10.7.0
 
   # State management
   flutter_riverpod: ^2.5.1
