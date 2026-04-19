@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:job_app/core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 
-/// Tabs de navigation du profil (All, Active Jobs, Brouillons).
+/// Tabs de navigation du profil : Annonces | Missions | CV | Reviews
 class ProfileTabs extends ConsumerWidget {
   const ProfileTabs({super.key});
 
@@ -11,40 +11,61 @@ class ProfileTabs extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedTab = ref.watch(profileTabProvider);
 
+    const tabs = [
+      (ProfileTab.annonces, 'Annonces'),
+      (ProfileTab.missions, 'Missions'),
+      (ProfileTab.competences, 'Compétences'),
+      (ProfileTab.reviews, 'Reviews'),
+    ];
+
     return Container(
       width: double.infinity,
-      height: 55,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 52.5,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: Color(0xFFF7F6F8),
         border: Border(
-          bottom: BorderSide(color: Color(0xFFE7E6E6)),
+          bottom: BorderSide(color: Color(0xFFE1E1E1)),
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _TabButton(
-            label: 'All',
-            isSelected: selectedTab == ProfileTab.all,
-            onTap: () =>
-                ref.read(profileTabProvider.notifier).state = ProfileTab.all,
-          ),
-          _TabButton(
-            label: 'Active jobs',
-            isSelected: selectedTab == ProfileTab.activeJobs,
-            onTap: () => ref.read(profileTabProvider.notifier).state =
-                ProfileTab.activeJobs,
-          ),
-          _TabButton(
-            label: 'Brouillons',
-            isSelected: selectedTab == ProfileTab.drafts,
-            onTap: () =>
-                ref.read(profileTabProvider.notifier).state = ProfileTab.drafts,
-          ),
-        ],
+        children: tabs.map((tab) {
+          final (value, label) = tab;
+          final isSelected = selectedTab == value;
+          return Expanded(
+            child: _TabButton(
+              label: label,
+              isSelected: isSelected,
+              onTap: () =>
+                  ref.read(profileTabProvider.notifier).state = value,
+            ),
+          );
+        }).toList(),
       ),
     );
+  }
+}
+
+/// Delegate pour rendre les onglets collants (sticky) dans un CustomScrollView/NestedScrollView
+class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  ProfileTabsDelegate({required this.child});
+
+  @override
+  double get minExtent => 52.5; // Hauteur fixe specifiee dans ProfileTabs
+
+  @override
+  double get maxExtent => 52.5;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant ProfileTabsDelegate oldDelegate) {
+    return false;
   }
 }
 
@@ -63,24 +84,25 @@ class _TabButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 16),
+        alignment: Alignment.center,
+        height: 51,
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: isSelected ? AppColors.violet : Colors.transparent,
+              color: isSelected ? const Color(0xFF401E66) : Colors.transparent,
               width: 3,
             ),
           ),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontFamily: 'Plus Jakarta Sans',
+          style: GoogleFonts.plusJakartaSans(
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 14,
+            fontSize: 13, // Slightly reduced to fit 'Compétences' perfectly
             height: 1.43,
-            color: isSelected ? AppColors.violet : AppColors.slate600,
+            color: isSelected ? const Color(0xFF401E66) : const Color(0xFF64748B),
           ),
         ),
       ),

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:job_app/core/theme/app_theme.dart';
+
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/widgets/profile_header.dart';
 import 'package:job_app/features/profile/widgets/profile_stats.dart';
 import 'package:job_app/features/profile/widgets/profile_tabs.dart';
-import 'package:job_app/features/profile/widgets/profile_jobs_section.dart';
+import 'package:job_app/features/profile/widgets/profile_annonces_section.dart';
+import 'package:job_app/features/profile/widgets/profile_missions_section.dart';
+import 'package:job_app/features/profile/widgets/profile_cv_section.dart';
 import 'package:job_app/features/profile/widgets/profile_reviews_section.dart';
+import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 
 /// Page profil du recruteur
 class ProfileScreen extends ConsumerWidget {
@@ -19,79 +22,64 @@ class ProfileScreen extends ConsumerWidget {
     final selectedTab = ref.watch(profileTabProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: userAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Text('Erreur: $error'),
-        ),
-        data: (user) => CustomScrollView(
-          slivers: [
-            // Header avec overlay blur
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: Colors.white.withValues(alpha: 0.95),
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: const Text(
-                'Profil',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: Color(0xFF0F172A),
+      backgroundColor: const Color(0xFFF7F6F8), // Fond explicite F7F6F8
+      body: SafeArea(
+        bottom: false,
+        child: userAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(child: Text('Erreur: $error')),
+          data: (user) => NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ProfileHeader(user: user),
+                    const SizedBox(height: 12),
+                    ProfileStats(user: user),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined,
-                      color: Color(0xFF0F172A)),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined,
-                      color: Color(0xFF0F172A)),
-                  onPressed: () {},
-                ),
-                const SizedBox(width: 16),
-              ],
-            ),
-
-            // Contenu principal
-            SliverToBoxAdapter(
-              child: Center(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 672),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 2,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      ProfileHeader(user: user),
-                      const SizedBox(height: 8),
-                      ProfileStats(user: user),
-                      const SizedBox(height: 12),
-                      const ProfileTabs(),
-                      ProfileJobsSection(selectedTab: selectedTab),
-                      const ProfileReviewsSection(),
-                    ],
-                  ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: ProfileTabsDelegate(
+                  child: const ProfileTabs(),
                 ),
               ),
-            ),
-          ],
+            ],
+            body: _TabContent(selectedTab: selectedTab),
+          ),
         ),
       ),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 4),
     );
+  }
+}
+
+class _TabContent extends StatelessWidget {
+  final ProfileTab selectedTab;
+  const _TabContent({required this.selectedTab});
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (selectedTab) {
+      ProfileTab.annonces  => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileAnnoncesSection()),
+      ProfileTab.missions  => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileMissionsSection()),
+      ProfileTab.competences  => const _CvBodyWrapper(),
+      ProfileTab.reviews   => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileReviewsSection()),
+    };
+  }
+}
+
+class _CvBodyWrapper extends StatelessWidget {
+  const _CvBodyWrapper();
+
+  @override
+  Widget build(BuildContext context) {
+    // On laisse ProfileCvSection occuper tout l'espace restant du NestedScrollView body.
+    // Cela permet au LayoutBuilder de ProfileCvSection de calculer précisément
+    // la hauteur disponible pour caler les cartes en bas de l'écran.
+    return const ProfileCvSection();
   }
 }

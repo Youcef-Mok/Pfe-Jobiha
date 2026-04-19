@@ -7,8 +7,8 @@ class JobModel {
   final String title;
   final String companyName;
   final String contractType; // "cdi" | "mission" | "freelance"
-  final String postedAt;     // ISO 8601 depuis l'API
-  final String status;       // "active" | "draft" | "closed"
+  final String postedAt; // ISO 8601 depuis l'API
+  final String status; // "active" | "draft" | "closed"
   final int candidateCount;
   final int viewCount;
   final String? logoAsset;
@@ -44,11 +44,13 @@ class JobModel {
         logoAsset: json['logo_asset'] as String?,
         isPublished: json['is_published'] as bool? ?? false,
         candidates: (json['candidates'] as List<dynamic>?)
-                ?.map((e) => JobCandidateModel.fromJson(e as Map<String, dynamic>))
+                ?.map((e) =>
+                    JobCandidateModel.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [],
         comments: (json['comments'] as List<dynamic>?)
-                ?.map((e) => JobCommentModel.fromJson(e as Map<String, dynamic>))
+                ?.map(
+                    (e) => JobCommentModel.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [],
       );
@@ -97,8 +99,11 @@ class JobModel {
         viewCount: entity.viewCount,
         logoAsset: entity.logoAsset,
         isPublished: entity.isPublished,
-        candidates: entity.candidates.map((e) => JobCandidateModel.fromEntity(e)).toList(),
-        comments: entity.comments.map((e) => JobCommentModel.fromEntity(e)).toList(),
+        candidates: entity.candidates
+            .map((e) => JobCandidateModel.fromEntity(e))
+            .toList(),
+        comments:
+            entity.comments.map((e) => JobCommentModel.fromEntity(e)).toList(),
       );
 
   static JobStatus _parseStatus(String value) => switch (value) {
@@ -132,7 +137,8 @@ class JobCandidateModel {
     this.avatarUrl,
   });
 
-  factory JobCandidateModel.fromJson(Map<String, dynamic> json) => JobCandidateModel(
+  factory JobCandidateModel.fromJson(Map<String, dynamic> json) =>
+      JobCandidateModel(
         initials: json['initials'] as String,
         name: json['name'] as String,
         role: json['role'] as String,
@@ -156,7 +162,8 @@ class JobCandidateModel {
         avatarUrl: avatarUrl,
       );
 
-  factory JobCandidateModel.fromEntity(JobCandidateEntity entity) => JobCandidateModel(
+  factory JobCandidateModel.fromEntity(JobCandidateEntity entity) =>
+      JobCandidateModel(
         initials: entity.initials,
         name: entity.name,
         role: entity.role,
@@ -184,7 +191,8 @@ class JobCommentModel {
     required this.reply,
   });
 
-  factory JobCommentModel.fromJson(Map<String, dynamic> json) => JobCommentModel(
+  factory JobCommentModel.fromJson(Map<String, dynamic> json) =>
+      JobCommentModel(
         initials: json['initials'] as String,
         authorName: json['authorName'] as String,
         date: json['date'] as String,
@@ -214,7 +222,8 @@ class JobCommentModel {
         reply: reply,
       );
 
-  factory JobCommentModel.fromEntity(JobCommentEntity entity) => JobCommentModel(
+  factory JobCommentModel.fromEntity(JobCommentEntity entity) =>
+      JobCommentModel(
         initials: entity.initials,
         authorName: entity.authorName,
         date: entity.date,
@@ -224,3 +233,4 @@ class JobCommentModel {
         reply: entity.reply,
       );
 }
+

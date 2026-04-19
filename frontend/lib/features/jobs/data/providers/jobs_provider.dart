@@ -7,7 +7,6 @@ import 'package:job_app/features/jobs/domain/jobs_controller.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository_mock.dart';
 
-
 // ─────────────────────────────────────────────
 // 1. Repository Provider
 //    → Swapper mock par l'implémentation réelle ici
@@ -98,30 +97,36 @@ final draftJobsProvider = Provider<List<JobEntity>>((ref) {
 });
 
 /// Combine Jobs and Missions for a unified view
-final combinedJobsAndMissionsProvider = Provider<AsyncValue<List<Object>>>((ref) {
+final combinedJobsAndMissionsProvider =
+    Provider<AsyncValue<List<Object>>>((ref) {
   final jobsAsync = ref.watch(jobsNotifierProvider);
   final missionsAsync = ref.watch(missionsNotifierProvider);
 
   // If both are data, merge them
-  if (jobsAsync is AsyncData<List<JobEntity>> && missionsAsync is AsyncData<List<MissionEntity>>) {
+  if (jobsAsync is AsyncData<List<JobEntity>> &&
+      missionsAsync is AsyncData<List<MissionEntity>>) {
     final jobs = jobsAsync.value;
     final missions = missionsAsync.value;
-    
+
     final combined = [...jobs, ...missions];
-    
+
     // Sort by date (newest first)
     combined.sort((a, b) {
-      final dateA = a is JobEntity ? a.postedAt : (a as MissionEntity).startDate;
-      final dateB = b is JobEntity ? b.postedAt : (b as MissionEntity).startDate;
+      final dateA =
+          a is JobEntity ? a.postedAt : (a as MissionEntity).startDate;
+      final dateB =
+          b is JobEntity ? b.postedAt : (b as MissionEntity).startDate;
       return dateB.compareTo(dateA);
     });
-    
+
     return AsyncValue.data(combined);
   }
 
   // Handle errors
-  if (jobsAsync.hasError) return AsyncValue.error(jobsAsync.error!, jobsAsync.stackTrace!);
-  if (missionsAsync.hasError) return AsyncValue.error(missionsAsync.error!, missionsAsync.stackTrace!);
+  if (jobsAsync.hasError)
+    return AsyncValue.error(jobsAsync.error!, jobsAsync.stackTrace!);
+  if (missionsAsync.hasError)
+    return AsyncValue.error(missionsAsync.error!, missionsAsync.stackTrace!);
 
   // Otherwise standard loading
   return const AsyncValue.loading();
@@ -143,12 +148,15 @@ class CreateJobFormNotifier extends StateNotifier<CreateJobForm> {
   final JobsController _controller;
   final Ref _ref;
 
-  CreateJobFormNotifier(this._controller, this._ref) : super(const CreateJobForm());
+  CreateJobFormNotifier(this._controller, this._ref)
+      : super(const CreateJobForm());
 
   void updateTitle(String v) => state = state.copyWith(title: v);
-  void updateContractType(ContractType v) => state = state.copyWith(contractType: v);
+  void updateContractType(ContractType v) =>
+      state = state.copyWith(contractType: v);
   void updateDescription(String v) => state = state.copyWith(description: v);
-  void updateCandidateCount(int? v) => state = state.copyWith(candidateCount: v);
+  void updateCandidateCount(int? v) =>
+      state = state.copyWith(candidateCount: v);
   void updateStartTime(TimeOfDay v) => state = state.copyWith(startTime: v);
   void updateEndTime(TimeOfDay v) => state = state.copyWith(endTime: v);
   void updateStartDate(DateTime v) => state = state.copyWith(startDate: v);
@@ -190,7 +198,8 @@ final createJobFormProvider =
 // ─────────────────────────────────────────────
 // 7. Submit Status Provider
 // ─────────────────────────────────────────────
-final submitStatusProvider = StateProvider<SubmitStatus>((ref) => SubmitStatus.idle);
+final submitStatusProvider =
+    StateProvider<SubmitStatus>((ref) => SubmitStatus.idle);
 
 // ─────────────────────────────────────────────
 // 8. Edit Job Form State
@@ -203,9 +212,11 @@ class EditJobFormNotifier extends StateNotifier<EditJobForm> {
       : super(EditJobForm.fromEntity(initial));
 
   void updateTitle(String v) => state = state.copyWith(title: v);
-  void updateContractType(ContractType v) => state = state.copyWith(contractType: v);
+  void updateContractType(ContractType v) =>
+      state = state.copyWith(contractType: v);
   void updateDescription(String v) => state = state.copyWith(description: v);
-  void updateCandidateCount(int? v) => state = state.copyWith(candidateCount: v);
+  void updateCandidateCount(int? v) =>
+      state = state.copyWith(candidateCount: v);
   void updateSalary(double? v) => state = state.copyWith(salary: v);
   void updateStartTime(TimeOfDay v) => state = state.copyWith(startTime: v);
   void updateEndTime(TimeOfDay v) => state = state.copyWith(endTime: v);
@@ -232,8 +243,8 @@ class EditJobFormNotifier extends StateNotifier<EditJobForm> {
 }
 
 // Provider paramétré par l'entité à éditer
-final editJobFormProvider = StateNotifierProviderFamily<EditJobFormNotifier,
-    EditJobForm, JobEntity>(
+final editJobFormProvider =
+    StateNotifierProviderFamily<EditJobFormNotifier, EditJobForm, JobEntity>(
   (ref, job) => EditJobFormNotifier(
     ref.watch(jobsControllerProvider),
     ref,
@@ -250,17 +261,11 @@ class MissionReviewNotifier extends StateNotifier<MissionReview> {
   MissionReviewNotifier(String missionId, this._ref)
       : super(MissionReview(missionId: missionId, rating: 0, comment: ''));
 
-  void setRating(int r) =>
-      state = MissionReview(
-          missionId: state.missionId,
-          rating: r,
-          comment: state.comment);
+  void setRating(int r) => state = MissionReview(
+      missionId: state.missionId, rating: r, comment: state.comment);
 
-  void setComment(String c) =>
-      state = MissionReview(
-          missionId: state.missionId,
-          rating: state.rating,
-          comment: c);
+  void setComment(String c) => state = MissionReview(
+      missionId: state.missionId, rating: state.rating, comment: c);
 
   /// Valide la fin de mission : soumet l'avis + met à jour le statut
   Future<bool> submit() async {
@@ -274,11 +279,12 @@ class MissionReviewNotifier extends StateNotifier<MissionReview> {
   }
 }
 
-final missionReviewProvider = StateNotifierProviderFamily<MissionReviewNotifier, MissionReview, String>(
+final missionReviewProvider =
+    StateNotifierProviderFamily<MissionReviewNotifier, MissionReview, String>(
   (ref, missionId) => MissionReviewNotifier(missionId, ref),
 );
 
 // État de soumission de l'avis
 final reviewSubmitStatusProvider =
     StateProvider.autoDispose<SubmitStatus>((ref) => SubmitStatus.idle);
-
+

@@ -4,17 +4,18 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
-import 'package:job_app/features/jobs/domain/mission_entity.dart';
+
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/jobs/widgets/job_card.dart';
 import 'package:job_app/features/jobs/widgets/mission_card.dart';
 import 'package:job_app/features/jobs/screens/create_job_screen.dart';
 import 'package:job_app/features/jobs/screens/edit_job_screen.dart';
-import 'package:job_app/features/jobs/screens/mission_details_screen.dart';
 import 'package:job_app/features/jobs/screens/job_details_screen.dart';
 import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
-import 'package:job_app/features/profile/screens/recruiter_profile_screen.dart';
 import 'package:job_app/features/notifications/screens/notifications_screen.dart';
+import 'package:job_app/features/candidates/screens/candidates_screen.dart';
+import 'package:job_app/features/candidates/data/providers/candidates_provider.dart';
+import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 
 /// ────────────────
 /// ENTRY POINT
@@ -72,7 +73,7 @@ class JobsListScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: _AddJobFAB(),
-      bottomNavigationBar: _BottomNavBar(),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 2),
     );
   }
 }
@@ -244,10 +245,8 @@ class _JobsBody extends ConsumerWidget {
       return _buildMissionsList(ref);
     }
 
-    // Use combined provider for myJobs, otherwise standard jobsNotifierProvider
-    final dataAsync = (currentTab == JobsTab.myJobs)
-        ? ref.watch(combinedJobsAndMissionsProvider)
-        : ref.watch(jobsNotifierProvider);
+    // Use jobsNotifierProvider for myJobs (only jobs), otherwise standard jobsNotifierProvider
+    final dataAsync = ref.watch(jobsNotifierProvider);
 
     final controller = ref.watch(jobsControllerProvider);
 
@@ -261,8 +260,8 @@ class _JobsBody extends ConsumerWidget {
         },
       ),
       data: (items) {
-        final List<Object> filtered = switch (currentTab) {
-          JobsTab.drafts => controller.filterDrafts(items as List<JobEntity>),
+        final List<JobEntity> filtered = switch (currentTab) {
+          JobsTab.drafts => controller.filterDrafts(items),
           JobsTab.myJobs => items,
           _ => [],
         };
@@ -284,36 +283,15 @@ class _JobsBody extends ConsumerWidget {
             itemBuilder: (context, index) {
               final item = filtered[index];
 
-              if (item is MissionEntity) {
-                return MissionCard(
-                  mission: item,
-                  onTap: () {
-                    if (item.isCompleted) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MissionDetailsScreen(mission: item),
-                        ),
-                      );
-                    } else {
-                      showMissionInProgressSheet(context, item);
-                    }
-                  },
-                );
-              }
-
-              if (item is JobEntity) {
-                return JobCard(
-                  job: item,
-                  onEdit: () => _handleEdit(context, item),
-                  onViewCandidates: () => _handleViewCandidates(context, item),
-                  onComplete: () => _handleComplete(context, item),
-                  onTap: item.status == JobStatus.searching
-                      ? () => _handleViewDetails(context, item)
-                      : null,
-                );
-              }
-
-              return const SizedBox.shrink();
+              return JobCard(
+                job: item,
+                onEdit: () => _handleEdit(context, item),
+                onViewCandidates: () => _handleViewCandidates(context, item, ref),
+                onComplete: () => _handleComplete(context, item),
+                onTap: item.status == JobStatus.searching
+                    ? () => _handleViewDetails(context, item)
+                    : null,
+              );
             },
           ),
         );
@@ -348,11 +326,7 @@ class _JobsBody extends ConsumerWidget {
                 mission: mission,
                 onTap: () {
                   if (mission.isCompleted) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MissionDetailsScreen(mission: mission),
-                      ),
-                    );
+                    showCompletedMissionSheet(context, mission);
                   } else {
                     showMissionInProgressSheet(context, mission);
                   }
@@ -379,13 +353,14 @@ class _JobsBody extends ConsumerWidget {
     );
   }
 
-  void _handleViewCandidates(BuildContext context, JobEntity job) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${job.candidateCount} candidats pour ${job.title}'),
-        backgroundColor: AppColors.violet,
-        behavior: SnackBarBehavior.floating,
-      ),
+  void _handleViewCandidates(BuildContext context, JobEntity job, WidgetRef ref) {
+    // 1. Définir le job courant dans le provider
+    ref.read(currentJobIdProvider.notifier).state = job.id;
+
+    // 2. Naviguer vers l'écran des candidats
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CandidatesScreen()),
     );
   }
 
@@ -416,7 +391,6 @@ class _LoadingState extends StatelessWidget {
 
 class _SkeletonCard extends StatelessWidget {
   const _SkeletonCard();
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -573,96 +547,4 @@ class _AddJobFAB extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Bottom Navigation Bar
-// ─────────────────────────────────────────────
-class _BottomNavBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 89,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 8,
-            offset: Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _NavItem(
-              icon: Icons.home_outlined, label: 'Mes jobs', isActive: true),
-          _NavItem(
-            icon: Icons.notifications_none_outlined,
-            label: 'Notif',
-            isActive: false,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-              );
-            },
-          ),
-          const SizedBox(width: 56), // Espace pour le FAB centré
-          _NavItem(icon: Icons.menu_outlined, label: 'menu', isActive: false),
-          _NavItem(
-            icon: Icons.person_outline,
-            label: 'Profil',
-            isActive: false,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ProfileScreen(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
 
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback? onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive ? AppColors.violet : AppColors.slate400;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w500,
-                fontSize: 10,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

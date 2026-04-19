@@ -18,7 +18,8 @@ class JobsRepositoryMock implements JobsRepository {
       status: 'searching',
       candidateCount: 8,
       viewCount: 210,
-      logoAsset: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?q=80&w=1470&auto=format&fit=crop', // Office picture
+      logoAsset:
+          'assets/images/imageannonc(1).jpg', // Job announcement image
       isPublished: true,
       candidates: [
         JobCandidateModel(
@@ -26,21 +27,21 @@ class JobsRepositoryMock implements JobsRepository {
           name: 'Amélie Laurent',
           role: 'Chef de rang',
           rating: 4.9,
-          avatarUrl: 'https://i.pravatar.cc/150?img=47',
+          avatarUrl: 'assets/images/pdp_1.png',
         ),
         JobCandidateModel(
           initials: 'MD',
           name: 'Marc Dubois',
           role: 'Barista Expert',
           rating: 4.7,
-          avatarUrl: 'https://i.pravatar.cc/150?img=11',
+          avatarUrl: 'assets/images/pdp_4.png',
         ),
         JobCandidateModel(
           initials: 'LP',
           name: 'Lucas Petit',
           role: 'Senior Product Manager',
           rating: 4.5,
-          avatarUrl: 'https://i.pravatar.cc/150?img=12',
+          avatarUrl: 'assets/images/pdp_new.png',
         ),
       ],
       comments: [
@@ -48,10 +49,12 @@ class JobsRepositoryMock implements JobsRepository {
           initials: 'SM',
           authorName: 'Sarah Miller',
           date: '14 Oct.',
-          question: 'Bonjour, est-ce que le télétravail est possible pour ce poste ? Merci !',
+          question:
+              'Bonjour, est-ce que le télétravail est possible pour ce poste ? Merci !',
           recruitorLabel: 'Recrutor',
           recruitorDate: 'Il y a 10 min',
-          reply: "Bonjour Sarah, oui nous autorisons 2 jours de télétravail par semaine après la période d'intégration.",
+          reply:
+              "Bonjour Sarah, oui nous autorisons 2 jours de télétravail par semaine après la période d'intégration.",
         ),
         JobCommentModel(
           initials: 'JD',
@@ -60,7 +63,8 @@ class JobsRepositoryMock implements JobsRepository {
           question: 'Les horaires sont-ils flexibles en début de journée ?',
           recruitorLabel: 'Recrutor',
           recruitorDate: 'Il y a 2 jours',
-          reply: 'Absolument ! Les horaires de bureau sont flexibles entre 8h et 10h le matin.',
+          reply:
+              'Absolument ! Les horaires de bureau sont flexibles entre 8h et 10h le matin.',
         ),
       ],
     ),
@@ -73,8 +77,44 @@ class JobsRepositoryMock implements JobsRepository {
       status: 'draft',
       candidateCount: 0,
       viewCount: 0,
-      logoAsset: null,
+      logoAsset: 'assets/images/imageannonc(2).jpg', // Job announcement image
       isPublished: false,
+    ),
+    JobModel(
+      id: '4',
+      title: 'Développeur Flutter',
+      companyName: 'ServicePro',
+      contractType: 'cdi',
+      postedAt: DateTime(2024, 10, 15).toIso8601String(),
+      status: 'searching',
+      candidateCount: 12,
+      viewCount: 340,
+      logoAsset: 'assets/images/imageannonc(3).jpg', // Job announcement image
+      isPublished: true,
+    ),
+    JobModel(
+      id: '5',
+      title: 'UX Designer',
+      companyName: 'Creative Agency',
+      contractType: 'mission',
+      postedAt: DateTime(2024, 10, 18).toIso8601String(),
+      status: 'searching',
+      candidateCount: 5,
+      viewCount: 180,
+      logoAsset: 'assets/images/imageannonc(4).jpg', // Job announcement image
+      isPublished: true,
+    ),
+    JobModel(
+      id: '6',
+      title: 'Chef de projet',
+      companyName: 'BuildCorp',
+      contractType: 'cdi',
+      postedAt: DateTime(2024, 10, 20).toIso8601String(),
+      status: 'closed',
+      candidateCount: 15,
+      viewCount: 520,
+      logoAsset: 'assets/images/imageannonc(5).jpg', // Job announcement image
+      isPublished: true,
     ),
   ];
 
@@ -85,20 +125,30 @@ class JobsRepositoryMock implements JobsRepository {
       id: 'm1',
       jobTitle: 'Senior UX Designer',
       companyName: 'TechCorp Solutions',
-      startDate: DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
+      startDate:
+          DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
       endDate: DateTime.now().add(const Duration(days: 14)).toIso8601String(),
       location: 'Paris, FR',
       recruiterName: 'Jean Recruteur',
       candidateName: 'Alice Design',
       candidateRating: 4.5,
       recruiterRating: 4.8,
-      candidateFeedback: 'Alice a fait un excellent travail sur le design system.',
+      candidateFeedback:
+          'Alice a fait un excellent travail sur le design system.',
       recruiterFeedback: 'Mission très enrichissante, équipe au top.',
       status: 'in_progress',
-      imageUrl: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?q=80&w=600&auto=format&fit=crop',
+      imageUrl: 'assets/images/company_logo_tech.png',
       team: [
-        MissionMemberModel(name: 'Amélie Laurent', role: 'Chef de rang', rating: 4.9, avatarUrl: 'https://i.pravatar.cc/150?img=47'),
-        MissionMemberModel(name: 'Marc Dubois', role: 'Barista Expert', rating: 4.7, avatarUrl: 'https://i.pravatar.cc/150?img=11'),
+        MissionMemberModel(
+            name: 'Amélie Laurent',
+            role: 'Chef de rang',
+            rating: 4.9,
+            avatarUrl: 'assets/images/pdp_1.png'),
+        MissionMemberModel(
+            name: 'Marc Dubois',
+            role: 'Barista Expert',
+            rating: 4.7,
+            avatarUrl: 'assets/images/pdp_4.png'),
       ],
     ),
     MissionModel(
@@ -115,10 +165,18 @@ class JobsRepositoryMock implements JobsRepository {
       candidateFeedback: 'Bob a parfaitement géré la transition de l\'équipe.',
       recruiterFeedback: 'Bonne expérience globale.',
       status: 'completed',
-      imageUrl: 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=600&auto=format&fit=crop',
+      imageUrl: 'assets/images/company_logo_service.png',
       team: [
-        MissionMemberModel(name: 'Amélie Laurent', role: 'Chef de rang', rating: 4.9, avatarUrl: 'https://i.pravatar.cc/150?img=47'),
-        MissionMemberModel(name: 'Marc Dubois', role: 'Barista Expert', rating: 4.7, avatarUrl: 'https://i.pravatar.cc/150?img=11'),
+        MissionMemberModel(
+            name: 'Amélie Laurent',
+            role: 'Chef de rang',
+            rating: 4.9,
+            avatarUrl: 'assets/images/pdp_1.png'),
+        MissionMemberModel(
+            name: 'Marc Dubois',
+            role: 'Barista Expert',
+            rating: 4.7,
+            avatarUrl: 'assets/images/pdp_4.png'),
       ],
     ),
   ];
@@ -166,3 +224,4 @@ class JobsRepositoryMock implements JobsRepository {
     return _missions.map((m) => m.toEntity()).toList();
   }
 }
+

@@ -42,7 +42,8 @@ class JobsController {
     final job = JobEntity(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // ID temporaire
       title: form.title,
-      companyName: 'Ma Super Entreprise', // TODO: Récupérer depuis le user profile
+      companyName:
+          'Ma Super Entreprise', // TODO: Récupérer depuis le user profile
       contractType: form.contractType, // Ajouté
       postedAt: DateTime.now(),
       status: JobStatus.draft,

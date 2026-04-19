@@ -31,7 +31,7 @@ class MissionDetailsScreen extends StatelessWidget {
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(35),
           decoration: const BoxDecoration(
             color: Colors.white,
             boxShadow: [
@@ -187,7 +187,7 @@ class _MissionHeader extends StatelessWidget {
               child: mission.imageUrl != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
+                      child: Image.asset(
                         mission.imageUrl!,
                         width: 75,
                         height: 75,
@@ -404,7 +404,7 @@ class _EmployeeCard extends StatelessWidget {
                 ),
                 child: member.avatarUrl != null
                     ? ClipOval(
-                        child: Image.network(
+                        child: Image.asset(
                           member.avatarUrl!,
                           width: 56,
                           height: 56,

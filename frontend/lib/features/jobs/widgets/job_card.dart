@@ -62,7 +62,7 @@ class JobCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _buildLogo(),
           const SizedBox(width: 16),
@@ -94,7 +94,7 @@ class JobCard extends StatelessWidget {
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: isNetwork
-                  ? Image.network(
+                  ? Image.asset(
                       job.logoAsset!,
                       width: 64,
                       height: 64,
@@ -117,25 +117,20 @@ class JobCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Titre + Badge statut
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(job.title, style: AppTextStyles.heading3),
-            ),
-            const SizedBox(width: 8),
-            _StatusBadge(status: job.status),
-          ],
+        Text(
+          job.title,
+          style: AppTextStyles.heading3,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 4),
-        // Entreprise + date
+        const SizedBox(height: 2),
         Text(
           '${job.companyName} • ${_formatDate(job.postedAt, job.status)}',
           style: AppTextStyles.bodyMedium,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 12),
-        // Métriques
+        const SizedBox(height: 8),
         if (!job.isDraft) _buildMetrics(),
         if (job.isDraft) _buildDraftInfo(),
       ],
@@ -240,33 +235,6 @@ class JobCard extends StatelessWidget {
 // ─────────────────────────────────────────────
 // Widgets internes (private)
 // ─────────────────────────────────────────────
-
-class _StatusBadge extends StatelessWidget {
-  final JobStatus status;
-
-  const _StatusBadge({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, textColor, label) = switch (status) {
-      JobStatus.draft => (AppColors.draftBg, AppColors.draftText, 'BROUILLON'),
-      JobStatus.closed => (AppColors.draftBg, AppColors.draftText, 'FERMÉ'),
-      JobStatus.searching => (AppColors.violet, Colors.white, 'EN RECHERCHE'),
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.badge.copyWith(color: textColor),
-      ),
-    );
-  }
-}
 
 class _MetricChip extends StatelessWidget {
   final IconData icon;

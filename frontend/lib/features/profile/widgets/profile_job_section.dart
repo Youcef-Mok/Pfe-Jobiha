@@ -24,14 +24,9 @@ class ProfileJobsSection extends ConsumerWidget {
   }
 
   Widget _buildContent(BuildContext context, WidgetRef ref) {
-    switch (selectedTab) {
-      case ProfileTab.all:
-        return _buildAllSection(ref);
-      case ProfileTab.activeJobs:
-        return _buildActiveJobsSection(ref);
-      case ProfileTab.drafts:
-        return _buildDraftsSection(ref);
-    }
+    // Ce widget est désormais remplacé par les sections dédiées.
+    // Conservé pour référence uniquement.
+    return const SizedBox.shrink();
   }
 
   // Section "All" - affiche jobs + missions combinés

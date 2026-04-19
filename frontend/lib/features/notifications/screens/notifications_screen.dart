@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers/notifications_provider.dart';
 import '../widgets/notification_card.dart';
+import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -66,7 +67,7 @@ class NotificationsScreen extends ConsumerWidget {
                                   notification: notification,
                                   onTap: () => controller.markAsRead(notification.id),
                                 );
-                              }).toList(),
+                              }),
                             ],
                           );
                         }).toList(),
@@ -74,7 +75,7 @@ class NotificationsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      bottomNavigationBar: const _BottomNavBar(),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 1),
     );
   }
 }
@@ -178,91 +179,4 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar();
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 89,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 10,
-            offset: Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(icon: Icons.home_outlined, label: 'home', isActive: false, onTap: () => Navigator.pop(context)),
-              const SizedBox(width: 56),
-              _NavItem(icon: Icons.notifications, label: 'notif', isActive: true),
-              _NavItem(icon: Icons.message_outlined, label: 'chat', isActive: false),
-              _NavItem(icon: Icons.person_outline, label: 'profile', isActive: false),
-            ],
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: -20,
-            child: Center(
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF401E66),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF401E66).withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.add, size: 30, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback? onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive ? const Color(0xFF401E66) : const Color(0xFF475569);
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w500, fontSize: 10, color: color)),
-        ],
-      ),
-    );
-  }
-}

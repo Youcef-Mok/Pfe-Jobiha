@@ -1,4 +1,5 @@
 import 'package:job_app/features/profile/domain/user_entity.dart';
+import 'package:job_app/features/profile/domain/cv_entity.dart';
 
 /// Interface abstraite du repository utilisateur
 abstract class UserRepository {
@@ -10,4 +11,7 @@ abstract class UserRepository {
 
   /// Met à jour le profil utilisateur
   Future<UserEntity> updateProfile(UserEntity user);
+
+  /// Récupère les données CV d'un utilisateur
+  Future<CvEntity> getCvData(String userId);
 }
