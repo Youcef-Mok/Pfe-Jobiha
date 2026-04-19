@@ -1,3 +1,6 @@
+// C:\projects\Pfe-Jobiha\frontend\lib\app\app.dart
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/auth/screens/welcome_screen.dart';
@@ -24,19 +27,21 @@ import 'package:job_app/features/settings/screens/help_center_screen.dart';
 import 'package:job_app/features/settings/screens/privacy_policy_screen.dart';
 import 'package:job_app/features/settings/screens/terms_conditions_screen.dart';
 import 'package:job_app/features/auth/screens/preferences_screen.dart';
-
-
-
-
-
 import 'package:job_app/features/messaging/screens/chat_list_screen.dart';
-import 'package:job_app/features/messaging/screens/chat_screen.dart';
 import 'package:job_app/features/notifications/screens/candidate_notifications_screen.dart';
 import 'package:job_app/features/notifications/screens/notifications_screen.dart';
 
 
 
-// ── Placeholder home screens (replace with real screens when ready) ─────────
+// ── ADDED these two imports for the AuthGate ────────────────────────────────────────────────────
+import 'package:job_app/features/auth/providers/auth_providers.dart';
+import 'package:job_app/features/auth/data/models/auth_state.dart';
+
+
+
+
+
+// ── Placeholder home screens (TO DO : replace with real screens when ready) ─────────
 class _CandidatHomeScreen extends StatelessWidget {
   const _CandidatHomeScreen();
   @override
@@ -47,6 +52,44 @@ class _CandidatHomeScreen extends StatelessWidget {
 }
 
 
+
+
+// ── AuthGate ─────────────────────────────────────────────────────────────────
+// Sits at the root. Watches authProvider and shows the right screen.
+// This is what replaces the hardcoded `home: WelcomeScreen()`.
+class _AuthGate extends ConsumerWidget {
+  const _AuthGate();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+
+    switch (auth.status) {
+      // _restoreSession() is still running — stay blank.
+      // The native splash screen is still visible at this point.
+      case AuthStatus.initial:
+      case AuthStatus.loading:
+        return const Scaffold(
+          backgroundColor: Colors.white,
+          body: SizedBox.shrink(),
+        );
+
+      // Session restored and valid — skip welcome, go straight to dashboard.
+      case AuthStatus.authenticated:
+        return auth.role == 'candidat' 
+            ? const _CandidatHomeScreen() //if 'candidat'
+            : const JobsListApp(); //else 'recruteur'
+
+      // No session / logged out / error — show welcome as usual.
+      default:
+        return const WelcomeScreen();
+    }
+  }
+}
+
+
+// ── App ───────────────────────────────────────────────────────────────────────
+
 class App extends StatelessWidget {
   const App({super.key});
 
@@ -55,10 +98,10 @@ class App extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       
-      //home: const JobsListApp(),
       //home: const SettingsScreen(),
-       home: const WelcomeScreen(),
-      
+      //home: const WelcomeScreen(),
+       home: const _AuthGate(),
+
       routes: {
  
        '/home-candidat':         (context) => const _CandidatHomeScreen(),
@@ -89,14 +132,6 @@ class App extends StatelessWidget {
        '/messages':                   (context) => const ChatListScreen(),
        '/candidate-notifications':    (context) => const CandidateNotificationsScreen(),
        '/recruiter-notifications':    (context) => const NotificationsScreen(),
-
-
-
-
-
-
-
-
 
       },
     );

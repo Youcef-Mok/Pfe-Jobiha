@@ -65,7 +65,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
-    final isLoading = ref.watch(authProvider).isLoading;
+
+
+
+
+final authState  = ref.watch(authProvider);
+// Only show loading spinner if the user pressed a button.
+// During _restoreSession() the screen isn't even visible (AuthGate handles it),
+// but as a safety net we only spin when we know login was triggered.
+final isLoading  = authState.status == AuthStatus.loading &&
+                   (_emailController.text.isNotEmpty ||
+                    _passwordController.text.isNotEmpty);
+
+
+
+
+
 
     return Scaffold(
       backgroundColor: Colors.white,

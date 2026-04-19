@@ -19,33 +19,15 @@ import 'package:job_app/features/notifications/screens/notifications_screen.dart
 /// ────────────────
 /// ENTRY POINT
 /// ────────────────
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('fr_FR', null);
 
-  runApp(
-    const ProviderScope(
-      child: JobsListApp(),
-    ),
-  );
-}
 
 class JobsListApp extends StatelessWidget {
   const JobsListApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'JobApp',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.violet),
-        scaffoldBackgroundColor: AppColors.background,
-        fontFamily: 'PlusJakartaSans',
-      ),
-      home: const JobsListScreen(),
-    );
+    return const JobsListScreen();
+    
   }
 }
 

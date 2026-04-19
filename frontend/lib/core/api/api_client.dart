@@ -13,10 +13,10 @@ class ApiClient {
 
   static final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://192.168.100.9:8000/api/v1', //for my phone linking (same network as pc)
-      connectTimeout: const Duration(seconds: 60),
-      receiveTimeout: const Duration(seconds: 60),
-      sendTimeout: const Duration(seconds: 60),
+      baseUrl: 'http://192.168.100.9:8000/api/v1', //for my phone linking (using same network as pc)
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(seconds: 30),
       headers: {'Content-Type': 'application/json'},
     ),
   )..interceptors.add(_AuthInterceptor()); 

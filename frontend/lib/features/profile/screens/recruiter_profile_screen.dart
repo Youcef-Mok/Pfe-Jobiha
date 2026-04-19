@@ -9,6 +9,9 @@ import 'package:job_app/features/profile/widgets/profile_tabs.dart';
 import 'package:job_app/features/profile/widgets/profile_jobs_section.dart';
 import 'package:job_app/features/profile/widgets/profile_reviews_section.dart';
 
+import 'package:job_app/features/settings/screens/settings_screen.dart';
+
+
 /// Page profil du recruteur
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -54,8 +57,11 @@ class ProfileScreen extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.settings_outlined,
                       color: Color(0xFF0F172A)),
-                  onPressed: () {},
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
                 ),
+              ),
                 const SizedBox(width: 16),
               ],
             ),

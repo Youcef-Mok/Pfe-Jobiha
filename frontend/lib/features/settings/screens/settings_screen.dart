@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import '../widgets/settings_item.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:job_app/features/auth/providers/auth_providers.dart';
+import 'package:job_app/features/auth/screens/welcome_screen.dart';
+import 'package:job_app/app/app.dart';
 
-
-
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
-
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushNotificationsEnabled = true;
 
   @override
@@ -39,6 +40,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSection('SUPPORT', _supportTiles()),
           _buildBottomButtons(),
         ],
+      ),
+    );
+  }
+
+  // ─── Logout confirmation dialog ────────────────────────────────────────────
+
+  Future<void> _showLogoutDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 28),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Se déconnecter\nde votre compte ?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Divider(height: 1),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await ref.read(authProvider.notifier).logout();
+                if (context.mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Se déconnecter',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Annuler',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -211,9 +277,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () {
-              // TODO: handle logout
-            },
+            onPressed: () => _showLogoutDialog(context),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
