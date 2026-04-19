@@ -53,10 +53,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
+        // Only navigate to dashboard if this screen is the active route.
+        // During Google signup, the signup-form screen is on top and should
+        // handle navigation to the profile/onboarding screens instead.
+        final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+        if (!isCurrent) return;
         final route = next.role == 'candidat' ? '/home-candidat' : '/home-recruteur';
         Navigator.pushReplacementNamed(context, route);
       } else if (next.status == AuthStatus.pendingRoleSelection) {
-        Navigator.pushNamed(context, '/signup');
+        Navigator.pushNamed(context, '/signup', arguments: 'google');
       } else if (next.status == AuthStatus.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.errorMessage ?? 'Identifiants invalides')),
@@ -145,7 +150,7 @@ final isLoading  = authState.status == AuthStatus.loading &&
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Sign in button — shows spinner while loading ────────
+                    // ── Sign in button ────────
                     SizedBox(
                       width: double.infinity,
                       height: 52,

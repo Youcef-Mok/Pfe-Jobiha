@@ -1,12 +1,17 @@
 // lib/features/auth/screens/signup_form_screen.dart
+//
+// Route arguments: SignupFormArgs { role, method }
+//
+// When method == 'google':  hide email + password fields, call completeGoogleSignUp
+// When method == 'email':   show full form, call registerCandidat/registerRecruteur
+
 import 'package:flutter/material.dart';
-import '../widgets/auth_logo.dart';
-import '../widgets/auth_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/auth_header.dart';
 import '../providers/auth_providers.dart';
 import '../data/models/auth_state.dart';
 import '../data/models/register_request.dart';
-import '../widgets/social_login_button.dart';
+import '../data/models/signup_form_args.dart';
 
 class SignupFormScreen extends ConsumerStatefulWidget {
   const SignupFormScreen({super.key});
@@ -25,11 +30,36 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
 
   bool _obscurePassword = true;
   bool _obscureConfirm  = true;
+  bool _isLocalLoading  = false;
 
   Map<String, String?> _errors = {
     'firstName': null, 'lastName': null, 'email': null,
     'phone': null, 'password': null, 'confirm': null,
   };
+
+  /// Parsed once in didChangeDependencies.
+  late SignupFormArgs _args;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final raw = ModalRoute.of(context)?.settings.arguments;
+    if (raw is SignupFormArgs) {
+      _args = raw;
+    } else {
+      // Fallback: legacy callers that pass a plain String role
+      _args = SignupFormArgs(role: (raw as String?) ?? 'candidat');
+    }
+
+    // Pre-fill name fields from Google data if available
+    if (_args.isGoogleSignUp) {
+      final pending = ref.read(authProvider).pendingGoogleUser;
+      if (pending != null) {
+        _firstNameController.text = pending['prenom'] ?? '';
+        _lastNameController.text  = pending['nom'] ?? '';
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -55,13 +85,30 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
       errors['lastName'] = 'Ce champ est obligatoire'; valid = false;
     } else { errors['lastName'] = null; }
 
-    final email = _emailController.text.trim();
-    final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
-    if (email.isEmpty) {
-      errors['email'] = 'Ce champ est obligatoire'; valid = false;
-    } else if (!emailRegex.hasMatch(email)) {
-      errors['email'] = 'Adresse email invalide'; valid = false;
-    } else { errors['email'] = null; }
+    // Email & password: only validate for normal (email) signup
+    if (!_args.isGoogleSignUp) {
+      final email = _emailController.text.trim();
+      final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+      if (email.isEmpty) {
+        errors['email'] = 'Ce champ est obligatoire'; valid = false;
+      } else if (!emailRegex.hasMatch(email)) {
+        errors['email'] = 'Adresse email invalide'; valid = false;
+      } else { errors['email'] = null; }
+
+      final password = _passwordController.text;
+      if (password.isEmpty) {
+        errors['password'] = 'Ce champ est obligatoire'; valid = false;
+      } else if (password.length < 8) {
+        errors['password'] = 'Minimum 8 caractères'; valid = false;
+      } else { errors['password'] = null; }
+
+      final confirm = _confirmPasswordController.text;
+      if (confirm.isEmpty) {
+        errors['confirm'] = 'Ce champ est obligatoire'; valid = false;
+      } else if (confirm != password) {
+        errors['confirm'] = 'Les mots de passe ne correspondent pas'; valid = false;
+      } else { errors['confirm'] = null; }
+    }
 
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) {
@@ -70,51 +117,47 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
       errors['phone'] = 'Numéro invalide (chiffres uniquement, min 9)'; valid = false;
     } else { errors['phone'] = null; }
 
-    final password = _passwordController.text;
-    if (password.isEmpty) {
-      errors['password'] = 'Ce champ est obligatoire'; valid = false;
-    } else if (password.length < 8) {
-      errors['password'] = 'Minimum 8 caractères'; valid = false;
-    } else { errors['password'] = null; }
-
-    final confirm = _confirmPasswordController.text;
-    if (confirm.isEmpty) {
-      errors['confirm'] = 'Ce champ est obligatoire'; valid = false;
-    } else if (confirm != password) {
-      errors['confirm'] = 'Les mots de passe ne correspondent pas'; valid = false;
-    } else { errors['confirm'] = null; }
-
     setState(() => _errors = errors);
     return valid;
   }
 
-  // ── Signup — calls Riverpod notifier ───────────────────────────────────────
-  void _handleSignup() {
+  // ── Signup — calls the appropriate Riverpod notifier method ────────────────
+  Future<void> _handleSignup() async {
     if (!_validate()) return;
 
-    final role = ModalRoute.of(context)?.settings.arguments as String? ?? 'employe';
+    setState(() => _isLocalLoading = true);
 
-    if (role == 'employe') {
-      ref.read(authProvider.notifier).registerCandidat(
-        RegisterCandidatRequest(
-          prenom:     _firstNameController.text.trim(),
-          nom:        _lastNameController.text.trim(),
-          email:      _emailController.text.trim(),
-          telephone:  _phoneController.text.trim(),
-          motDePasse: _passwordController.text,
-        ),
-      );
+    final role = _args.role;
+
+    if (_args.isGoogleSignUp) {
+      // Google flow — call completeGoogleSignUp (no email/password needed)
+      await ref.read(authProvider.notifier).completeGoogleSignUp(role: role);
     } else {
-      ref.read(authProvider.notifier).registerRecruteur(
-        RegisterRecruteurRequest(
-          prenom:     _firstNameController.text.trim(),
-          nom:        _lastNameController.text.trim(),
-          email:      _emailController.text.trim(),
-          telephone:  _phoneController.text.trim(),
-          motDePasse: _passwordController.text,
-        ),
-      );
+      // Normal email flow
+      if (role == 'candidat') {
+        await ref.read(authProvider.notifier).registerCandidat(
+          RegisterCandidatRequest(
+            prenom:     _firstNameController.text.trim(),
+            nom:        _lastNameController.text.trim(),
+            email:      _emailController.text.trim(),
+            telephone:  _phoneController.text.trim(),
+            motDePasse: _passwordController.text,
+          ),
+        );
+      } else {
+        await ref.read(authProvider.notifier).registerRecruteur(
+          RegisterRecruteurRequest(
+            prenom:     _firstNameController.text.trim(),
+            nom:        _lastNameController.text.trim(),
+            email:      _emailController.text.trim(),
+            telephone:  _phoneController.text.trim(),
+            motDePasse: _passwordController.text,
+          ),
+        );
+      }
     }
+
+    if (mounted) setState(() => _isLocalLoading = false);
   }
 
   @override
@@ -127,7 +170,7 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
         final route = next.role == 'candidat'
             ? '/signup-profile'
             : '/recruiter-profile';
-        Navigator.pushNamed(context, route);
+        Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
       } else if (next.status == AuthStatus.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.errorMessage ?? 'Erreur lors de l\'inscription')),
@@ -135,8 +178,6 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
         ref.read(authProvider.notifier).clearError();
       }
     });
-
-    final isLoading = ref.watch(authProvider).isLoading;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -152,15 +193,52 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 24),
-                    const Center(
+                    Center(
                       child: Text(
-                        'Créer votre compte',
-                        style: TextStyle(
+                        _args.isGoogleSignUp
+                            ? 'Complétez votre profil'
+                            : 'Créer votre compte',
+                        style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1A1A2E)),
                       ),
                     ),
+
+                    // Show a subtle badge when signing up via Google
+                    if (_args.isGoogleSignUp) ...[
+                      const SizedBox(height: 12),
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0EBFA),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.network(
+                                'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                                width: 16, height: 16,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.g_mobiledata,
+                                    size: 18,
+                                    color: Color(0xFF6B35D9)),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                ref.read(authProvider).pendingGoogleUser?['email'] ?? 'Google',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Color(0xFF6B35D9)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 24),
 
                     // ── Profile photo placeholder ─────────────────────────
@@ -191,6 +269,7 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    // ── Name fields (always shown) ────────────────────────
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -206,12 +285,18 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    _buildTextField(
-                        controller: _emailController,
-                        hint: 'Email',
-                        keyboardType: TextInputType.emailAddress,
-                        error: _errors['email']),
-                    const SizedBox(height: 14),
+
+                    // ── Email field (hidden for Google signup) ─────────────
+                    if (!_args.isGoogleSignUp) ...[
+                      _buildTextField(
+                          controller: _emailController,
+                          hint: 'Email',
+                          keyboardType: TextInputType.emailAddress,
+                          error: _errors['email']),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // ── Phone field (always shown) ────────────────────────
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -241,38 +326,43 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    _buildTextField(
-                      controller: _passwordController,
-                      hint: 'Mot de passe',
-                      obscureText: _obscurePassword,
-                      error: _errors['password'],
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.grey, size: 20),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+
+                    // ── Password fields (hidden for Google signup) ─────────
+                    if (!_args.isGoogleSignUp) ...[
+                      _buildTextField(
+                        controller: _passwordController,
+                        hint: 'Mot de passe',
+                        obscureText: _obscurePassword,
+                        error: _errors['password'],
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.grey, size: 20),
+                          onPressed: () =>
+                              setState(() => _obscurePassword = !_obscurePassword),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    _buildTextField(
-                      controller: _confirmPasswordController,
-                      hint: 'Confirmer le mot de passe',
-                      obscureText: _obscureConfirm,
-                      error: _errors['confirm'],
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                            _obscureConfirm
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.grey, size: 20),
-                        onPressed: () =>
-                            setState(() => _obscureConfirm = !_obscureConfirm),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _confirmPasswordController,
+                        hint: 'Confirmer le mot de passe',
+                        obscureText: _obscureConfirm,
+                        error: _errors['confirm'],
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                              _obscureConfirm
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.grey, size: 20),
+                          onPressed: () =>
+                              setState(() => _obscureConfirm = !_obscureConfirm),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
+                    ],
+
                     RichText(
                       textAlign: TextAlign.center,
                       text: const TextSpan(
@@ -291,12 +381,12 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ── S'inscrire button — spinner while loading ──────────
+                    // ── Submit button — spinner while loading ──────────────
                     SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: isLoading ? null : _handleSignup,
+                        onPressed: _isLocalLoading ? null : _handleSignup,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF3A1B5E),
                           foregroundColor: Colors.white,
@@ -304,14 +394,15 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                               borderRadius: BorderRadius.circular(30)),
                           elevation: 0,
                         ),
-                        child: isLoading
+                        child: _isLocalLoading
                             ? const SizedBox(
                                 width: 22, height: 22,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2, color: Colors.white),
                               )
-                            : const Text("S'inscrire",
-                                style: TextStyle(
+                            : Text(
+                                _args.isGoogleSignUp ? 'Continuer' : "S'inscrire",
+                                style: const TextStyle(
                                     fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),

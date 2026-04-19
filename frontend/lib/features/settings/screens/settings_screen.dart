@@ -70,10 +70,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const Divider(height: 1),
             TextButton(
               onPressed: () async {
-                Navigator.of(ctx).pop();
+                Navigator.of(ctx).pop(); // close dialog
                 await ref.read(authProvider.notifier).logout();
                 if (context.mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                  // Clear the entire stack and go back to AuthGate (root '/'),
+                  // which shows WelcomeScreen when unauthenticated.
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/welcome',
+                    (route) => false,
+                  );
                 }
               },
               child: const Padding(

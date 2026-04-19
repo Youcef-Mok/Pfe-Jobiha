@@ -671,13 +671,10 @@ class GoogleCompleteView(APIView):
             )
 
         if role == 'recruteur':
-            nom_structure = request.data.get('nom_structure')
-            type_structure = request.data.get('type_structure')
-            if not nom_structure or not type_structure:
-                return Response(
-                    {'detail': 'nom_structure and type_structure are required for recruteur.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            # nom_structure / type_structure are optional here — the Flutter
+            # recruiter-profile screen collects them via PATCH /recruteurs/me.
+            nom_structure = request.data.get('nom_structure', '')
+            type_structure = request.data.get('type_structure', '')
             utilisateur = Recruteur.objects.create(
                 nom=nom,
                 prenom=prenom,

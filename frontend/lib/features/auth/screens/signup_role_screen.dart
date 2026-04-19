@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/auth_logo.dart';
+import '../data/models/signup_form_args.dart';
 import '../widgets/auth_header.dart';
 
 class SignupRoleScreen extends StatefulWidget {
@@ -10,7 +11,7 @@ class SignupRoleScreen extends StatefulWidget {
 }
 
 class _SignupRoleScreenState extends State<SignupRoleScreen> {
-  // Tracks which card is selected: 'recruteur' or 'employe' or null
+  // Tracks which card is selected: 'recruteur' or 'candidat' or null
   String? _selectedRole;
 
   @override
@@ -42,8 +43,8 @@ class _SignupRoleScreenState extends State<SignupRoleScreen> {
                       title: 'Employé',
                       subtitle: 'Trouve un job qui te convient\nrapidement et facilement',
                       icon: Icons.person_outline,
-                      isSelected: _selectedRole == 'employe',
-                      onTap: () => setState(() => _selectedRole = 'employe'),
+                      isSelected: _selectedRole == 'candidat',
+                      onTap: () => setState(() => _selectedRole = 'candidat'),
                     ),
 
                     const Spacer(flex: 2),
@@ -55,8 +56,14 @@ class _SignupRoleScreenState extends State<SignupRoleScreen> {
                         onPressed: _selectedRole == null
                             ? null
                             : () {
+                                // Detect if we arrived here via Google OAuth
+                                final incomingMethod =
+                                    ModalRoute.of(context)?.settings.arguments as String?;
                                 Navigator.pushNamed(context, '/signup-form',
-                                    arguments: _selectedRole);
+                                    arguments: SignupFormArgs(
+                                      role: _selectedRole!,
+                                      method: incomingMethod ?? 'email',
+                                    ));
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF3A1B5E),
