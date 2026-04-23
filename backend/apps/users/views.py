@@ -622,6 +622,7 @@ class GoogleLoginView(APIView):
         email = idinfo.get('email')
         nom = idinfo.get('family_name', '')
         prenom = idinfo.get('given_name', '')
+        telephone = idinfo.get('phone_number', '')
 
         # Existing user → issue JWT immediately
         try:
@@ -633,6 +634,7 @@ class GoogleLoginView(APIView):
                 'email': email,
                 'nom': nom,
                 'prenom': prenom,
+                'telephone': telephone,
             }, status=200)
 
         # Issue your JWT
@@ -656,6 +658,7 @@ class GoogleCompleteView(APIView):
         nom = request.data.get('nom', '')
         prenom = request.data.get('prenom', '')
         role = request.data.get('role')
+        telephone = request.data.get('telephone', '')
 
         if not email or role not in ('candidat', 'recruteur'):
             return Response(
@@ -681,7 +684,7 @@ class GoogleCompleteView(APIView):
                 email=email,
                 mot_de_passe=make_password(None),
                 est_verifie=True,
-                telephone='',
+                telephone=telephone,
                 nom_structure=nom_structure,
                 type_structure=type_structure,
             )
@@ -692,7 +695,7 @@ class GoogleCompleteView(APIView):
                 email=email,
                 mot_de_passe=make_password(None),
                 est_verifie=True,
-                telephone='',
+                telephone=telephone,
             )
 
         refresh = RefreshToken.for_user(utilisateur)

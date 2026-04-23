@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
 import '../data/models/auth_state.dart';
 import '../widgets/social_login_button.dart';
-import '../widgets/auth_logo.dart';
 import '../widgets/auth_header.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -190,40 +189,48 @@ final isLoading  = authState.status == AuthStatus.loading &&
                         Expanded(child: Divider()),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('Continuer avec',
+                          child: Text('OU',
                               style:
                                   TextStyle(color: Colors.grey, fontSize: 12)),
                         ),
                         Expanded(child: Divider()),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _socialButton(
-                          icon: FaIcon(FontAwesomeIcons.facebook,
-                              color: Color(0xFF1877F2), size: 22),
-                          onTap: () {},
-                        ),
-                        const SizedBox(width: 16),
-                        // ── Google: use SocialLoginButton with real handler ──
-                        SocialLoginButton(
-                          fallbackIcon: Icons.g_mobiledata,
-                          color: const Color(0xFFDB4437),
-                          onTap: isLoading
-                              ? () {}
-                              : () => ref.read(authProvider.notifier).loginWithGoogle(),
-                        ),
-                        const SizedBox(width: 16),
-                        _socialButton(
-                          icon: FaIcon(FontAwesomeIcons.twitter,
-                              color: Color(0xFF1DA1F2), size: 22),
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
+const SizedBox(height: 20),
+
+SizedBox(
+  width: double.infinity,
+  height: 52,
+  child: OutlinedButton(
+    onPressed: isLoading
+        ? null
+        : () => ref.read(authProvider.notifier).loginWithGoogle(),
+    style: OutlinedButton.styleFrom(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30),
+      ),
+      backgroundColor: Colors.white,
+      side: const BorderSide(color: Colors.grey),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Image.asset('assets/google_logo.png', height: 20),
+        const SizedBox(width: 12),
+        const Text(
+          'Continuer avec Google',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+
+const SizedBox(height: 32),
                   ],
                 ),
               ),

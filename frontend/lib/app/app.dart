@@ -33,6 +33,8 @@ import 'package:job_app/features/notifications/screens/notifications_screen.dart
 
 
 
+
+
 // ── ADDED these two imports for the AuthGate ────────────────────────────────────────────────────
 import 'package:job_app/features/auth/providers/auth_providers.dart';
 import 'package:job_app/features/auth/data/models/auth_state.dart';
@@ -42,6 +44,7 @@ import 'package:job_app/features/auth/data/models/auth_state.dart';
 
 
 // ── Placeholder home screens (TO DO : replace with real screens when ready) ─────────
+
 class _CandidatHomeScreen extends StatelessWidget {
   const _CandidatHomeScreen();
   @override
@@ -132,6 +135,7 @@ class App extends StatelessWidget {
        '/messages':                   (context) => const ChatListScreen(),
        '/candidate-notifications':    (context) => const CandidateNotificationsScreen(),
        '/recruiter-notifications':    (context) => const NotificationsScreen(),
+       
 
       },
     );
