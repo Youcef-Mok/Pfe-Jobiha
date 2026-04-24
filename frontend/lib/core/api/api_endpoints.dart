@@ -29,4 +29,11 @@ class ApiEndpoints {
 
   // ── Recruteur ───────────────────────────────────────────────────────────────
   static const String recruteurMe       = '$_base/recruteurs/me';
+  // ── Settings ─────────────────────────────────────────────────────────────
+  static const String savedJobs         = '$_base/candidats/me/saved';
+  static const String appliedJobs       = '$_base/applications/me';
+  static const String notifications     = '$_base/notifications/me';
+  static const String blockedUsers      = '$_base/users/me/blocked';
+  static const String deactivateAccount = '$_base/users/me/deactivate';
+  static const String pushNotifPref     = '$_base/users/me/preferences';
 }
