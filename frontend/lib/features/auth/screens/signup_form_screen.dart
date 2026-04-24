@@ -1,12 +1,9 @@
 // lib/features/auth/screens/signup_form_screen.dart
-//
-// Route arguments: SignupFormArgs { role, method }
-//
-// When method == 'google':  hide email + password fields, call completeGoogleSignUp
-// When method == 'email':   show full form, call registerCandidat/registerRecruteur
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../widgets/auth_header.dart';
 import '../providers/auth_providers.dart';
 import '../data/models/auth_state.dart';
@@ -32,12 +29,15 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
   bool _obscureConfirm  = true;
   bool _isLocalLoading  = false;
 
+  // ── Profile photo ──────────────────────────────────────────────────────────
+  File? _profileImage;
+  final ImagePicker _picker = ImagePicker();
+
   Map<String, String?> _errors = {
     'firstName': null, 'lastName': null, 'email': null,
     'phone': null, 'password': null, 'confirm': null,
   };
 
-  /// Parsed once in didChangeDependencies.
   late SignupFormArgs _args;
 
   @override
@@ -47,11 +47,9 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
     if (raw is SignupFormArgs) {
       _args = raw;
     } else {
-      // Fallback: legacy callers that pass a plain String role
       _args = SignupFormArgs(role: (raw as String?) ?? 'candidat');
     }
 
-    // Pre-fill name fields from Google data if available
     if (_args.isGoogleSignUp) {
       final pending = ref.read(authProvider).pendingGoogleUser;
       if (pending != null) {
@@ -72,6 +70,68 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
     super.dispose();
   }
 
+  // ── Pick profile photo ─────────────────────────────────────────────────────
+  Future<void> _pickProfilePhoto() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF3A1B5E)),
+              title: const Text('Prendre une photo'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final XFile? photo = await _picker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 80,
+                  maxWidth: 512,
+                );
+                if (photo != null) setState(() => _profileImage = File(photo.path));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: Color(0xFF3A1B5E)),
+              title: const Text('Choisir depuis la galerie'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final XFile? photo = await _picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 80,
+                  maxWidth: 512,
+                );
+                if (photo != null) setState(() => _profileImage = File(photo.path));
+              },
+            ),
+            if (_profileImage != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Supprimer la photo', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _profileImage = null);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Validation ─────────────────────────────────────────────────────────────
   bool _validate() {
     final errors = <String, String?>{};
@@ -85,7 +145,6 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
       errors['lastName'] = 'Ce champ est obligatoire'; valid = false;
     } else { errors['lastName'] = null; }
 
-    // Email & password: only validate for normal (email) signup
     if (!_args.isGoogleSignUp) {
       final email = _emailController.text.trim();
       final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
@@ -121,16 +180,14 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
     return valid;
   }
 
-  // ── Signup — calls the appropriate Riverpod notifier method ────────────────
+  // ── Signup ─────────────────────────────────────────────────────────────────
   Future<void> _handleSignup() async {
     if (!_validate()) return;
-
     setState(() => _isLocalLoading = true);
 
     final role = _args.role;
 
     if (_args.isGoogleSignUp) {
-      // Google flow — call completeGoogleSignUp (no email/password needed)
       await ref.read(authProvider.notifier).completeGoogleSignUp(
         role: role,
         firstName: _firstNameController.text.trim(),
@@ -138,7 +195,6 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
         telephone: _phoneController.text.trim(),
       );
     } else {
-      // Normal email flow
       if (role == 'candidat') {
         await ref.read(authProvider.notifier).registerCandidat(
           RegisterCandidatRequest(
@@ -162,12 +218,18 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
       }
     }
 
+    // TODO: upload _profileImage to backend when endpoint is ready
+    // if (_profileImage != null) {
+    //   await ApiClient.instance.patch(ApiEndpoints.me, data: FormData.fromMap({
+    //     'photo': await MultipartFile.fromFile(_profileImage!.path),
+    //   }));
+    // }
+
     if (mounted) setState(() => _isLocalLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    // ── React to auth state ────────────────────────────────────────────────
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.status == AuthStatus.otpRequired) {
         Navigator.pushNamed(context, '/verify-email');
@@ -189,7 +251,6 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Reusable header with back button ──────────────────────────
             AuthHeader(onBackPressed: () => Navigator.pop(context)),
             Expanded(
               child: SingleChildScrollView(
@@ -200,23 +261,17 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                     const SizedBox(height: 24),
                     Center(
                       child: Text(
-                        _args.isGoogleSignUp
-                            ? 'Complétez votre profil'
-                            : 'Créer votre compte',
+                        _args.isGoogleSignUp ? 'Complétez votre profil' : 'Créer votre compte',
                         style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A2E)),
+                            fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
                       ),
                     ),
 
-                    // Show a subtle badge when signing up via Google
                     if (_args.isGoogleSignUp) ...[
                       const SizedBox(height: 12),
                       Center(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF0EBFA),
                             borderRadius: BorderRadius.circular(20),
@@ -228,15 +283,12 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                                 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
                                 width: 16, height: 16,
                                 errorBuilder: (_, __, ___) => const Icon(
-                                    Icons.g_mobiledata,
-                                    size: 18,
-                                    color: Color(0xFF6B35D9)),
+                                    Icons.g_mobiledata, size: 18, color: Color(0xFF6B35D9)),
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 ref.read(authProvider).pendingGoogleUser?['email'] ?? 'Google',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Color(0xFF6B35D9)),
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF6B35D9)),
                               ),
                             ],
                           ),
@@ -246,52 +298,58 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
 
                     const SizedBox(height: 24),
 
-                    // ── Profile photo placeholder ─────────────────────────
+                    // ── Profile photo ─────────────────────────────────────
                     Center(
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 80, height: 80,
-                            decoration: BoxDecoration(
+                      child: GestureDetector(
+                        onTap: _pickProfilePhoto,
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 80, height: 80,
+                              decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.grey.shade200),
-                            child: const Icon(Icons.person,
-                                size: 40, color: Colors.grey),
-                          ),
-                          Positioned(
-                            bottom: 0, right: 0,
-                            child: Container(
-                              width: 26, height: 26,
-                              decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Color(0xFF3A1B5E)),
-                              child: const Icon(Icons.add,
-                                  color: Colors.white, size: 16),
+                                color: Colors.grey.shade200,
+                                image: _profileImage != null
+                                    ? DecorationImage(
+                                        image: FileImage(_profileImage!),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
+                              ),
+                              child: _profileImage == null
+                                  ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                                  : null,
                             ),
-                          ),
-                        ],
+                            Positioned(
+                              bottom: 0, right: 0,
+                              child: Container(
+                                width: 26, height: 26,
+                                decoration: const BoxDecoration(
+                                    shape: BoxShape.circle, color: Color(0xFF3A1B5E)),
+                                child: const Icon(Icons.add, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Name fields (always shown) ────────────────────────
+                    // ── Name fields ───────────────────────────────────────
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(child: _buildTextField(
                             controller: _firstNameController,
-                            hint: 'Prénom',
-                            error: _errors['firstName'])),
+                            hint: 'Prénom', error: _errors['firstName'])),
                         const SizedBox(width: 12),
                         Expanded(child: _buildTextField(
                             controller: _lastNameController,
-                            hint: 'Nom',
-                            error: _errors['lastName'])),
+                            hint: 'Nom', error: _errors['lastName'])),
                       ],
                     ),
                     const SizedBox(height: 14),
 
-                    // ── Email field (hidden for Google signup) ─────────────
                     if (!_args.isGoogleSignUp) ...[
                       _buildTextField(
                           controller: _emailController,
@@ -301,7 +359,6 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                       const SizedBox(height: 14),
                     ],
 
-                    // ── Phone field (always shown) ────────────────────────
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -315,9 +372,7 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                           child: const Row(children: [
                             Text('🇩🇿', style: TextStyle(fontSize: 18)),
                             SizedBox(width: 4),
-                            Text('+213',
-                                style: TextStyle(
-                                    fontSize: 13, color: Colors.black87)),
+                            Text('+213', style: TextStyle(fontSize: 13, color: Colors.black87)),
                           ]),
                         ),
                         const SizedBox(width: 12),
@@ -332,7 +387,6 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // ── Password fields (hidden for Google signup) ─────────
                     if (!_args.isGoogleSignUp) ...[
                       _buildTextField(
                         controller: _passwordController,
@@ -374,22 +428,18 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                         style: TextStyle(color: Colors.grey, fontSize: 12),
                         children: [
                           TextSpan(text: "En vous inscrivant, vous acceptez nos "),
-                          TextSpan(
-                              text: "Conditions Générales d'Utilisation",
+                          TextSpan(text: "Conditions Générales d'Utilisation",
                               style: TextStyle(color: Color(0xFF6B35D9))),
                           TextSpan(text: " et notre "),
-                          TextSpan(
-                              text: "Politique de Confidentialité",
+                          TextSpan(text: "Politique de Confidentialité",
                               style: TextStyle(color: Color(0xFF6B35D9))),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Submit button — spinner while loading ──────────────
                     SizedBox(
-                      width: double.infinity,
-                      height: 52,
+                      width: double.infinity, height: 52,
                       child: ElevatedButton(
                         onPressed: _isLocalLoading ? null : _handleSignup,
                         style: ElevatedButton.styleFrom(
@@ -400,15 +450,11 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                           elevation: 0,
                         ),
                         child: _isLocalLoading
-                            ? const SizedBox(
-                                width: 22, height: 22,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
+                            ? const SizedBox(width: 22, height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : Text(
                                 _args.isGoogleSignUp ? 'Continuer' : "S'inscrire",
-                                style: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w600)),
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
 
@@ -422,10 +468,8 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                           GestureDetector(
                             onTap: () => Navigator.pushNamed(context, '/login'),
                             child: const Text('Se connecter',
-                                style: TextStyle(
-                                    color: Color(0xFF3A1B5E),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13)),
+                                style: TextStyle(color: Color(0xFF3A1B5E),
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
                           ),
                         ],
                       ),
@@ -469,16 +513,14 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
               hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
               suffixIcon: suffixIcon,
               border: InputBorder.none,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
           ),
         ),
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 4, left: 4),
-            child: Text(error,
-                style: const TextStyle(color: Colors.red, fontSize: 11)),
+            child: Text(error, style: const TextStyle(color: Colors.red, fontSize: 11)),
           ),
       ],
     );

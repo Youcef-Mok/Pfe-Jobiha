@@ -82,8 +82,8 @@ class App extends StatelessWidget {
       debugShowCheckedModeBanner: false,
 
       //home: const _AuthGate(),
-      //home: const WelcomeScreen(),
-      home: const SettingsScreen(),
+      home: const SignupProfileScreen(),
+      //home: const SignupFormScreen(),
 
       routes: {
         '/home-candidat':           (context) => const _CandidatHomeScreen(),
