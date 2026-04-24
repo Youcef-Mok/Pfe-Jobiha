@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/auth_logo.dart';
 import '../data/models/signup_form_args.dart';
 import '../widgets/auth_header.dart';
 

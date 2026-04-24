@@ -96,6 +96,7 @@ class AuthRepository {
     required String nom,
     required String prenom,
     required String role,
+    String? telephone,
     String? nomStructure,
     String? typeStructure,
   }) async {
@@ -107,6 +108,7 @@ class AuthRepository {
           'nom': nom,
           'prenom': prenom,
           'role': role,
+          if (telephone != null && telephone.isNotEmpty)  'telephone': telephone,
           if (nomStructure != null)  'nom_structure': nomStructure,
           if (typeStructure != null) 'type_structure': typeStructure,
         },
@@ -192,4 +194,4 @@ class AuthRepository {
     return 'Erreur inattendue (${status ?? "réseau"}).';
   }
 }
-
+

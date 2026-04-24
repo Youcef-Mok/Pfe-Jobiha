@@ -131,7 +131,12 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
 
     if (_args.isGoogleSignUp) {
       // Google flow — call completeGoogleSignUp (no email/password needed)
-      await ref.read(authProvider.notifier).completeGoogleSignUp(role: role);
+      await ref.read(authProvider.notifier).completeGoogleSignUp(
+        role: role,
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        telephone: _phoneController.text.trim(),
+      );
     } else {
       // Normal email flow
       if (role == 'candidat') {

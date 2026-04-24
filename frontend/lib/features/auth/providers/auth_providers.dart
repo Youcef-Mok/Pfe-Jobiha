@@ -201,6 +201,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // ── Complete Google sign-up (after role selection) ──────────────────────────
   Future<void> completeGoogleSignUp({
     required String role,
+    String? firstName,
+    String? lastName,
+    String? telephone,
     String? nomStructure,
     String? typeStructure,
   }) async {
@@ -217,9 +220,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final auth = await _repo.completeGoogleSignUp(
         email:         pending['email']!,
-        nom:           pending['nom']!,
-        prenom:        pending['prenom']!,
+        nom:           lastName ?? pending['nom']!,
+        prenom:        firstName ?? pending['prenom']!,
         role:          role,
+        telephone:     telephone,
         nomStructure:  nomStructure,
         typeStructure: typeStructure,
       );
