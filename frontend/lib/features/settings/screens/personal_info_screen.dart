@@ -1,8 +1,10 @@
 // lib/features/settings/screens/personal_info_screen.dart
 
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 
@@ -23,6 +25,11 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
   bool _loading = true;
   bool _saving  = false;
 
+  // ── Profile photo ──────────────────────────────────────────────────────────
+  File? _profileImage;
+  String? _existingPhotoUrl;
+  final ImagePicker _picker = ImagePicker();
+
   static const _purple      = Color(0xFF401E66);
   static const _bg          = Color(0xFFF6F3F8);
   static const _inputBorder = Color(0xFFCDCDCD);
@@ -41,11 +48,77 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
       _prenomCtrl.text    = data['prenom']    ?? '';
       _emailCtrl.text     = data['email']     ?? '';
       _telephoneCtrl.text = data['telephone'] ?? '';
+      _existingPhotoUrl   = data['photo']     ?? data['avatar'];
     } catch (_) {
       // backend not reachable — fields stay empty
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  // ── Pick profile photo ─────────────────────────────────────────────────────
+  Future<void> _pickProfilePhoto() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: _purple),
+              title: const Text('Prendre une photo'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final XFile? photo = await _picker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 80,
+                  maxWidth: 512,
+                );
+                if (photo != null) setState(() => _profileImage = File(photo.path));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: _purple),
+              title: const Text('Choisir depuis la galerie'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final XFile? photo = await _picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 80,
+                  maxWidth: 512,
+                );
+                if (photo != null) setState(() => _profileImage = File(photo.path));
+              },
+            ),
+            if (_profileImage != null || _existingPhotoUrl != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Supprimer la photo', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _profileImage = null;
+                    _existingPhotoUrl = null;
+                  });
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -60,6 +133,13 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
           'telephone': _telephoneCtrl.text.trim(),
         },
       );
+
+      // TODO: upload _profileImage when backend endpoint is ready
+      // if (_profileImage != null) {
+      //   await ApiClient.instance.patch(ApiEndpoints.me,
+      //     data: FormData.fromMap({'photo': await MultipartFile.fromFile(_profileImage!.path)}));
+      // }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profil mis à jour !')),
@@ -111,32 +191,42 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Profile avatar
+                    // ── Profile avatar ───────────────────────────────────
                     Center(
-                      child: Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 48,
-                            backgroundColor: Colors.white,
-                            child: Icon(Icons.person, size: 48, color: Colors.grey.shade400),
-                          ),
-                          Positioned(
-                            bottom: 0, right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: _purple,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                      child: GestureDetector(
+                        onTap: _pickProfilePhoto,
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 48,
+                              backgroundColor: Colors.white,
+                              backgroundImage: _profileImage != null
+                                  ? FileImage(_profileImage!)
+                                  : _existingPhotoUrl != null
+                                      ? NetworkImage(_existingPhotoUrl!) as ImageProvider
+                                      : null,
+                              child: _profileImage == null && _existingPhotoUrl == null
+                                  ? Icon(Icons.person, size: 48, color: Colors.grey.shade400)
+                                  : null,
                             ),
-                          ),
-                        ],
+                            Positioned(
+                              bottom: 0, right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: _purple,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 28),
 
-                    // Prénom + Nom side by side
+                    // ── Prénom + Nom ─────────────────────────────────────
                     Row(
                       children: [
                         Expanded(
