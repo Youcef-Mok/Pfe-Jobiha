@@ -34,8 +34,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
       await ApiClient.instance.post(
         ApiEndpoints.changePassword,
         data: {
-          'old_password': _oldPassCtrl.text,
-          'new_password': _newPassCtrl.text,
+          'ancien_mot_de_passe': _oldPassCtrl.text,
+          'nouveau_mot_de_passe': _newPassCtrl.text,
         },
       );
       if (mounted) {
@@ -46,15 +46,24 @@ class _SecurityScreenState extends State<SecurityScreen> {
         _newPassCtrl.clear();
         _confirmCtrl.clear();
       }
-    } on DioException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.response?.data?['detail'] ?? 'Erreur lors du changement.')),
-        );
+  } on DioException catch (e) {
+   if (mounted) {
+    final errors = e.response?.data;
+    String message = 'Erreur lors du changement.';
+    if (errors is Map) {
+      // Backend returns field-keyed errors: {'ancien_mot_de_passe': ['...']}
+      final firstList = errors.values.firstOrNull;
+      if (firstList is List && firstList.isNotEmpty) {
+        message = firstList.first.toString();
+      } else if (errors['detail'] != null) {
+        message = errors['detail'].toString();
       }
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+   }
+  }
   }
 
   @override

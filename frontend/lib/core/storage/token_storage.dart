@@ -18,12 +18,14 @@ class TokenStorage {
     required String refresh,
     required String role,
     required int userId,
+    bool isGoogleUser = false,
   }) async {
     await Future.wait([
       _storage.write(key: _accessKey,  value: access),
       _storage.write(key: _refreshKey, value: refresh),
       _storage.write(key: _roleKey,    value: role),
       _storage.write(key: _userIdKey,  value: userId.toString()),
+      _storage.write(key: 'is_google_user', value: isGoogleUser.toString()),
     ]);
   }
 
@@ -37,6 +39,10 @@ class TokenStorage {
     final v = await _storage.read(key: _userIdKey);
     return v != null ? int.tryParse(v) : null;
   }
+  static Future<bool> getIsGoogleUser() async {
+  final val = await _storage.read(key: 'is_google_user');
+  return val == 'true';
+  }
 
   /// Returns true if a session exists (user was previously logged in).
   static Future<bool> hasSession() async {
@@ -45,4 +51,7 @@ class TokenStorage {
   }
 
   static Future<void> clear() => _storage.deleteAll();
+
+  static Future<void> saveIsGoogleUser(bool value) =>
+    _storage.write(key: 'is_google_user', value: value.toString());
 }

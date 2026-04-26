@@ -29,7 +29,7 @@ class _SavedScreenState extends State<SavedScreen> {
   Future<void> _loadSaved() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await ApiClient.instance.get(ApiEndpoints.savedJobs);
+     final response = await ApiClient.instance.get(ApiEndpoints.savedJobs);
       final List data = response.data as List;
       setState(() {
         _jobs = data.map((j) => _mapJob(j)).toList();

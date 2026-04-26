@@ -139,7 +139,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   // ─── ACTIVITY tiles ────────────────────────────────────────────────────────
 
-  List<Widget> _activityTiles() => [
+  List<Widget> _activityTiles() {    
+    final String? role = ref.watch(authProvider).role;
+    final bool isCandidat = role == 'candidat';
+  return [
         SettingsItem(
           assetPath: 'assets/ic_saved.png',
           label: 'Enregistrés',
@@ -152,20 +155,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         SettingsItem(
           assetPath: 'assets/ic_jobs.png',
-          label: 'Candidatures envoyées',
-          onTap: () {Navigator.pushNamed(context, '/applications-sent');}
+          label: isCandidat ? 'Candidatures envoyées' : 'Candidatures reçues',
+          onTap: () => Navigator.pushNamed(
+          context,
+          isCandidat ? '/applications-sent' : '/applications-received',
+          ),
         ),
       ];
-
+  }
   // ─── ACCOUNT tiles ─────────────────────────────────────────────────────────
 
-  List<Widget> _accountTiles() => [
+  List<Widget> _accountTiles(){
+    
+    final isGoogleUser = ref.watch(authProvider).isGoogleUser;
+  return [
         SettingsItem(
           assetPath: 'assets/ic_personal_info.png',
           label: 'Informations personnelles',
           onTap: () {Navigator.pushNamed(context, '/personal-info');}
 
         ),
+        if (!isGoogleUser)
         SettingsItem(
           assetPath: 'assets/ic_password.png',
           label: 'Mot de passe et sécurité',
@@ -179,7 +189,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         ),
       ];
-
+  }
   // ─── PREFERENCES tiles ─────────────────────────────────────────────────────
 
   List<Widget> _preferencesTiles() => [

@@ -45,7 +45,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           _PolicySection(
             title: '5. Vos droits',
             content:
-                'Vous avez le droit d\'accéder à vos données, de les modifier ou de les supprimer à tout moment. Pour exercer ces droits, contactez-nous à privacy@jobiha.dz.',
+                'Vous avez le droit d\'accéder à vos données, de les modifier ou de les supprimer à tout moment. Pour exercer ces droits, contactez-nous à jobihausthb@gmail.com ',
           ),
           _PolicySection(
             title: '6. Cookies',

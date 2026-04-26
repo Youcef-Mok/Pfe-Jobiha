@@ -27,7 +27,7 @@ class HelpCenterScreen extends StatelessWidget {
     ),
     (
       'Comment contacter le support ?',
-      'Envoyez-nous un email à support@jobiha.dz. Nous répondons dans un délai de 24 à 48 heures.'
+      'Envoyez-nous un email à jobihausthb@gmail.com. Nous répondons dans un délai de 24 à 48 heures.'
     ),
   ];
 
@@ -116,7 +116,7 @@ class HelpCenterScreen extends StatelessWidget {
                         style: TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 14)),
                     SizedBox(height: 2),
-                    Text('support@jobiha.dz',
+                    Text('jobihausthb@gmail.com',
                         style:
                             TextStyle(color: Colors.black54, fontSize: 13)),
                   ],

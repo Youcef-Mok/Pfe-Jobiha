@@ -178,7 +178,7 @@ final isLoading  = authState.status == AuthStatus.loading &&
                     const SizedBox(height: 20),
                     Center(
                       child: TextButton(
-                        onPressed: () {},
+                        onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
                         child: const Text('Mot de passe oublié ?',
                             style: TextStyle(color: Colors.grey, fontSize: 13)),
                       ),

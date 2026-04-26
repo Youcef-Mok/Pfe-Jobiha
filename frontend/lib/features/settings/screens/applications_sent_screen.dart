@@ -24,7 +24,7 @@ class _ApplicationsSentScreenState extends State<ApplicationsSentScreen> {
   Future<void> _loadApplications() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await ApiClient.instance.get(ApiEndpoints.appliedJobs);
+     final response = await ApiClient.instance.get(ApiEndpoints.appliedJobs);
       final List data = response.data as List;
       setState(() => _applications = data.cast<Map<String, dynamic>>());
     } catch (e) {
