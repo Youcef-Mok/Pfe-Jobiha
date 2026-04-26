@@ -6,13 +6,24 @@ from django.db import models
 # ---------------------------------------------------------------------------
 
 class Media(models.Model):
-    url = models.URLField(blank=True)
-    type = models.CharField(max_length=50)
+    TYPE_CHOICES = [
+        ('image', 'Image'),
+        ('video', 'Video'),
+        ('document', 'Document'),
+    ]
+
+    candidat   = models.ForeignKey(
+        'users.Candidat',
+        on_delete=models.CASCADE,
+        related_name='medias'
+    )
+    url        = models.URLField(blank=True)
+    type_media = models.CharField(max_length=50, choices=TYPE_CHOICES)
     description = models.CharField(max_length=300, blank=True, null=True)
-    date_ajout = models.DateField(auto_now_add=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "media"
+        db_table = 'media'
 
     def __str__(self):
-        return f"{self.type}: {self.url}"
+        return f"{self.type_media}: {self.url}"

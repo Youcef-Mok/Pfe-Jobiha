@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
@@ -58,7 +60,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
       context: ctx,
       initialDate: initial ?? DateTime.now(),
       firstDate: firstDate ?? DateTime(1970),
-      lastDate: lastDate ?? DateTime.now(), // default max = today
+      lastDate: lastDate ?? DateTime.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: ColorScheme.light(primary: primaryColor),
@@ -188,7 +190,9 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
     final nameCtrl = TextEditingController();
     final schoolCtrl = TextEditingController();
     DateTime? selectedDate;
-    Map<String, String?> errors = {'name': null, 'school': null, 'date': null};
+    File? uploadedFile;
+    String? uploadedFileName;
+    Map<String, String?> errors = {'name': null, 'school': null, 'date': null, 'file': null};
 
     showDialog(
       context: context,
@@ -215,31 +219,92 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
                   selected: selectedDate,
                   error: errors['date'],
                   onTap: () async {
-                    final picked = await _pickDate(ctx); // max = today
+                    final picked = await _pickDate(ctx);
                     if (picked != null) setS(() { selectedDate = picked; errors['date'] = null; });
                   },
                 ),
                 const SizedBox(height: 12),
+
+                // ── File upload ──────────────────────────────────────────
                 GestureDetector(
-                  onTap: () {},
+                  onTap: () async {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.custom,
+                      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+                      allowMultiple: false,
+                    );
+                    if (result != null && result.files.single.path != null) {
+                      final file = File(result.files.single.path!);
+                      final sizeInMB = file.lengthSync() / (1024 * 1024);
+                      if (sizeInMB > 5) {
+                        setS(() => errors['file'] = 'Fichier trop volumineux (max. 5MB)');
+                        return;
+                      }
+                      setS(() {
+                        uploadedFile = file;
+                        uploadedFileName = result.files.single.name;
+                        errors['file'] = null;
+                      });
+                    }
+                  },
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: primaryColor.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: uploadedFile != null
+                            ? primaryColor
+                            : primaryColor.withValues(alpha: 0.4),
+                      ),
                       borderRadius: BorderRadius.circular(12),
-                      color: primaryColor.withValues(alpha: 0.03),
+                      color: uploadedFile != null
+                          ? primaryColor.withValues(alpha: 0.06)
+                          : primaryColor.withValues(alpha: 0.03),
                     ),
-                    child: Column(children: [
-                      Icon(Icons.upload_file, color: primaryColor, size: 28),
-                      const SizedBox(height: 6),
-                      Text('Cliquez pour téléverser',
-                          style: TextStyle(color: primaryColor, fontWeight: FontWeight.w500, fontSize: 13)),
-                      const Text('PDF, JPG ou PNG (max. 5MB)',
-                          style: TextStyle(color: Colors.grey, fontSize: 11)),
-                    ]),
+                    child: uploadedFile != null
+                        ? Row(
+                            children: [
+                              Icon(Icons.check_circle_outline, color: primaryColor, size: 22),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  uploadedFileName ?? 'Fichier sélectionné',
+                                  style: TextStyle(
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => setS(() {
+                                  uploadedFile = null;
+                                  uploadedFileName = null;
+                                }),
+                                child: const Icon(Icons.close, size: 18, color: Colors.grey),
+                              ),
+                            ],
+                          )
+                        : Column(children: [
+                            Icon(Icons.upload_file, color: primaryColor, size: 28),
+                            const SizedBox(height: 6),
+                            Text('Cliquez pour téléverser',
+                                style: TextStyle(
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13)),
+                            const Text('PDF, JPG ou PNG (max. 5MB)',
+                                style: TextStyle(color: Colors.grey, fontSize: 11)),
+                          ]),
                   ),
                 ),
+                if (errors['file'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 4),
+                    child: Text(errors['file']!,
+                        style: const TextStyle(color: Colors.red, fontSize: 11)),
+                  ),
               ],
             ),
           ),
@@ -251,8 +316,17 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
             else if (schoolCtrl.text.trim().length < 2) { errors['school'] = 'Minimum 2 caractères'; valid = false; }
             if (selectedDate == null) { errors['date'] = 'Veuillez sélectionner une date'; valid = false; }
             if (!valid) { setS(() {}); return; }
+
+            // TODO: upload uploadedFile to backend when endpoint is ready
+            // if (uploadedFile != null) {
+            //   await ApiClient.instance.post(ApiEndpoints.candidatPortfolio,
+            //     data: FormData.fromMap({'file': await MultipartFile.fromFile(uploadedFile!.path)}));
+            // }
+
             setState(() => _formations.add(FormationItem(
-                name: nameCtrl.text.trim(), school: schoolCtrl.text.trim(), date: selectedDate!)));
+                name: nameCtrl.text.trim(),
+                school: schoolCtrl.text.trim(),
+                date: selectedDate!)));
             Navigator.pop(ctx);
           })],
         ),
@@ -288,13 +362,11 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
                   selected: dateDebut,
                   error: errors['debut'],
                   onTap: () async {
-                    // Start date: can't be in the future
                     final picked = await _pickDate(ctx, lastDate: DateTime.now());
                     if (picked != null) {
                       setS(() {
                         dateDebut = picked;
                         errors['debut'] = null;
-                        // Reset end date if it's now before the new start date
                         if (dateFin != null && dateFin!.isBefore(dateDebut!)) {
                           dateFin = null;
                         }
@@ -308,12 +380,11 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
                   selected: dateFin,
                   error: errors['fin'],
                   onTap: () async {
-                    // End date: must be after start date AND can't be in the future
                     final picked = await _pickDate(
                       ctx,
                       initial: dateFin ?? dateDebut,
-                      firstDate: dateDebut ?? DateTime(1970), // can't be before start
-                      lastDate: DateTime.now(), // can't be in the future
+                      firstDate: dateDebut ?? DateTime(1970),
+                      lastDate: DateTime.now(),
                     );
                     if (picked != null) setS(() { dateFin = picked; errors['fin'] = null; });
                   },
@@ -518,13 +589,10 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
         child: Column(
           children: [
             AuthHeader(onBackPressed: () => Navigator.pop(context)),
-
             const SizedBox(height: 24),
             const Text('Complétez votre profil',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
-
             const SizedBox(height: 16),
-
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -584,14 +652,12 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
                 ],
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  // Merged: save profile data (HEAD) then navigate to /preferences (Feriel)
                   onPressed: isSaving ? null : () async {
                     if (_skills.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -671,8 +737,6 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
     );
   }
 
-  // ── Item tiles WITH delete button ─────────────────────────────────────────
-
   Widget _deletableChip(String text, VoidCallback onDelete) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -683,10 +747,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
         children: [
           Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onDelete,
-            child: const Icon(Icons.close, size: 16, color: Colors.grey),
-          ),
+          GestureDetector(onTap: onDelete, child: const Icon(Icons.close, size: 16, color: Colors.grey)),
         ],
       ),
     );
@@ -712,10 +773,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
                     child: Text(level, style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: onDelete,
-                    child: const Icon(Icons.close, size: 16, color: Colors.grey),
-                  ),
+                  GestureDetector(onTap: onDelete, child: const Icon(Icons.close, size: 16, color: Colors.grey)),
                 ],
               ),
             ],
@@ -754,10 +812,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: onDelete,
-            child: const Icon(Icons.close, size: 16, color: Colors.grey),
-          ),
+          GestureDetector(onTap: onDelete, child: const Icon(Icons.close, size: 16, color: Colors.grey)),
         ],
       ),
     );
@@ -782,10 +837,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: onDelete,
-            child: const Icon(Icons.close, size: 16, color: Colors.grey),
-          ),
+          GestureDetector(onTap: onDelete, child: const Icon(Icons.close, size: 16, color: Colors.grey)),
         ],
       ),
     );
@@ -804,10 +856,7 @@ class _SignupProfileScreenState extends ConsumerState<SignupProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(child: Text(text, style: const TextStyle(fontSize: 13, color: Colors.black87))),
-          GestureDetector(
-            onTap: onDelete,
-            child: const Icon(Icons.close, size: 16, color: Colors.grey),
-          ),
+          GestureDetector(onTap: onDelete, child: const Icon(Icons.close, size: 16, color: Colors.grey)),
         ],
       ),
     );

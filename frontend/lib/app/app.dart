@@ -10,13 +10,12 @@ import 'package:job_app/features/auth/screens/signup_form_screen.dart';
 import 'package:job_app/features/auth/screens/signup_profile_screen.dart';
 import 'package:job_app/features/auth/screens/verify_email_screen.dart';
 import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
-//import 'package:job_app/features/auth/screens/google_profile_screen.dart'; <- still not used
 import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
 
 import 'package:job_app/features/settings/screens/settings_screen.dart';
 import 'package:job_app/features/settings/screens/saved_screen.dart';
 import 'package:job_app/features/settings/screens/applications_sent_screen.dart';
-//import 'package:job_app/features/settings/screens/applications_received_screen.dart'; <= for the Recruiter role 
+import 'package:job_app/features/settings/screens/applications_received_screen.dart';
 import 'package:job_app/features/settings/screens/personal_info_screen.dart';
 import 'package:job_app/features/settings/screens/security_screen.dart';
 import 'package:job_app/features/settings/screens/deactivate_account_screen.dart';
@@ -30,7 +29,7 @@ import 'package:job_app/features/auth/screens/preferences_screen.dart';
 import 'package:job_app/features/messaging/screens/chat_list_screen.dart';
 import 'package:job_app/features/notifications/screens/candidate_notifications_screen.dart';
 import 'package:job_app/features/notifications/screens/notifications_screen.dart';
-
+import 'package:job_app/features/auth/screens/forgot_password_screen.dart';
 
 
 
@@ -116,12 +115,11 @@ class App extends StatelessWidget {
        '/verify-email':         (context) => const VerifyEmailScreen(),
        '/signup-profile':       (context) => const SignupProfileScreen(),
        '/recruiter-profile':    (context) => const RecruiterProfileScreen(),
-       //'/google-profile':        (context) => const GoogleProfileScreen(),
        '/settings':             (context) => const SettingsScreen(),
        '/saved':                (context) => const SavedScreen(),
        '/notifications':        (context) => const NotificationsScreen(),
        '/applications-sent':    (context) => const ApplicationsSentScreen(),
-       //'/applications-received':    (context) => const ApplicationsReceivedScreen(),
+       '/applications-received': (context) => const ApplicationsReceivedScreen(),
        '/personal-info':        (context) => const PersonalInfoScreen(),
        '/security':             (context) => const SecurityScreen(),
        '/deactivate-account':   (context) => const DeactivateAccountScreen(),
@@ -135,7 +133,7 @@ class App extends StatelessWidget {
        '/messages':                   (context) => const ChatListScreen(),
        '/candidate-notifications':    (context) => const CandidateNotificationsScreen(),
        '/recruiter-notifications':    (context) => const NotificationsScreen(),
-       
+       '/forgot-password': (context) => const ForgotPasswordScreen(),
 
       },
     );

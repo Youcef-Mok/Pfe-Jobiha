@@ -206,3 +206,13 @@ class UpdateRecruteurSerializer(serializers.Serializer):
     nom_structure = serializers.CharField(max_length=200, required=False)
     type_structure = serializers.CharField(max_length=100, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
+
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(min_length=6, max_length=6)
+    nouveau_mot_de_passe = serializers.CharField(min_length=8)

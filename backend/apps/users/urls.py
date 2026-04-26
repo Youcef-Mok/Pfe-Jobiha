@@ -19,6 +19,11 @@ urlpatterns = [
     path('auth/google', views.GoogleLoginView.as_view(), name='google-login'),
     path('auth/google/complete', views.GoogleCompleteView.as_view(), name='google-complete'),
 
+    # --- forget password ---
+    
+    path('auth/password/forgot', views.ForgotPasswordView.as_view(), name='forgot-password'),
+    path('auth/password/reset',  views.ResetPasswordView.as_view(),  name='reset-password'),
+
     # --- Users ---
     path('users/me', views.UserMeView.as_view(), name='user-me'),
 
@@ -33,6 +38,12 @@ urlpatterns = [
     # --- Recruteurs ---
     path('recruteurs/me', views.RecruteurMeView.as_view(), name='recruteur-me'),
     path('recruteurs/<int:id>', views.RecruteurByIdView.as_view(), name='recruteur-detail'),
+
+    # --- settings ---
+
+    #path('users/me/blocked',    views.BlockedUsersView.as_view(),    name='blocked-users'),
+    #path('users/me/deactivate', views.DeactivateAccountView.as_view(), name='deactivate-account'),
+    #path('users/me/preferences', views.PushNotifPrefView.as_view(),  name='push-notif-pref'),
 
     # --- Admin ---
     path('admin/utilisateurs', views.AdminUserListView.as_view(), name='admin-users'),

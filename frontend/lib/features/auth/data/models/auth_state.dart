@@ -17,6 +17,7 @@ class AuthState {
   final String? email;      // kept for OTP verification screen
   final String? errorMessage;
   final Map<String, String>? pendingGoogleUser; // {email, nom, prenom}
+  final bool isGoogleUser;
 
   const AuthState({
     this.status = AuthStatus.initial,
@@ -25,6 +26,7 @@ class AuthState {
     this.email,
     this.errorMessage,
     this.pendingGoogleUser,
+    this.isGoogleUser = false,
   });
 
   bool get isLoading       => status == AuthStatus.loading;
@@ -41,6 +43,7 @@ class AuthState {
     Object? email              = _clear,
     Object? errorMessage       = _clear,
     Object? pendingGoogleUser  = _clear,
+    bool? isGoogleUser,
   }) =>
       AuthState(
         status:            status ?? this.status,
@@ -49,6 +52,7 @@ class AuthState {
         email:             email             == _clear ? this.email             : email             as String?,
         errorMessage:      errorMessage      == _clear ? this.errorMessage      : errorMessage      as String?,
         pendingGoogleUser: pendingGoogleUser == _clear ? this.pendingGoogleUser : pendingGoogleUser as Map<String, String>?,
+        isGoogleUser:      isGoogleUser ?? this.isGoogleUser,
       );
 
   /// Convenience: produce a fully-reset unauthenticated state.

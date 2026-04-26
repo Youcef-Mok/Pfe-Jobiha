@@ -36,6 +36,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           status: AuthStatus.authenticated,
           role:   session.role,
           userId: session.userId,
+          isGoogleUser: session.isGoogleUser,
         );
       } else {
         state = state.copyWith(status: AuthStatus.unauthenticated);
@@ -183,11 +184,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           },
         );
       } else {
-        final auth = await _repo.saveRegisterResponse(json);
+        final auth = await _repo.saveRegisterResponse(json, isGoogleUser: true);
         state = state.copyWith(
           status: AuthStatus.authenticated,
           role:   auth.role,
           userId: auth.userId,
+          isGoogleUser: true,
         );
       }
     } catch (e) {
@@ -232,6 +234,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role:              auth.role,
         userId:            auth.userId,
         pendingGoogleUser: null,
+        isGoogleUser:      true,
       );
     } catch (e) {
       state = state.copyWith(

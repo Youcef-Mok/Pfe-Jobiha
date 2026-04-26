@@ -113,7 +113,7 @@ class AuthRepository {
           if (typeStructure != null) 'type_structure': typeStructure,
         },
       );
-      return _saveAndReturn(response.data);
+      return _saveAndReturn(response.data, isGoogleUser: true);
     } on DioException catch (e) {
       throw Exception(_friendlyError(e));
     }
@@ -131,34 +131,38 @@ class AuthRepository {
   }
 
   // ── Restore session on app start ───────────────────────────────────────────
-  Future<({String role, int userId})?> restoreSession() async {
+  Future<({String role, int userId, bool isGoogleUser})?> restoreSession() async {
     final hasSession = await TokenStorage.hasSession();
     if (!hasSession) return null;
 
     final role   = await TokenStorage.getRole();
     final userId = await TokenStorage.getUserId();
+    final isGoogleUser = await TokenStorage.getIsGoogleUser();
     if (role == null || userId == null) return null;
 
-    return (role: role, userId: userId);
+   await TokenStorage.saveIsGoogleUser(isGoogleUser);
+
+    return (role: role, userId: userId, isGoogleUser: isGoogleUser);
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
-  Future<AuthResponse> _saveAndReturn(Map<String, dynamic> json) async {
+  Future<AuthResponse> _saveAndReturn(Map<String, dynamic> json, {bool isGoogleUser = false}) async {
     final auth = AuthResponse.fromJson(json);
     await TokenStorage.saveSession(
       access:  auth.access,
       refresh: auth.refresh,
       role:    auth.role,
       userId:  auth.userId,
+      isGoogleUser: isGoogleUser,
     );
     return auth;
   }
 
   /// Persist tokens from a raw register response (when backend returns them
   /// directly, i.e. no OTP required).
-  Future<AuthResponse> saveRegisterResponse(Map<String, dynamic> json) =>
-      _saveAndReturn(json);
+  Future<AuthResponse> saveRegisterResponse(Map<String, dynamic> json, {bool isGoogleUser = false}) =>
+      _saveAndReturn(json, isGoogleUser: isGoogleUser);
 
   /// Convert a DioException into a user-facing French string.
   String _friendlyError(DioException e) {

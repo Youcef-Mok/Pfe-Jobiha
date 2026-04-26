@@ -19,6 +19,7 @@ from apps.uploads.models import Media
 from apps.users.serializers import (
     RegisterCandidatSerializer, RegisterRecruteurSerializer,
     LoginSerializer, ChangePasswordSerializer,
+    ForgotPasswordSerializer, ResetPasswordSerializer,
     UtilisateurSerializer, UpdateUtilisateurSerializer,
     CandidatSerializer, CandidatPublicSerializer, UpdateCandidatSerializer,
     RecruteurSerializer, RecruteurPublicSerializer, UpdateRecruteurSerializer,
@@ -707,3 +708,57 @@ class GoogleCompleteView(APIView):
         })
 
 
+class ForgotPasswordView(APIView):
+    """POST /auth/password/forgot"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        # Always return 200 to avoid email enumeration
+        if Utilisateur.objects.filter(email=email).exists():
+            otp = EmailOTP.generate(email)
+            send_otp_email(email, otp.code)
+
+        return Response({'detail': 'Si cet email existe, un code a été envoyé.'})
+
+
+class ResetPasswordView(APIView):
+    """POST /auth/password/reset"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            otp = EmailOTP.objects.get(email=data['email'], code=data['otp'])
+        except EmailOTP.DoesNotExist:
+            return Response(
+                {'detail': 'Code invalide ou expiré.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if otp.is_expired:
+            otp.delete()
+            return Response(
+                {'detail': 'Code expiré. Veuillez en demander un nouveau.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            utilisateur = Utilisateur.objects.get(email=data['email'])
+        except Utilisateur.DoesNotExist:
+            return Response(
+                {'detail': 'Utilisateur introuvable.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        utilisateur.mot_de_passe = make_password(data['nouveau_mot_de_passe'])
+        utilisateur.save(update_fields=['mot_de_passe'])
+        otp.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
