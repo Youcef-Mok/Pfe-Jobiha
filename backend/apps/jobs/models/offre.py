@@ -6,17 +6,25 @@ from django.db import models
 # ---------------------------------------------------------------------------
 
 class Offre(models.Model):
-    titre = models.CharField(max_length=200)
-    description = models.TextField()
-    categorie = models.CharField(max_length=100)
-    date_debut = models.DateField()
-    date_fin = models.DateField(blank=True, null=True)
-    salaire = models.FloatField(blank=True, null=True)
+    STATUT_CHOICES = [
+        ("ouverte", "Ouverte"),
+        ("fermee",  "Fermée"),
+        ("pourvue", "Pourvue"),
+    ]
+
+    titre        = models.CharField(max_length=200)
+    description  = models.TextField()
+    categorie    = models.CharField(max_length=100)
+    date_debut   = models.DateField()
+    date_fin     = models.DateField(blank=True, null=True)
+    salaire      = models.FloatField(blank=True, null=True)
     type_contrat = models.CharField(max_length=50)
-    latitude = models.FloatField(blank=True, null=True)
-    longitude = models.FloatField(blank=True, null=True)
-    statut = models.CharField(max_length=50, default="ouverte")
-    recruteur = models.ForeignKey(
+    latitude     = models.FloatField(blank=True, null=True)
+    longitude    = models.FloatField(blank=True, null=True)
+    statut       = models.CharField(
+        max_length=50, choices=STATUT_CHOICES, default="ouverte"
+    )
+    recruteur    = models.ForeignKey(
         "users.Recruteur", on_delete=models.CASCADE, related_name="offres"
     )
 

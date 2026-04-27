@@ -13,9 +13,9 @@ class Candidat(Utilisateur):
     disponibilites = models.ManyToManyField(
         Disponibilite, blank=True, related_name="candidats"
     )
-    portfolio = models.ManyToManyField(
-        "uploads.Media", blank=True, related_name="candidats"
-    )
+    # Portfolio is managed via the Media.candidat FK (related_name='medias').
+    # The duplicate M2M to Media has been removed to avoid two inconsistent
+    # relations pointing at the same concept.
 
     class Meta:
         db_table = "candidat"

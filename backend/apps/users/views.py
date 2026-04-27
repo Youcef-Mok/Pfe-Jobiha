@@ -322,10 +322,9 @@ class UserMeView(APIView):
         utilisateur = request.user
         for field, value in serializer.validated_data.items():
             setattr(utilisateur, field, value)
-        utilisateur.save()
+        utilisateur.save(update_fields=list(serializer.validated_data.keys()))
 
         return Response(UtilisateurSerializer(utilisateur).data)
-
 
 # ===========================================================================
 # Candidat endpoints
@@ -346,7 +345,8 @@ class CandidatMeView(APIView):
 
         for field, value in serializer.validated_data.items():
             setattr(candidat, field, value)
-        candidat.save()
+        
+        candidat.save(update_fields=list(serializer.validated_data.keys()))
 
         return Response(CandidatSerializer(candidat).data)
 
@@ -384,6 +384,8 @@ class DisponibiliteListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         candidat = request.user.candidat
+        # Disponibilite has no candidat FK — the relationship is a M2M on Candidat.
+        # Create the standalone object first, then attach it via the M2M manager.
         disponibilite = Disponibilite.objects.create(**serializer.validated_data)
         candidat.disponibilites.add(disponibilite)
 
@@ -424,7 +426,7 @@ class DisponibiliteDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        candidat.disponibilites.remove(disponibilite)
+        
         disponibilite.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -441,8 +443,8 @@ class PortfolioListCreateView(APIView):
 
     def get(self, request):
         candidat = request.user.candidat
-        portfolio = candidat.portfolio.all()
-        return Response(MediaSerializer(portfolio, many=True).data)
+        medias = candidat.medias.all()
+        return Response(MediaSerializer(medias, many=True).data)
 
     def post(self, request):
         fichier = request.FILES.get('fichier')
@@ -467,15 +469,18 @@ class PortfolioListCreateView(APIView):
         # Save file and build URL
         path = default_storage.save(f'portfolio/{fichier.name}', fichier)
         url = request.build_absolute_uri(settings.MEDIA_URL + path)
-
+        
+        candidat = request.user.candidat
+        
         media = Media.objects.create(
+            candidat=candidat,
             url=url,
-            type=type_media,
+            type_media=type_media,
             description=description,
         )
 
-        candidat = request.user.candidat
-        candidat.portfolio.add(media)
+        
+        
 
         return Response(
             MediaSerializer(media).data,
@@ -489,14 +494,14 @@ class PortfolioDeleteView(APIView):
 
     def delete(self, request, id):
         candidat = request.user.candidat
-        media = candidat.portfolio.filter(pk=id).first()
+        media = candidat.medias.filter(pk=id).first()
         if not media:
             return Response(
                 {'detail': 'Not found.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        candidat.portfolio.remove(media)
+        
         media.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -521,7 +526,7 @@ class RecruteurMeView(APIView):
 
         for field, value in serializer.validated_data.items():
             setattr(recruteur, field, value)
-        recruteur.save()
+        recruteur.save(update_fields=list(serializer.validated_data.keys()))
 
         return Response(RecruteurSerializer(recruteur).data)
 
