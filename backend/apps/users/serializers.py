@@ -27,21 +27,16 @@ class DisponibiliteRequestSerializer(serializers.Serializer):
         ('samedi', 'samedi'), ('dimanche', 'dimanche'),
     ]
 
-    jour = serializers.ChoiceField(choices=JOUR_CHOICES)
+    jour        = serializers.ChoiceField(choices=JOUR_CHOICES)
     heure_debut = serializers.TimeField()
-    heure_fin = serializers.TimeField()
+    heure_fin   = serializers.TimeField()
 
 
 class MediaSerializer(serializers.ModelSerializer):
-    """
-    Read serializer — maps to the Media schema.
-    Maps model fields to spec field names via `source`.
-    """
-    type_media = serializers.CharField(source='type')
-    created_at = serializers.DateField(source='date_ajout')
+    """Read serializer — maps to the Media schema."""
 
     class Meta:
-        model = Media
+        model  = Media
         fields = ['id', 'url', 'type_media', 'description', 'created_at']
 
 
@@ -54,7 +49,7 @@ class UtilisateurSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
 
     class Meta:
-        model = Utilisateur
+        model  = Utilisateur
         fields = [
             'id', 'nom', 'prenom', 'email', 'telephone',
             'latitude', 'longitude', 'date_inscription',
@@ -67,10 +62,10 @@ class UtilisateurSerializer(serializers.ModelSerializer):
 
 class UpdateUtilisateurSerializer(serializers.Serializer):
     """Write serializer — maps to UpdateUtilisateurRequest schema."""
-    nom = serializers.CharField(max_length=100, required=False)
-    prenom = serializers.CharField(max_length=100, required=False)
+    nom       = serializers.CharField(max_length=100, required=False)
+    prenom    = serializers.CharField(max_length=100, required=False)
     telephone = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    latitude = serializers.FloatField(required=False, allow_null=True)
+    latitude  = serializers.FloatField(required=False, allow_null=True)
     longitude = serializers.FloatField(required=False, allow_null=True)
 
 
@@ -80,44 +75,42 @@ class UpdateUtilisateurSerializer(serializers.Serializer):
 
 class RegisterCandidatSerializer(serializers.Serializer):
     """Maps to RegisterCandidatRequest schema."""
-    nom = serializers.CharField(max_length=100)
-    prenom = serializers.CharField(max_length=100)
-    email = serializers.EmailField()
+    nom          = serializers.CharField(max_length=100)
+    prenom       = serializers.CharField(max_length=100)
+    email        = serializers.EmailField()
     mot_de_passe = serializers.CharField(min_length=8, write_only=True)
-    telephone = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    latitude = serializers.FloatField(required=False, allow_null=True)
-    longitude = serializers.FloatField(required=False, allow_null=True)
-    competences = serializers.ListField(
+    telephone    = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    latitude     = serializers.FloatField(required=False, allow_null=True)
+    longitude    = serializers.FloatField(required=False, allow_null=True)
+    competences  = serializers.ListField(
         child=serializers.CharField(), required=False, default=list
     )
-    experience = serializers.CharField(required=False, allow_blank=True, default='')
+    experience   = serializers.CharField(required=False, allow_blank=True, default='')
 
 
 class RegisterRecruteurSerializer(serializers.Serializer):
     """Maps to RegisterRecruteurRequest schema."""
-    nom = serializers.CharField(max_length=100)
-    prenom = serializers.CharField(max_length=100)
-    email = serializers.EmailField()
-    mot_de_passe = serializers.CharField(min_length=8, write_only=True)
-    telephone = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    latitude = serializers.FloatField(required=False, allow_null=True)
-    longitude = serializers.FloatField(required=False, allow_null=True)
-    # Optional at registration — Flutter collects these on the profile screen
-    # and sends them via PATCH /recruteurs/me afterwards.
-    nom_structure = serializers.CharField(max_length=200, required=False, default='')
+    nom            = serializers.CharField(max_length=100)
+    prenom         = serializers.CharField(max_length=100)
+    email          = serializers.EmailField()
+    mot_de_passe   = serializers.CharField(min_length=8, write_only=True)
+    telephone      = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    latitude       = serializers.FloatField(required=False, allow_null=True)
+    longitude      = serializers.FloatField(required=False, allow_null=True)
+    nom_structure  = serializers.CharField(max_length=200, required=False, default='')
     type_structure = serializers.CharField(max_length=100, required=False, default='')
-    description = serializers.CharField(required=False, allow_blank=True, default='')
+    description    = serializers.CharField(required=False, allow_blank=True, default='')
 
 
 class LoginSerializer(serializers.Serializer):
     """Maps to LoginRequest schema."""
-    email = serializers.EmailField()
+    email        = serializers.EmailField()
     mot_de_passe = serializers.CharField()
 
 
 class ChangePasswordSerializer(serializers.Serializer):
     """Maps to ChangePasswordRequest schema."""
-    ancien_mot_de_passe = serializers.CharField()
+    ancien_mot_de_passe  = serializers.CharField()
     nouveau_mot_de_passe = serializers.CharField(min_length=8)
 
 
@@ -127,15 +120,17 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class CandidatSerializer(serializers.ModelSerializer):
     """
-    Read serializer — maps to CandidatResponse schema (allOf UtilisateurResponse).
-    Works because Candidat inherits all Utilisateur fields via multi-table inheritance.
+    Read serializer — maps to CandidatResponse schema.
+    Portfolio is served via the Media.candidat FK reverse relation ('medias').
+    The duplicate M2M on Candidat has been removed; 'medias' is the single
+    source of truth for a candidate's portfolio items.
     """
-    role = serializers.SerializerMethodField()
+    role           = serializers.SerializerMethodField()
     disponibilites = DisponibiliteSerializer(many=True, read_only=True)
-    portfolio = MediaSerializer(many=True, read_only=True)
+    portfolio      = MediaSerializer(many=True, read_only=True, source='medias')
 
     class Meta:
-        model = Candidat
+        model  = Candidat
         fields = [
             'id', 'nom', 'prenom', 'email', 'telephone',
             'latitude', 'longitude', 'date_inscription',
@@ -151,10 +146,10 @@ class CandidatSerializer(serializers.ModelSerializer):
 class CandidatPublicSerializer(serializers.ModelSerializer):
     """Read serializer — maps to CandidatPublicResponse (no PII)."""
     disponibilites = DisponibiliteSerializer(many=True, read_only=True)
-    portfolio = MediaSerializer(many=True, read_only=True)
+    portfolio      = MediaSerializer(many=True, read_only=True, source='medias')
 
     class Meta:
-        model = Candidat
+        model  = Candidat
         fields = [
             'id', 'nom', 'prenom', 'competences', 'experience',
             'note_globale', 'disponibilites', 'portfolio',
@@ -166,7 +161,7 @@ class UpdateCandidatSerializer(serializers.Serializer):
     competences = serializers.ListField(
         child=serializers.CharField(), required=False
     )
-    experience = serializers.CharField(required=False, allow_blank=True)
+    experience  = serializers.CharField(required=False, allow_blank=True)
 
 
 # ---------------------------------------------------------------------------
@@ -174,11 +169,11 @@ class UpdateCandidatSerializer(serializers.Serializer):
 # ---------------------------------------------------------------------------
 
 class RecruteurSerializer(serializers.ModelSerializer):
-    """Read serializer — maps to RecruteurResponse schema (allOf UtilisateurResponse)."""
+    """Read serializer — maps to RecruteurResponse schema."""
     role = serializers.SerializerMethodField()
 
     class Meta:
-        model = Recruteur
+        model  = Recruteur
         fields = [
             'id', 'nom', 'prenom', 'email', 'telephone',
             'latitude', 'longitude', 'date_inscription',
@@ -194,7 +189,7 @@ class RecruteurPublicSerializer(serializers.ModelSerializer):
     """Read serializer — maps to RecruteurPublicResponse (public-facing)."""
 
     class Meta:
-        model = Recruteur
+        model  = Recruteur
         fields = [
             'id', 'nom', 'prenom', 'nom_structure', 'type_structure',
             'description', 'note_globale',
@@ -203,16 +198,16 @@ class RecruteurPublicSerializer(serializers.ModelSerializer):
 
 class UpdateRecruteurSerializer(serializers.Serializer):
     """Write serializer — maps to UpdateRecruteurRequest schema."""
-    nom_structure = serializers.CharField(max_length=200, required=False)
+    nom_structure  = serializers.CharField(max_length=200, required=False)
     type_structure = serializers.CharField(max_length=100, required=False)
-    description = serializers.CharField(required=False, allow_blank=True)
-
+    description    = serializers.CharField(required=False, allow_blank=True)
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
+
 class ResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    otp = serializers.CharField(min_length=6, max_length=6)
+    email                = serializers.EmailField()
+    otp                  = serializers.CharField(min_length=6, max_length=6)
     nouveau_mot_de_passe = serializers.CharField(min_length=8)
