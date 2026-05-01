@@ -16,6 +16,7 @@ class Utilisateur(models.Model):
     date_inscription = models.DateField(auto_now_add=True)
     est_verifie = models.BooleanField(default=False)
     statut_compte = models.CharField(max_length=50, default="actif")
+    push_notif_enabled = models.BooleanField(default=True)
 
     class Meta:
         db_table = "utilisateur"

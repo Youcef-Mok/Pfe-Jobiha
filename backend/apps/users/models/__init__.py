@@ -4,3 +4,4 @@ from .candidat import Candidat
 from .recruteur import Recruteur
 from .disponibilite import Disponibilite
 from .otp import EmailOTP
+from .blocked_user import BlockedUser

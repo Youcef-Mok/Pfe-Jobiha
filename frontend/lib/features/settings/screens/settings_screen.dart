@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/auth/providers/auth_providers.dart';
 import 'package:job_app/features/auth/screens/welcome_screen.dart';
 import 'package:job_app/app/app.dart';
+import 'package:job_app/features/settings/data/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -204,9 +205,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             'Push Notifications',
             style: TextStyle(fontSize: 15),
           ),
-          value: _pushNotificationsEnabled,
+          
           activeThumbColor: Colors.deepPurple,
-          onChanged: (val) => setState(() => _pushNotificationsEnabled = val),
+          onChanged: (val) => ref.read(settingsProvider.notifier).setPushNotif(val),
+          value: ref.watch(settingsProvider).settings.pushNotifEnabled,
         ),
         SettingsItem(
           assetPath: 'assets/ic_accessibility.png',
