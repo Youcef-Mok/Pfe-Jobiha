@@ -1,7 +1,11 @@
+"""
+Views for the Jobs module.
+"""
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Count, Q
 
 from apps.jobs.models import Offre, Mission
 from apps.jobs.serializers import (
@@ -9,7 +13,8 @@ from apps.jobs.serializers import (
     MissionSerializer,
 )
 from apps.applications.models import Candidature
-from apps.applications.serializers import CandidatureSerializer
+from apps.applications.serializers import CandidatureSerializer, CreateCandidatureSerializer
+from core.pagination import StandardPagination
 
 
 # ===========================================================================
@@ -18,22 +23,56 @@ from apps.applications.serializers import CandidatureSerializer
 
 class OffreListCreateView(APIView):
     """
-    GET  /offres  → everyone sees all jobs
+    GET  /offres  → everyone sees all jobs (with filters + pagination)
     POST /offres  → only recruiters can post a job
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Count
-        offres = Offre.objects.annotate(
-           nb_candidatures=Count('candidatures')
+        queryset = Offre.objects.annotate(
+            nb_candidatures=Count('candidatures')
         ).order_by('-id')
-        serializer = OffreSerializer(offres, many=True, context={'request': request})
-        return Response(serializer.data)
+
+        # ── Filters ──────────────────────────────────────────────
+        categorie = request.query_params.get('categorie')
+        if categorie:
+            queryset = queryset.filter(categorie__icontains=categorie)
+
+        type_contrat = request.query_params.get('type_contrat')
+        if type_contrat:
+            queryset = queryset.filter(type_contrat__icontains=type_contrat)
+
+        statut = request.query_params.get('statut', 'ouverte')
+        if statut:
+            queryset = queryset.filter(statut=statut)
+
+        salaire_min = request.query_params.get('salaire_min')
+        if salaire_min:
+            queryset = queryset.filter(salaire__gte=float(salaire_min))
+
+        date_debut = request.query_params.get('date_debut')
+        if date_debut:
+            queryset = queryset.filter(date_debut__gte=date_debut)
+
+        # Free text search on titre and description
+        q = request.query_params.get('q')
+        if q:
+            queryset = queryset.filter(
+                Q(titre__icontains=q) | Q(description__icontains=q)
+            )
+
+        # ── Pagination ───────────────────────────────────────────
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = OffreSerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         if not hasattr(request.user, 'recruteur'):
-            return Response({'detail': 'Only recruiters can create offres.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'detail': 'Only recruiters can create offres.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         serializer = CreateOffreSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -42,7 +81,10 @@ class OffreListCreateView(APIView):
             recruteur=request.user.recruteur,
             **serializer.validated_data
         )
-        return Response(OffreSerializer(offre, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        return Response(
+            OffreSerializer(offre, context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
 
 
 class OffreDetailView(APIView):
@@ -111,7 +153,7 @@ class FermerOffreView(APIView):
 
 class MyOffresView(APIView):
     """
-    GET /recruteurs/me/offres → recruiter sees only their own jobs
+    GET /recruteurs/me/offres → recruiter sees only their own jobs (with filters + pagination)
     """
     permission_classes = [IsAuthenticated]
 
@@ -119,14 +161,27 @@ class MyOffresView(APIView):
         if not hasattr(request.user, 'recruteur'):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        offres = Offre.objects.filter(recruteur=request.user.recruteur).order_by('-id')
-        serializer = OffreSerializer(offres, many=True, context={'request': request})
-        return Response(serializer.data)
+        queryset = Offre.objects.filter(
+            recruteur=request.user.recruteur
+        ).annotate(
+            nb_candidatures=Count('candidatures')
+        ).order_by('-id')
+
+        # Optional filter by statut
+        statut = request.query_params.get('statut')
+        if statut:
+            queryset = queryset.filter(statut=statut)
+
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = OffreSerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
 
 
 class OffreCandidaturesView(APIView):
     """
-    GET /offres/{id}/candidatures → recruiter sees who applied to their job
+    GET  /offres/{id}/candidatures → recruiter sees who applied
+    POST /offres/{id}/candidatures → candidate applies to the job
     """
     permission_classes = [IsAuthenticated]
 
@@ -140,8 +195,49 @@ class OffreCandidaturesView(APIView):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
         candidatures = offre.candidatures.all()
-        serializer = CandidatureSerializer(candidatures, many=True)
-        return Response(serializer.data)
+
+        # Optional filter by statut
+        statut = request.query_params.get('statut')
+        if statut:
+            candidatures = candidatures.filter(statut=statut)
+
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(candidatures, request)
+        serializer = CandidatureSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    def post(self, request, id):
+        # Only candidates can apply
+        if not hasattr(request.user, 'candidat'):
+            return Response(
+                {'detail': 'Only candidates can apply.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            offre = Offre.objects.get(pk=id)
+        except Offre.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if already applied — 409 Conflict
+        if Candidature.objects.filter(candidat=request.user.candidat, offre=offre).exists():
+            return Response(
+                {'detail': 'You have already applied to this offer.'},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        serializer = CreateCandidatureSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        candidature = Candidature.objects.create(
+            candidat=request.user.candidat,
+            offre=offre,
+            **serializer.validated_data
+        )
+        return Response(
+            CandidatureSerializer(candidature).data,
+            status=status.HTTP_201_CREATED
+        )
 
 
 # ===========================================================================
@@ -149,9 +245,7 @@ class OffreCandidaturesView(APIView):
 # ===========================================================================
 
 class MissionDetailView(APIView):
-    """
-    GET /missions/{id} → view a mission
-    """
+    """GET /missions/{id}"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, id):
@@ -163,9 +257,7 @@ class MissionDetailView(APIView):
 
 
 class ValiderDebutView(APIView):
-    """
-    POST /missions/{id}/valider-debut → confirm mission started
-    """
+    """POST /missions/{id}/valider-debut"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request, id):
@@ -181,9 +273,7 @@ class ValiderDebutView(APIView):
 
 
 class ValiderFinView(APIView):
-    """
-    POST /missions/{id}/valider-fin → confirm mission ended
-    """
+    """POST /missions/{id}/valider-fin"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request, id):
@@ -199,9 +289,7 @@ class ValiderFinView(APIView):
 
 
 class AttestationView(APIView):
-    """
-    GET /missions/{id}/attestation → get mission certificate data
-    """
+    """GET /missions/{id}/attestation"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, id):
