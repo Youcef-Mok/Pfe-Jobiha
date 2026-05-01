@@ -41,9 +41,10 @@ urlpatterns = [
 
     # --- settings ---
 
-    #path('users/me/blocked',    views.BlockedUsersView.as_view(),    name='blocked-users'),
-    #path('users/me/deactivate', views.DeactivateAccountView.as_view(), name='deactivate-account'),
-    #path('users/me/preferences', views.PushNotifPrefView.as_view(),  name='push-notif-pref'),
+    path('users/me/blocked',    views.BlockedUsersView.as_view(),    name='blocked-users'),
+    path('users/me/blocked/<int:id>', views.BlockedUsersView.as_view(),    name='blocked-users-delete'),
+    path('users/me/deactivate', views.DeactivateAccountView.as_view(), name='deactivate-account'),
+    path('users/me/preferences', views.PushNotifPrefView.as_view(),  name='push-notif-pref'),
 
     # --- Admin ---
     path('admin/utilisateurs', views.AdminUserListView.as_view(), name='admin-users'),

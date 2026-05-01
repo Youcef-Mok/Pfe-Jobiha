@@ -3,6 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/features/settings/data/providers/settings_provider.dart';
+import 'package:job_app/features/auth/providers/auth_providers.dart';
+
 
 class DeactivateAccountScreen extends ConsumerStatefulWidget {
   const DeactivateAccountScreen({super.key});
@@ -75,15 +78,13 @@ class _DeactivateAccountScreenState
     if (confirmed != true) return;
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+    final success = await ref.read(settingsProvider.notifier).deactivateAccount();
     setState(() => _loading = false);
 
-    if (mounted) {
-      // TODO: replace with real API call when backend is ready
-      // For deactivate: await ApiClient.instance.post(ApiEndpoints.deactivateAccount, data: {'password': _passwordCtrl.text});
-      // For delete:     await ApiClient.instance.delete(ApiEndpoints.deleteAccount, data: {'password': _passwordCtrl.text});
-      // Then: await ref.read(authProvider.notifier).logout();
-      // Then: Navigator.of(context).pushNamedAndRemoveUntil('/welcome', (_) => false);
+    if (success && mounted) {
+      await ref.read(authProvider.notifier).logout();
+      Navigator.of(context).pushNamedAndRemoveUntil('/welcome', (_) => false);
+    } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Cette fonctionnalité sera disponible prochainement.'),

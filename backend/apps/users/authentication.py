@@ -1,3 +1,5 @@
+#  backend/apps/users/authentication.py
+
 """
 Custom JWT authentication that works with Utilisateur (plain models.Model)
 instead of Django's default auth User model.

@@ -10,7 +10,6 @@ import 'package:job_app/features/auth/screens/signup_profile_screen.dart';
 import 'package:job_app/features/auth/screens/verify_email_screen.dart';
 import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
 import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
-
 import 'package:job_app/features/settings/screens/settings_screen.dart';
 import 'package:job_app/features/settings/screens/saved_screen.dart';
 import 'package:job_app/features/settings/screens/applications_sent_screen.dart';

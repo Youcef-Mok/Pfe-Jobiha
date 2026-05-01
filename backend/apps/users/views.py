@@ -14,7 +14,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP
+from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP,  BlockedUser
 from apps.uploads.models import Media
 from apps.users.serializers import (
     RegisterCandidatSerializer, RegisterRecruteurSerializer,
@@ -767,3 +767,98 @@ class ResetPasswordView(APIView):
         otp.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+# __ Blocked users ______________________________________________
+
+# Add to apps/users/views.py
+
+from apps.users.models import BlockedUser  # add to existing imports
+
+
+class DeactivateAccountView(APIView):
+    """POST /users/me/deactivate"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        utilisateur = request.user
+        utilisateur.statut_compte = 'inactif'
+        utilisateur.save(update_fields=['statut_compte'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BlockedUsersView(APIView):
+    """GET /users/me/blocked  — list blocked users
+       POST /users/me/blocked  — block a user
+       DELETE /users/me/blocked/{id} — unblock a user
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        blocked = BlockedUser.objects.filter(
+            bloqueur=request.user
+        ).select_related('bloque')
+        data = [
+            {
+                'id':     b.bloque.id,
+                'nom':    b.bloque.nom,
+                'prenom': b.bloque.prenom,
+                'date_blocage': b.date_blocage,
+            }
+            for b in blocked
+        ]
+        return Response(data)
+
+    def post(self, request):
+        bloque_id = request.data.get('user_id')
+        if not bloque_id:
+            return Response(
+                {'detail': 'user_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if bloque_id == request.user.pk:
+            return Response(
+                {'detail': 'You cannot block yourself.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            bloque = Utilisateur.objects.get(pk=bloque_id)
+        except Utilisateur.DoesNotExist:
+            return Response(
+                {'detail': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        BlockedUser.objects.get_or_create(bloqueur=request.user, bloque=bloque)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def delete(self, request, id):
+        deleted, _ = BlockedUser.objects.filter(
+            bloqueur=request.user, bloque_id=id
+        ).delete()
+        if not deleted:
+            return Response(
+                {'detail': 'Not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+#__ Push notification _____________________________________________________________
+
+class PushNotifPrefView(APIView):
+    """GET / PATCH  /users/me/preferences"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({'push_notif_enabled': request.user.push_notif_enabled})
+
+    def patch(self, request):
+        value = request.data.get('push_notif_enabled')
+        if not isinstance(value, bool):
+            return Response(
+                {'push_notif_enabled': ['Must be a boolean.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        request.user.push_notif_enabled = value
+        request.user.save(update_fields=['push_notif_enabled'])
+        return Response({'push_notif_enabled': request.user.push_notif_enabled})

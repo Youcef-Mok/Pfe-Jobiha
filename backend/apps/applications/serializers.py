@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.applications.models import Candidature
+from apps.applications.models.candidature import Candidature
 
 
 class CandidatureSerializer(serializers.ModelSerializer):
@@ -18,8 +18,8 @@ class CandidatureSerializer(serializers.ModelSerializer):
             'id':           obj.candidat.id,
             'nom':          obj.candidat.nom,
             'prenom':       obj.candidat.prenom,
-            'competences':  obj.candidat.competences,   # ← was missing
-            'note_globale': obj.candidat.note_globale,  # ← was missing
+            'competences':  obj.candidat.competences,   
+            'note_globale': obj.candidat.note_globale,  
         }
 
     def get_offre(self, obj):
