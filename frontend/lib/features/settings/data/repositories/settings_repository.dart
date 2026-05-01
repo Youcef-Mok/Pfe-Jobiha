@@ -52,12 +52,12 @@ class SettingsRepository {
 
 
 
-// TODO :
+
   // ── Delete account ─────────────────────────────────────────────────────────
   // Backend endpoint to be added when permanent deletion is implemented.
-  //Future<void> deleteAccount() async {
+  Future<void> deleteAccount() async {
    // await _dio.delete(ApiEndpoints.deleteAccount);
-  //}
+  }
 
 
 }
