@@ -7,6 +7,7 @@ from apps.jobs.models.mission import Mission
 # Offre serializers
 # ---------------------------------------------------------------------------
 
+
 class OffreSerializer(serializers.ModelSerializer):
     recruteur       = serializers.SerializerMethodField()
     nb_candidatures = serializers.SerializerMethodField()
@@ -29,7 +30,13 @@ class OffreSerializer(serializers.ModelSerializer):
         }
 
     def get_nb_candidatures(self, obj):
-        return obj.candidatures.count()
+        # If the view annotated the queryset, use it (no extra query).
+        # If not (e.g. single retrieve without annotation), fall back to count().
+        if hasattr(obj, 'nb_candidatures'):
+            return obj.nb_candidatures
+        return obj.candidatures.count()    
+
+
 
 
 class CreateOffreSerializer(serializers.Serializer):
