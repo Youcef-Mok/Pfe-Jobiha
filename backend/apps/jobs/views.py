@@ -24,7 +24,10 @@ class OffreListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        offres = Offre.objects.all().order_by('-id')
+        from django.db.models import Count
+        offres = Offre.objects.annotate(
+           nb_candidatures=Count('candidatures')
+        ).order_by('-id')
         serializer = OffreSerializer(offres, many=True, context={'request': request})
         return Response(serializer.data)
 
