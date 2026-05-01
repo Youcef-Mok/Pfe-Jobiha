@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from apps.jobs.models import Offre, Mission
+from apps.jobs.models.offre import Offre
+from apps.jobs.models.mission import Mission
 
 
 # ---------------------------------------------------------------------------
