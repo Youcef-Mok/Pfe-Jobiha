@@ -1,17 +1,30 @@
+// lib/features/messaging/domain/message_entity.dart
+
 class MessageEntity {
-  final String id;
-  final String conversationId;
-  final String senderId;
-  final String content;
-  final String sentAt;
-  final bool isMe;
+  final int id;
+  final String contenu;
+  final DateTime dateEnvoi;
+  final bool estLu;
+  final int expediteurId;
+  final String expediteurNom;
+  final String expediteurPrenom;
+  final int destinataireId;
+  final String destinataireNom;
+  final String destinatairePrenom;
 
   const MessageEntity({
     required this.id,
-    required this.conversationId,
-    required this.senderId,
-    required this.content,
-    required this.sentAt,
-    required this.isMe,
+    required this.contenu,
+    required this.dateEnvoi,
+    required this.estLu,
+    required this.expediteurId,
+    required this.expediteurNom,
+    required this.expediteurPrenom,
+    required this.destinataireId,
+    required this.destinataireNom,
+    required this.destinatairePrenom,
   });
+
+  /// Whether this message was sent by the given user ID.
+  bool isSentBy(int userId) => expediteurId == userId;
 }

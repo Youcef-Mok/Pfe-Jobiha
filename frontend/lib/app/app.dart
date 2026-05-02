@@ -100,7 +100,8 @@ class App extends StatelessWidget {
       
       //home: const SettingsScreen(),
       //home: const WelcomeScreen(),
-       home: const _AuthGate(),
+      //home: const _AuthGate(),
+      home: ChatListScreen(),
 
       routes: {
  

@@ -1,124 +1,148 @@
-import 'package:job_app/features/messaging/domain/conversation_entity.dart';
-import 'package:job_app/features/messaging/domain/message_entity.dart';
+// lib/features/messaging/data/models/chat_model.dart
+//
+// Data-layer models that map 1-to-1 to the Django REST API response shapes.
+// Each model knows how to parse JSON and convert to its domain entity.
+
+import '../../domain/conversation_entity.dart';
+import '../../domain/message_entity.dart';
+
+// ---------------------------------------------------------------------------
+// Lightweight user sub-object returned inside message payloads
+// ---------------------------------------------------------------------------
+
+class UserBrief {
+  final int id;
+  final String nom;
+  final String prenom;
+
+  const UserBrief({
+    required this.id,
+    required this.nom,
+    required this.prenom,
+  });
+
+  factory UserBrief.fromJson(Map<String, dynamic> json) => UserBrief(
+        id:     json['id'] as int,
+        nom:    json['nom'] as String? ?? '',
+        prenom: json['prenom'] as String? ?? '',
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'nom': nom,
+        'prenom': prenom,
+      };
+}
+
+// ---------------------------------------------------------------------------
+// MessageModel — maps to MessageSerializer output
+// ---------------------------------------------------------------------------
+
+class MessageModel {
+  final int id;
+  final String contenu;
+  final DateTime dateEnvoi;
+  final bool estLu;
+  final UserBrief expediteur;
+  final UserBrief destinataire;
+
+  const MessageModel({
+    required this.id,
+    required this.contenu,
+    required this.dateEnvoi,
+    required this.estLu,
+    required this.expediteur,
+    required this.destinataire,
+  });
+
+  factory MessageModel.fromJson(Map<String, dynamic> json) => MessageModel(
+        id:           json['id'] as int,
+        contenu:      json['contenu'] as String,
+        dateEnvoi:    DateTime.parse(json['date_envoi'] as String),
+        estLu:        json['est_lu'] as bool? ?? false,
+        expediteur:   UserBrief.fromJson(json['expediteur'] as Map<String, dynamic>),
+        destinataire: UserBrief.fromJson(json['destinataire'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'contenu': contenu,
+        'date_envoi': dateEnvoi.toIso8601String(),
+        'est_lu': estLu,
+        'expediteur': expediteur.toJson(),
+        'destinataire': destinataire.toJson(),
+      };
+
+  MessageEntity toEntity() => MessageEntity(
+        id:                 id,
+        contenu:            contenu,
+        dateEnvoi:          dateEnvoi,
+        estLu:              estLu,
+        expediteurId:       expediteur.id,
+        expediteurNom:      expediteur.nom,
+        expediteurPrenom:   expediteur.prenom,
+        destinataireId:     destinataire.id,
+        destinataireNom:    destinataire.nom,
+        destinatairePrenom: destinataire.prenom,
+      );
+}
+
+// ---------------------------------------------------------------------------
+// InterlocuteurBrief — user sub-object in conversation summaries
+// ---------------------------------------------------------------------------
+
+class InterlocuteurBrief {
+  final int id;
+  final String nom;
+  final String prenom;
+  final String? role;
+
+  const InterlocuteurBrief({
+    required this.id,
+    required this.nom,
+    required this.prenom,
+    this.role,
+  });
+
+  factory InterlocuteurBrief.fromJson(Map<String, dynamic> json) =>
+      InterlocuteurBrief(
+        id:     json['id'] as int,
+        nom:    json['nom'] as String? ?? '',
+        prenom: json['prenom'] as String? ?? '',
+        role:   json['role'] as String?,
+      );
+}
+
+// ---------------------------------------------------------------------------
+// ConversationModel — maps to ConversationSummarySerializer output
+// ---------------------------------------------------------------------------
 
 class ConversationModel {
-  final String id;
-  final String contactName;
-  final String? contactTag;
-  final String lastMessage;
-  final String lastMessageTime;
-  final bool isUnread;
-  final bool isPinned;
-  final String? avatarUrl;
+  final InterlocuteurBrief interlocuteur;
+  final MessageModel dernierMessage;
+  final int nbNonLus;
 
   const ConversationModel({
-    required this.id,
-    required this.contactName,
-    this.contactTag,
-    required this.lastMessage,
-    required this.lastMessageTime,
-    required this.isUnread,
-    required this.isPinned,
-    this.avatarUrl,
+    required this.interlocuteur,
+    required this.dernierMessage,
+    required this.nbNonLus,
   });
 
   factory ConversationModel.fromJson(Map<String, dynamic> json) =>
       ConversationModel(
-        id: json['id'] as String,
-        contactName: json['contact_name'] as String,
-        contactTag: json['contact_tag'] as String?,
-        lastMessage: json['last_message'] as String,
-        lastMessageTime: json['last_message_time'] as String,
-        isUnread: json['is_unread'] as bool? ?? false,
-        isPinned: json['is_pinned'] as bool? ?? false,
-        avatarUrl: json['avatar_url'] as String?,
+        interlocuteur:  InterlocuteurBrief.fromJson(
+            json['interlocuteur'] as Map<String, dynamic>),
+        dernierMessage: MessageModel.fromJson(
+            json['dernier_message'] as Map<String, dynamic>),
+        nbNonLus:       json['nb_non_lus'] as int? ?? 0,
       );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'contact_name': contactName,
-        'contact_tag': contactTag,
-        'last_message': lastMessage,
-        'last_message_time': lastMessageTime,
-        'is_unread': isUnread,
-        'is_pinned': isPinned,
-        'avatar_url': avatarUrl,
-      };
 
   ConversationEntity toEntity() => ConversationEntity(
-        id: id,
-        contactName: contactName,
-        contactTag: contactTag,
-        lastMessage: lastMessage,
-        lastMessageTime: lastMessageTime,
-        isUnread: isUnread,
-        isPinned: isPinned,
-        avatarUrl: avatarUrl,
-      );
-
-  factory ConversationModel.fromEntity(ConversationEntity entity) =>
-      ConversationModel(
-        id: entity.id,
-        contactName: entity.contactName,
-        contactTag: entity.contactTag,
-        lastMessage: entity.lastMessage,
-        lastMessageTime: entity.lastMessageTime,
-        isUnread: entity.isUnread,
-        isPinned: entity.isPinned,
-        avatarUrl: entity.avatarUrl,
-      );
-}
-
-class MessageModel {
-  final String id;
-  final String conversationId;
-  final String senderId;
-  final String content;
-  final String sentAt;
-  final bool isMe;
-
-  const MessageModel({
-    required this.id,
-    required this.conversationId,
-    required this.senderId,
-    required this.content,
-    required this.sentAt,
-    required this.isMe,
-  });
-
-  factory MessageModel.fromJson(Map<String, dynamic> json) => MessageModel(
-        id: json['id'] as String,
-        conversationId: json['conversation_id'] as String,
-        senderId: json['sender_id'] as String,
-        content: json['content'] as String,
-        sentAt: json['sent_at'] as String,
-        isMe: json['is_me'] as bool? ?? false,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'conversation_id': conversationId,
-        'sender_id': senderId,
-        'content': content,
-        'sent_at': sentAt,
-        'is_me': isMe,
-      };
-
-  MessageEntity toEntity() => MessageEntity(
-        id: id,
-        conversationId: conversationId,
-        senderId: senderId,
-        content: content,
-        sentAt: sentAt,
-        isMe: isMe,
-      );
-
-  factory MessageModel.fromEntity(MessageEntity entity) => MessageModel(
-        id: entity.id,
-        conversationId: entity.conversationId,
-        senderId: entity.senderId,
-        content: entity.content,
-        sentAt: entity.sentAt,
-        isMe: entity.isMe,
+        interlocuteurId:     interlocuteur.id,
+        interlocuteurNom:    interlocuteur.nom,
+        interlocuteurPrenom: interlocuteur.prenom,
+        interlocuteurRole:   interlocuteur.role,
+        dernierMessage:      dernierMessage.toEntity(),
+        nbNonLus:            nbNonLus,
       );
 }

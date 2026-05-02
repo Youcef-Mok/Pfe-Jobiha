@@ -38,19 +38,24 @@ class MessageSerializer(serializers.ModelSerializer):
             'expediteur', 'destinataire',
         ]
 
-    def get_expediteur(self, obj):
+    @staticmethod
+    def _user_brief(user):
+        """
+        Shared helper for user sub-objects.
+        Structured so an `avatar_url` field can be added later without
+        touching every serializer method.
+        """
         return {
-            'id':     obj.expediteur.id,
-            'nom':    obj.expediteur.nom,
-            'prenom': obj.expediteur.prenom,
+            'id':     user.id,
+            'nom':    user.nom,
+            'prenom': user.prenom,
         }
 
+    def get_expediteur(self, obj):
+        return self._user_brief(obj.expediteur)
+
     def get_destinataire(self, obj):
-        return {
-            'id':     obj.destinataire.id,
-            'nom':    obj.destinataire.nom,
-            'prenom': obj.destinataire.prenom,
-        }
+        return self._user_brief(obj.destinataire)
 
 
 class PaginatedMessagesSerializer(serializers.Serializer):
