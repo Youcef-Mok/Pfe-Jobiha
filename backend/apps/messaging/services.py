@@ -114,9 +114,10 @@ def get_conversation_list(user):
 def get_conversation_messages(user, partner_id):
     """
     Return a queryset of messages between ``user`` and the partner,
-    ordered chronologically (oldest first).
+    ordered newest-first so that page 1 always contains the most
+    recent messages.
 
-    The view is responsible for pagination.
+    The frontend reverses each page to display chronologically.
     """
     return (
         Message.objects
@@ -125,7 +126,7 @@ def get_conversation_messages(user, partner_id):
             | Q(expediteur_id=partner_id, destinataire=user)
         )
         .select_related("expediteur", "destinataire")
-        .order_by("date_envoi")
+        .order_by("-date_envoi")
     )
 
 

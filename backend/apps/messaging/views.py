@@ -13,6 +13,8 @@ POST /messages                                   → SendMessageView
 POST /messages/<id>/lire                         → MarquerMessageLuView
 """
 
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -28,6 +30,12 @@ from apps.messaging import services
 from apps.users.models import Utilisateur
 from core.pagination import StandardPagination
 from core.permissions import IsMessageParticipant
+
+
+def _get_room_group(user_id, partner_id):
+    """Deterministic room name matching the consumer logic."""
+    ids = sorted([user_id, partner_id])
+    return f"chat_{ids[0]}_{ids[1]}"
 
 
 # ---------------------------------------------------------------------------
@@ -116,8 +124,28 @@ class SendMessageView(APIView):
             destinataire=destinataire,
             contenu=contenu,
         )
+        # Re-fetch with related objects for serialization
+        message = Message.objects.select_related(
+            "expediteur", "destinataire"
+        ).get(pk=message.pk)
 
         out = MessageSerializer(message)
+
+        # Broadcast to WebSocket group so partner sees it in real-time.
+        # Include sender_id so the consumer can skip echoing back to the
+        # sender (they already have the message from the REST response).
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            room = _get_room_group(request.user.pk, dest_id)
+            async_to_sync(channel_layer.group_send)(
+                room,
+                {
+                    "type": "chat.message",
+                    "message": out.data,
+                    "sender_id": request.user.pk,
+                },
+            )
+
         return Response(out.data, status=status.HTTP_201_CREATED)
 
 
@@ -181,4 +209,20 @@ class MarquerConvLueView(APIView):
             )
 
         updated = services.mark_conversation_read(request.user, user_id)
+
+        # Broadcast read receipt via WebSocket
+        if updated > 0:
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                room = _get_room_group(request.user.pk, user_id)
+                async_to_sync(channel_layer.group_send)(
+                    room,
+                    {
+                        "type": "chat.read_receipt",
+                        "reader_id": request.user.pk,
+                        "partner_id": user_id,
+                        "count": updated,
+                    },
+                )
+
         return Response({"updated": updated})

@@ -55,10 +55,28 @@ class MessageModel {
     required this.destinataire,
   });
 
+
+    MessageModel copyWith({
+    int? id,
+    String? contenu,
+    DateTime? dateEnvoi,
+    bool? estLu,
+    UserBrief? expediteur,
+    UserBrief? destinataire,
+  }) =>
+      MessageModel(
+        id:           id ?? this.id,
+        contenu:      contenu ?? this.contenu,
+        dateEnvoi:    dateEnvoi ?? this.dateEnvoi,
+        estLu:        estLu ?? this.estLu,
+        expediteur:   expediteur ?? this.expediteur,
+        destinataire: destinataire ?? this.destinataire,
+      );
+
   factory MessageModel.fromJson(Map<String, dynamic> json) => MessageModel(
         id:           json['id'] as int,
         contenu:      json['contenu'] as String,
-        dateEnvoi:    DateTime.parse(json['date_envoi'] as String),
+        dateEnvoi:    DateTime.parse(json['date_envoi'] as String).toLocal(),
         estLu:        json['est_lu'] as bool? ?? false,
         expediteur:   UserBrief.fromJson(json['expediteur'] as Map<String, dynamic>),
         destinataire: UserBrief.fromJson(json['destinataire'] as Map<String, dynamic>),

@@ -7,6 +7,17 @@ class ApiEndpoints {
    static const String _base = 'http://192.168.100.9:8000/api/v1'; // physical device - PC IPV4
   // static const String _base = 'https://api.petitsjobs.dz/v1';   // production
 
+  // ── WebSocket base ─────────────────────────────────────────────────────────
+  // Mirrors _base but uses ws:// scheme and no /api/v1 prefix.
+  // static const String _wsBase = 'ws://10.0.2.2:8000';          // virtual device
+  static const String _wsBase = 'ws://192.168.100.9:8000';        // physical device
+  // static const String _wsBase = 'wss://api.petitsjobs.dz';     // production
+
+  /// WebSocket URL for a chat session with [partnerId].
+  /// Token is passed as a query parameter for the JWT middleware.
+  static String chatWebSocket(int partnerId, String token) =>
+      '$_wsBase/ws/chat/$partnerId/?token=$token';
+
   // ── Auth ────────────────────────────────────────────────────────────────────
   static const String registerCandidat  = '$_base/auth/register/candidat';
   static const String registerRecruteur = '$_base/auth/register/recruteur';
