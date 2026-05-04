@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from apps.jobs.models.offre import Offre
 from apps.jobs.models.mission import Mission
+from apps.jobs.models.saved_job import SavedJob
+from apps.jobs.models.alerte import Alerte
 
 
 # ---------------------------------------------------------------------------
@@ -106,3 +108,51 @@ class MissionSerializer(serializers.ModelSerializer):
             url = f'/api/v1/missions/{obj.id}/attestation'
             return request.build_absolute_uri(url) if request else url
         return None
+
+
+# ---------------------------------------------------------------------------
+# SavedJob serializers
+# ---------------------------------------------------------------------------
+
+class SavedJobSerializer(serializers.ModelSerializer):
+    offre = OffreSerializer(read_only=True)
+
+    class Meta:
+        model  = SavedJob
+        fields = ['id', 'offre', 'saved_at']
+
+
+class CreateSavedJobSerializer(serializers.Serializer):
+    offre_id = serializers.IntegerField()
+
+
+# ---------------------------------------------------------------------------
+# Alerte serializers
+# ---------------------------------------------------------------------------
+
+class AlerteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Alerte
+        fields = [
+            'id', 'titre', 'categorie', 'type_contrat',
+            'salaire_min', 'localisation', 'actif', 'cree_le',
+        ]
+        read_only_fields = ['id', 'cree_le']
+
+
+class CreateAlerteSerializer(serializers.Serializer):
+    titre        = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    categorie    = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    type_contrat = serializers.CharField(max_length=50,  required=False, allow_blank=True)
+    salaire_min  = serializers.FloatField(required=False, allow_null=True)
+    localisation = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    actif        = serializers.BooleanField(required=False, default=True)
+
+
+class UpdateAlerteSerializer(serializers.Serializer):
+    titre        = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    categorie    = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    type_contrat = serializers.CharField(max_length=50,  required=False, allow_blank=True)
+    salaire_min  = serializers.FloatField(required=False, allow_null=True)
+    localisation = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    actif        = serializers.BooleanField(required=False)
