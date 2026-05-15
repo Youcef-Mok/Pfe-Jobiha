@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
@@ -16,39 +15,6 @@ import 'package:job_app/features/notifications/screens/notifications_screen.dart
 import 'package:job_app/features/candidates/screens/candidates_screen.dart';
 import 'package:job_app/features/candidates/data/providers/candidates_provider.dart';
 import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
-
-/// ────────────────
-/// ENTRY POINT
-/// ────────────────
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('fr_FR', null);
-
-  runApp(
-    const ProviderScope(
-      child: JobsListApp(),
-    ),
-  );
-}
-
-class JobsListApp extends StatelessWidget {
-  const JobsListApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'JobApp',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.violet),
-        scaffoldBackgroundColor: AppColors.background,
-        fontFamily: 'PlusJakartaSans',
-      ),
-      home: const JobsListScreen(),
-    );
-  }
-}
 
 /// ────────────────
 /// JobsListScreen
@@ -278,7 +244,6 @@ class _JobsBody extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             itemCount: filtered.length,
             separatorBuilder: (_, __) => const SizedBox(height: 16),
-            shrinkWrap: true,
             physics: const AlwaysScrollableScrollPhysics(),
             itemBuilder: (context, index) {
               final item = filtered[index];
@@ -318,7 +283,6 @@ class _JobsBody extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             itemCount: missions.length,
             separatorBuilder: (_, __) => const SizedBox(height: 16),
-            shrinkWrap: true,
             physics: const AlwaysScrollableScrollPhysics(),
             itemBuilder: (context, index) {
               final mission = missions[index];
@@ -546,5 +510,4 @@ class _AddJobFAB extends StatelessWidget {
     );
   }
 }
-
 

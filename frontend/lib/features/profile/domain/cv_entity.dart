@@ -5,6 +5,8 @@ class CvFormationEntity {
   final String location;
   final int year;
   final bool isActive; // true → point violet, false → point gris
+  final String? fileName; // nom du fichier du certificat uploadé
+  final String? filePath; // chemin du fichier du certificat uploadé
 
   const CvFormationEntity({
     required this.title,
@@ -12,6 +14,8 @@ class CvFormationEntity {
     required this.location,
     required this.year,
     this.isActive = false,
+    this.fileName,
+    this.filePath,
   });
 }
 

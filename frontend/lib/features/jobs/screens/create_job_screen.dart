@@ -271,7 +271,7 @@ class _FieldWrapper extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child:
-                    const Text('OPTIONNEL', style: AppTextStyles.optionalBadge),
+                    Text('OPTIONNEL', style: AppTextStyles.optionalBadge),
               ),
             ],
           ],
@@ -390,7 +390,7 @@ class _ContractTypeSegment extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Type de contrat', style: AppTextStyles.fieldLabel),
+        Text('Type de contrat', style: AppTextStyles.fieldLabel),
         const SizedBox(height: 8),
         Container(
           height: 44,
@@ -616,7 +616,7 @@ class _ImageUploadField extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Text("Photo de l'annonce", style: AppTextStyles.fieldLabel),
+            Text("Photo de l'annonce", style: AppTextStyles.fieldLabel),
             const Spacer(),
             Container(
               padding:
@@ -625,7 +625,7 @@ class _ImageUploadField extends StatelessWidget {
                 color: AppColors.slate100,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text('OPTIONNEL', style: AppTextStyles.optionalBadge),
+              child: Text('OPTIONNEL', style: AppTextStyles.optionalBadge),
             ),
           ],
         ),
@@ -658,7 +658,7 @@ class _ImageUploadField extends StatelessWidget {
                       size: 22, color: AppColors.violet),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Cliquez pour télécharger',
                   style: AppTextStyles.fieldLabel,
                   textAlign: TextAlign.center,
@@ -718,7 +718,7 @@ class _ActionFooter extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text('Sauvegarder', style: AppTextStyles.saveDraftBtn),
+                child: Text('Sauvegarder', style: AppTextStyles.saveDraftBtn),
               ),
             ),
           ),
@@ -775,7 +775,7 @@ class _ActionFooter extends StatelessWidget {
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text("Publier\nl'annonce",
+                              Text("Publier\nl'annonce",
                                   style: AppTextStyles.publishBtn,
                                   textAlign: TextAlign.center),
                               const SizedBox(width: 8),

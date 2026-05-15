@@ -93,4 +93,9 @@ class JobsController {
   /// Calcule le total de candidatures
   int totalCandidates(List<JobEntity> jobs) =>
       jobs.fold(0, (sum, j) => sum + j.candidateCount);
+
+  /// Met à jour une mission avec le review du candidat
+  Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback) async {
+    return _repository.updateMissionReview(missionId, rating, feedback);
+  }
 }

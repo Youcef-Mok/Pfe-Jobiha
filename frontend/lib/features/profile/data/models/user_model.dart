@@ -5,6 +5,7 @@ class UserModel {
   final String id;
   final String name;
   final String role;
+  final String domain;
   final String company;
   final String location;
   final String bio;
@@ -18,6 +19,7 @@ class UserModel {
     required this.id,
     required this.name,
     required this.role,
+    required this.domain,
     required this.company,
     required this.location,
     required this.bio,
@@ -32,6 +34,7 @@ class UserModel {
         id: json['id'] as String,
         name: json['name'] as String,
         role: json['role'] as String,
+        domain: json['domain'] as String? ?? 'Restauration',
         company: json['company'] as String,
         location: json['location'] as String,
         bio: json['bio'] as String,
@@ -46,6 +49,7 @@ class UserModel {
         'id': id,
         'name': name,
         'role': role,
+        'domain': domain,
         'company': company,
         'location': location,
         'bio': bio,
@@ -60,6 +64,7 @@ class UserModel {
         id: id,
         name: name,
         role: role,
+        domain: domain,
         company: company,
         location: location,
         bio: bio,
@@ -74,6 +79,7 @@ class UserModel {
         id: entity.id,
         name: entity.name,
         role: entity.role,
+        domain: entity.domain,
         company: entity.company,
         location: entity.location,
         bio: entity.bio,

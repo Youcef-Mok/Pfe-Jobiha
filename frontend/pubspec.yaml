@@ -21,6 +21,17 @@ dependencies:
   # Fonts
   google_fonts: ^6.2.1
 
+  # Media & file pickers
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
+
+  # Map
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  dropdown_search: ^7.0.0
+  flutter_map_cancellable_tile_provider: ^3.0.2
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -36,4 +47,4 @@ flutter:
 
   # Assets
   assets:
-    - assets/images/
+    - assets/images/

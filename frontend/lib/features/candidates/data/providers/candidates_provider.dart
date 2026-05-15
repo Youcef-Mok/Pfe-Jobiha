@@ -15,7 +15,7 @@ final candidatesTabProvider = StateProvider<CandidateStatus>((ref) {
 });
 
 final currentJobIdProvider = StateProvider<String>((ref) {
-  return 'job-1'; // Mock job ID
+  return '2'; // Mock job ID correctly linked to mock data
 });
 
 class CandidatesNotifier
@@ -25,7 +25,7 @@ class CandidatesNotifier
 
   CandidatesNotifier(this._repository, this._jobId)
       : super(const AsyncValue.loading()) {
-    fetch();
+    Future.microtask(() => fetch());
   }
 
   Future<void> fetch() async {
@@ -81,10 +81,13 @@ final selectedJobProvider = Provider<JobEntity?>((ref) {
   final jobId = ref.watch(currentJobIdProvider);
   final jobsAsync = ref.watch(jobsNotifierProvider);
   return jobsAsync.whenOrNull(
-    data: (jobs) => jobs.firstWhere(
-      (j) => j.id == jobId,
-      orElse: () => jobs.firstWhere((j) => j.id == 'job-1'), // Fallback for mock demo
-    ),
+    data: (jobs) {
+      try {
+        return jobs.firstWhere((j) => j.id == jobId);
+      } catch (_) {
+        return jobs.isNotEmpty ? jobs.first : null;
+      }
+    },
   );
 });
 

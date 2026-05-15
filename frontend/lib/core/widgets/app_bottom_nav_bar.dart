@@ -35,11 +35,11 @@ class AppBottomNavBar extends StatelessWidget {
         return;
     }
 
-    // We use pushReplacement to avoid infinite stack, or just push.
-    // Given the previous code used push, we will align. Using pushReplacement for root level taps is better Practice. 
-    Navigator.push(
+    // ← Vide le stack avant de naviguer, évite l'accumulation mémoire
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => targetScreen),
+      (route) => false,
     );
   }
 

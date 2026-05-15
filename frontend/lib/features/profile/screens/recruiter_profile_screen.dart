@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:job_app/core/theme/app_theme.dart';
 
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/widgets/profile_header.dart';
@@ -22,7 +22,7 @@ class ProfileScreen extends ConsumerWidget {
     final selectedTab = ref.watch(profileTabProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F6F8), // Fond explicite F7F6F8
+      backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: userAsync.when(
@@ -64,8 +64,8 @@ class _TabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (selectedTab) {
-      ProfileTab.annonces  => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileAnnoncesSection()),
-      ProfileTab.missions  => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileMissionsSection()),
+      ProfileTab.annonces  => const CustomScrollView(physics: AlwaysScrollableScrollPhysics(), slivers: [ProfileAnnoncesSection()]),
+      ProfileTab.missions  => const CustomScrollView(physics: AlwaysScrollableScrollPhysics(), slivers: [ProfileMissionsSection()]),
       ProfileTab.competences  => const _CvBodyWrapper(),
       ProfileTab.reviews   => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileReviewsSection()),
     };

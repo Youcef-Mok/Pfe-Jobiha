@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/core/theme/app_theme.dart';
@@ -99,6 +100,7 @@ class JobCard extends StatelessWidget {
                       width: 64,
                       height: 64,
                       fit: BoxFit.cover,
+                      cacheWidth: 128,
                       errorBuilder: (_, __, ___) =>
                           const Icon(Icons.business, color: AppColors.slate400, size: 28),
                     )
@@ -107,6 +109,7 @@ class JobCard extends StatelessWidget {
                       width: 64,
                       height: 64,
                       fit: BoxFit.cover,
+                      cacheWidth: 128,
                     ),
             )
           : const Icon(Icons.business, color: AppColors.slate400, size: 28),
@@ -138,7 +141,9 @@ class JobCard extends StatelessWidget {
   }
 
   Widget _buildMetrics() {
-    return Row(
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
       children: [
         _MetricChip(
           icon: Icons.people_outline,
@@ -146,7 +151,6 @@ class JobCard extends StatelessWidget {
           isBold: true,
           iconColor: AppColors.violet,
         ),
-        const SizedBox(width: 16),
         _MetricChip(
           icon: Icons.remove_red_eye_outlined,
           value: '${job.viewCount} vues',
@@ -293,8 +297,7 @@ class _ActionButton extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: TextStyle(
-                fontFamily: 'PlusJakartaSans',
+              style: GoogleFonts.inter(
                 fontWeight: fontWeight,
                 fontSize: 14,
                 height: 1.43,

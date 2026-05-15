@@ -22,7 +22,7 @@ class ExpiryBadge extends StatelessWidget {
           // Partie gauche — "Expire dans"
           Container(
             width: 125,
-            height: 32,
+            height: 29,
             decoration: BoxDecoration(
               color: AppColors.violet,
               borderRadius: BorderRadius.circular(10),
@@ -38,7 +38,7 @@ class ExpiryBadge extends StatelessWidget {
                 ),
                 const SizedBox(width: 5),
                 const Text(
-                  'Expire dans',
+                  'se termine dans',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w500,
@@ -53,7 +53,7 @@ class ExpiryBadge extends StatelessWidget {
           // Partie droite — valeur
           Container(
             width: 74,
-            height: 28,
+            height: 29,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),

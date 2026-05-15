@@ -2,7 +2,8 @@
 class UserEntity {
   final String id;
   final String name;
-  final String role;
+  final String role; // Le poste occupé (ex: "Serveur", "Chef de cuisine")
+  final String domain; // Le domaine d'activité (ex: "Restauration", "Hôtellerie")
   final String company;
   final String location;
   final String bio;
@@ -16,6 +17,7 @@ class UserEntity {
     required this.id,
     required this.name,
     required this.role,
+    required this.domain,
     required this.company,
     required this.location,
     required this.bio,
@@ -33,6 +35,37 @@ class UserEntity {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  /// Crée une copie de l'entité avec les champs modifiés.
+  UserEntity copyWith({
+    String? id,
+    String? name,
+    String? role,
+    String? domain,
+    String? company,
+    String? location,
+    String? bio,
+    String? avatarUrl,
+    int? followersCount,
+    int? missionsCount,
+    double? rating,
+    String? accountType,
+  }) {
+    return UserEntity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      role: role ?? this.role,
+      domain: domain ?? this.domain,
+      company: company ?? this.company,
+      location: location ?? this.location,
+      bio: bio ?? this.bio,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      followersCount: followersCount ?? this.followersCount,
+      missionsCount: missionsCount ?? this.missionsCount,
+      rating: rating ?? this.rating,
+      accountType: accountType ?? this.accountType,
+    );
   }
 }
 

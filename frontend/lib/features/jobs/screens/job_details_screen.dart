@@ -86,7 +86,7 @@ class _HeroSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 15, 16, 0),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: SizedBox(
           height: 192,
           child: Stack(
@@ -162,7 +162,7 @@ class _HeroSection extends StatelessWidget {
                       job.title,
                       style: const TextStyle(
                         fontFamily: 'Inter',
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                         fontSize: 24,
                         height: 1.33,
                         color: Colors.white,

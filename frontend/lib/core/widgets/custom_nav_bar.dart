@@ -34,15 +34,8 @@ class CustomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 85,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
       ),
       child: Stack(
         clipBehavior: Clip.none,
@@ -98,20 +91,27 @@ class CustomNavBar extends StatelessWidget {
                   ),
                   // Le bouton violet chevauche légèrement le background
                   Transform.translate(
-                    offset: const Offset(0, -42),
+                    offset: const Offset(0, -36),
                     child: GestureDetector(
                       onTap: () => onItemTapped(2),
                       child: Container(
-                        width: 56,
-                        height: 56,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF401E66),
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF401E66),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF401E66).withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: const Icon(
                           Icons.home,
                           color: Colors.white,
-                          size: 24,
+                          size: 28,
                         ),
                       ),
                     ),
@@ -147,20 +147,20 @@ class CustomNavBar extends StatelessWidget {
             if (iconPath != null)
               Image.asset(
                 iconPath,
-                width: 18,
-                height: 18,
+                width: 24,
+                height: 24,
                 color: color,
                 errorBuilder: (context, error, stackTrace) => Icon(
                   icon,
                   color: color,
-                  size: index == 4 ? 22 : 18,
+                  size: 26,
                 ),
               )
             else
               Icon(
                 icon,
                 color: color,
-                size: index == 4 ? 22 : 18,
+                size: 26,
               ),
             const SizedBox(height: 4),
             Text(

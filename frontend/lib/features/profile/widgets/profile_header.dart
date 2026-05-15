@@ -10,12 +10,13 @@ class ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Color grayColor = Color(0xFF475569); // slate600
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 12), // Léger padding naturel au lieu de la barre Actions
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -28,8 +29,7 @@ class ProfileHeader extends StatelessWidget {
                   color: const Color(0xFFE2E8F0),
                   image: user.avatarUrl != null
                       ? DecorationImage(
-                          image: NetworkImage(user
-                              .avatarUrl!), // ou NetworkImage(user.avatarUrl!)
+                          image: NetworkImage(user.avatarUrl!),
                           fit: BoxFit.cover,
                         )
                       : null,
@@ -60,7 +60,7 @@ class ProfileHeader extends StatelessWidget {
                         Expanded(
                           child: Text(
                             user.name,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: GoogleFonts.inter(
                               fontWeight: FontWeight.w700,
                               fontSize: 24,
                               height: 1.33,
@@ -68,50 +68,73 @@ class ProfileHeader extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // Badge RECRUTOR
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0x1A7F19E6),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            'RECRUTOR',
-                            style: GoogleFonts.splineSans(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 10,
-                              letterSpacing: 1,
-                              color: const Color(0xFF401E66),
+                        if (user.accountType == 'recruiter')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0x1A7F19E6),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              'RECRUTOR',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                                letterSpacing: 1,
+                                color: const Color(0xFF401E66),
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       user.role,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.inter(
                         fontWeight: FontWeight.w500,
                         fontSize: 16,
                         height: 1.5,
-                        color: const Color(0xFF64748B),
+                        color: grayColor,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        const Icon(Icons.location_on,
-                            size: 12, color: Color(0xFF64748B)),
+                        const Icon(Icons.restaurant,
+                            size: 14, color: grayColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          user.company,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                            height: 1.5,
+                            color: grayColor,
+                          ),
+                        ),
                         const SizedBox(width: 4),
+                        Text(
+                          '•',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                            height: 1.5,
+                            color: grayColor,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.location_on,
+                            size: 14, color: grayColor),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            '${user.company} • ${user.location}',
-                            style: GoogleFonts.plusJakartaSans(
+                            user.location,
+                            style: GoogleFonts.inter(
                               fontWeight: FontWeight.w500,
                               fontSize: 16,
                               height: 1.5,
-                              color: const Color(0xFF64748B),
+                              color: grayColor,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -127,10 +150,10 @@ class ProfileHeader extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // Row of Buttons aligned with text start
+          // Row of Buttons
           Row(
             children: [
-              const SizedBox(width: 84.56 + 16), // Match avatar width + spacing
+              const SizedBox(width: 84.56 + 16),
               Expanded(
                 child: Row(
                   children: [
@@ -149,7 +172,7 @@ class ProfileHeader extends StatelessWidget {
                           ),
                           child: Text(
                             'Modifier',
-                            style: GoogleFonts.plusJakartaSans(
+                            style: GoogleFonts.inter(
                                 fontWeight: FontWeight.w600, fontSize: 14),
                           ),
                         ),
@@ -160,11 +183,11 @@ class ProfileHeader extends StatelessWidget {
                       width: 59,
                       height: 32.28,
                       decoration: BoxDecoration(
-                        color: const Color(0x1A7F13EC),
+                        color: const Color(0xFFEDE3F7),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
-                        Icons.mail_outline,
+                        Icons.share,
                         color: Color(0xFF401E66),
                         size: 20,
                       ),
@@ -182,11 +205,11 @@ class ProfileHeader extends StatelessWidget {
             padding: const EdgeInsets.only(left: 4),
             child: Text(
               user.bio,
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.inter(
                 fontWeight: FontWeight.w400,
                 fontSize: 14,
-                height: 1.64, // corresponds to 23px
-                color: const Color(0xFF475569),
+                height: 1.64,
+                color: const Color(0xFF334155),
               ),
             ),
           ),

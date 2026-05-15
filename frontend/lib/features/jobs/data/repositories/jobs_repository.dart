@@ -19,5 +19,8 @@ abstract class JobsRepository {
 
   /// Retourne les missions de l'utilisateur
   Future<List<MissionEntity>> getMissions();
+  
+  /// Met à jour une mission avec le review du candidat
+  Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback);
 }
 

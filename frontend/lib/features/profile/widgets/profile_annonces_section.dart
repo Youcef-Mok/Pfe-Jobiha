@@ -13,56 +13,60 @@ class ProfileAnnoncesSection extends ConsumerWidget {
     final jobsAsync = ref.watch(jobsNotifierProvider);
 
     return jobsAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.all(40),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.all(32),
-        child: Center(child: Text('Erreur: $e')),
-      ),
       data: (jobs) {
         if (jobs.isEmpty) {
-          return const _EmptyState(message: 'Aucune annonce');
+          return const SliverToBoxAdapter(
+            child: _EmptyState(message: 'Aucune annonce'),
+          );
         }
 
-        return Column(
-          children: [
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-              itemCount: jobs.length + 1,
-              separatorBuilder: (context, index) => SizedBox(height: index == 0 ? 6 : 12),
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Text(
-                      'Mes annonces',
-                      style: AppTextStyles.heading2.copyWith(
-                        color: AppColors.slate900,
-                        fontSize: 18,
-                      ),
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 2, left: 16, right: 16, top: 10),
+                  child: Text(
+                    'Mes annonces',
+                    style: AppTextStyles.heading2.copyWith(
+                      color: AppColors.slate900,
+                      fontSize: 18,
                     ),
-                  );
-                }
-                final job = jobs[index - 1];
-                return JobCard(
+                  ),
+                );
+              }
+              final job = jobs[index - 1];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: JobCard(
                   job: job,
                   onTap: () {},
                   onEdit: () {},
                   onViewCandidates: () {},
                   onComplete: () {},
-                );
-              },
-            ),
-          ],
+                ),
+              );
+            },
+            childCount: jobs.length + 1,
+          ),
         );
       },
+      loading: () => const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+      error: (e, _) => SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Center(child: Text('Erreur: $e')),
+        ),
+      ),
     );
   }
 }
+
 
 class _EmptyState extends StatelessWidget {
   final String message;

@@ -11,7 +11,7 @@ class JobsRepositoryMock implements JobsRepository {
   static final List<JobModel> _mockData = [
     JobModel(
       id: '2',
-      title: 'Product Manager',
+      title: 'Chef de Produit',
       companyName: 'TechCorp Solutions',
       contractType: 'cdi',
       postedAt: DateTime(2024, 10, 8).toIso8601String(),
@@ -39,7 +39,7 @@ class JobsRepositoryMock implements JobsRepository {
         JobCandidateModel(
           initials: 'LP',
           name: 'Lucas Petit',
-          role: 'Senior Product Manager',
+          role: 'Chef de Produit Senior',
           rating: 4.5,
           avatarUrl: 'assets/images/pdp_new.png',
         ),
@@ -70,7 +70,7 @@ class JobsRepositoryMock implements JobsRepository {
     ),
     JobModel(
       id: '3',
-      title: 'Marketing Lead',
+      title: 'Responsable Marketing',
       companyName: 'TechCorp Solutions',
       contractType: 'freelance',
       postedAt: DateTime(2024, 10, 11).toIso8601String(),
@@ -94,7 +94,7 @@ class JobsRepositoryMock implements JobsRepository {
     ),
     JobModel(
       id: '5',
-      title: 'UX Designer',
+      title: 'Designer UX',
       companyName: 'Creative Agency',
       contractType: 'mission',
       postedAt: DateTime(2024, 10, 18).toIso8601String(),
@@ -121,9 +121,83 @@ class JobsRepositoryMock implements JobsRepository {
   static final List<JobModel> _jobs = List.from(_mockData);
 
   static final List<MissionModel> _missionsData = [
+    // Missions de Farouja (candidat)
+    MissionModel(
+      id: 'cm_1',
+      jobTitle: 'Serveur Senior',
+      companyName: 'Sonatrach',
+      startDate: DateTime.now().subtract(const Duration(days: 20)).toIso8601String(),
+      endDate: DateTime.now().add(const Duration(days: 18)).toIso8601String(),
+      location: 'Alger',
+      recruiterName: 'Karim Bensalem',
+      candidateName: 'Farouja',
+      candidateRating: 0.0,
+      recruiterRating: 0.0,
+      candidateFeedback: '',
+      recruiterFeedback: '',
+      status: 'in_progress',
+      imageUrl: 'assets/images/imageannonc(1).jpg',
+      team: [
+        MissionMemberModel(
+          name: 'Karim Bensalem',
+          role: 'Responsable Recrutement',
+          rating: 4.8,
+          avatarUrl: 'assets/images/pdp_4.png',
+        ),
+      ],
+    ),
+    MissionModel(
+      id: 'cm_2',
+      jobTitle: 'Responsable RH',
+      companyName: 'Cevital',
+      startDate: DateTime.now().subtract(const Duration(days: 90)).toIso8601String(),
+      endDate: DateTime.now().subtract(const Duration(days: 10)).toIso8601String(),
+      location: 'Béjaïa',
+      recruiterName: 'Amira Hadj',
+      candidateName: 'Farouja',
+      candidateRating: 4.9,
+      recruiterRating: 4.8,
+      candidateFeedback: 'Excellente expérience chez Cevital. Équipe professionnelle et environnement de travail stimulant.',
+      recruiterFeedback: 'Mission de Responsable RH accomplie avec brio. Une vraie expertise en recrutement et gestion d\'équipe.',
+      status: 'completed',
+      imageUrl: 'assets/images/imageannonc(2).jpg',
+      team: [
+        MissionMemberModel(
+          name: 'Amira Hadj',
+          role: 'DRH',
+          rating: 4.9,
+          avatarUrl: 'assets/images/pdp_2.png',
+        ),
+      ],
+    ),
+    MissionModel(
+      id: 'cm_3',
+      jobTitle: 'Chargée de Recrutement',
+      companyName: 'Air Algérie',
+      startDate: DateTime.now().subtract(const Duration(days: 200)).toIso8601String(),
+      endDate: DateTime.now().subtract(const Duration(days: 110)).toIso8601String(),
+      location: 'Alger',
+      recruiterName: 'Sofiane Mebarki',
+      candidateName: 'Farouja',
+      candidateRating: 4.7,
+      recruiterRating: 4.5,
+      candidateFeedback: 'Mission enrichissante avec Air Algérie. Beaucoup appris sur le recrutement dans le secteur aérien.',
+      recruiterFeedback: 'Très bon travail sur les campagnes de recrutement. Professionnalisme exemplaire.',
+      status: 'completed',
+      imageUrl: null,
+      team: [
+        MissionMemberModel(
+          name: 'Sofiane Mebarki',
+          role: 'Responsable RH',
+          rating: 4.6,
+          avatarUrl: 'assets/images/pdp_4.png',
+        ),
+      ],
+    ),
+    // Autres missions (autres candidats)
     MissionModel(
       id: 'm1',
-      jobTitle: 'Senior UX Designer',
+      jobTitle: 'Designer UX Senior',
       companyName: 'TechCorp Solutions',
       startDate:
           DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
@@ -137,7 +211,7 @@ class JobsRepositoryMock implements JobsRepository {
           'Alice a fait un excellent travail sur le design system.',
       recruiterFeedback: 'Mission très enrichissante, équipe au top.',
       status: 'in_progress',
-      imageUrl: 'assets/images/company_logo_tech.png',
+      imageUrl: 'assets/images/imageannonc(1).jpg',
       team: [
         MissionMemberModel(
             name: 'Amélie Laurent',
@@ -153,7 +227,7 @@ class JobsRepositoryMock implements JobsRepository {
     ),
     MissionModel(
       id: 'm2',
-      jobTitle: 'Manager',
+      jobTitle: 'Responsable',
       companyName: 'TechCorp Solutions',
       startDate: DateTime(2024, 9, 1).toIso8601String(),
       endDate: DateTime(2024, 9, 30).toIso8601String(),
@@ -165,7 +239,7 @@ class JobsRepositoryMock implements JobsRepository {
       candidateFeedback: 'Bob a parfaitement géré la transition de l\'équipe.',
       recruiterFeedback: 'Bonne expérience globale.',
       status: 'completed',
-      imageUrl: 'assets/images/company_logo_service.png',
+      imageUrl: 'assets/images/imageannonc(2).jpg',
       team: [
         MissionMemberModel(
             name: 'Amélie Laurent',
@@ -177,6 +251,122 @@ class JobsRepositoryMock implements JobsRepository {
             role: 'Barista Expert',
             rating: 4.7,
             avatarUrl: 'assets/images/pdp_4.png'),
+      ],
+    ),
+    MissionModel(
+      id: 'm3',
+      jobTitle: 'Développeur Full Stack',
+      companyName: 'Digital Agency',
+      startDate: DateTime(2024, 8, 1).toIso8601String(),
+      endDate: DateTime(2024, 8, 31).toIso8601String(),
+      location: 'Marseille, FR',
+      recruiterName: 'Sophie Martin',
+      candidateName: 'Claire Dev',
+      candidateRating: 4.8,
+      recruiterRating: 4.9,
+      candidateFeedback: 'Excellente collaboration sur le projet.',
+      recruiterFeedback: 'Mission réussie avec brio.',
+      status: 'completed',
+      imageUrl: 'assets/images/imageannonc(3).jpg',
+      team: [
+        MissionMemberModel(
+            name: 'Lucas Petit',
+            role: 'Responsable Technique',
+            rating: 4.8,
+            avatarUrl: 'assets/images/pdp_new.png'),
+      ],
+    ),
+    MissionModel(
+      id: 'm4',
+      jobTitle: 'Chef de Projet Digital',
+      companyName: 'Innovation Labs',
+      startDate: DateTime(2024, 7, 1).toIso8601String(),
+      endDate: DateTime(2024, 7, 31).toIso8601String(),
+      location: 'Bordeaux, FR',
+      recruiterName: 'Thomas Durand',
+      candidateName: 'Emma Project',
+      candidateRating: 0.0,
+      recruiterRating: 0.0,
+      candidateFeedback: '',
+      recruiterFeedback: '',
+      status: 'completed',
+      imageUrl: 'assets/images/imageannonc(4).jpg',
+      team: [
+        MissionMemberModel(
+            name: 'Amélie Laurent',
+            role: 'Chef de rang',
+            rating: 4.9,
+            avatarUrl: 'assets/images/pdp_1.png'),
+      ],
+    ),
+    // APP MISSIONS
+    MissionModel(
+      id: 'm5',
+      jobTitle: 'Serveur Principal - Événement Gala',
+      companyName: 'LuxCatering Services',
+      startDate: DateTime(2026, 2, 5).toIso8601String(),
+      endDate: DateTime(2026, 4, 6).toIso8601String(),
+      location: 'Paris, FR',
+      recruiterName: 'Sophie Laurent',
+      candidateName: 'Farouja',
+      candidateRating: 4.8,
+      recruiterRating: 4.8,
+      candidateFeedback: 'Excellente prestation lors du gala.',
+      recruiterFeedback: 'Professionnalisme exemplaire.',
+      status: 'completed',
+      imageUrl: 'assets/images/imageannonc(1).jpg',
+      team: [
+        MissionMemberModel(
+            name: 'Sophie Laurent',
+            role: 'Responsable Événementiel',
+            rating: 4.9,
+            avatarUrl: 'assets/images/pdp_1.png'),
+      ],
+    ),
+    MissionModel(
+      id: 'm6',
+      jobTitle: 'Chef de Cuisine - Restaurant Étoilé',
+      companyName: 'Michelin Stars Group',
+      startDate: DateTime(2025, 11, 1).toIso8601String(),
+      endDate: DateTime(2025, 12, 31).toIso8601String(),
+      location: 'Lyon, FR',
+      recruiterName: 'Jean Dupont',
+      candidateName: 'Farouja',
+      candidateRating: 4.9,
+      recruiterRating: 4.7,
+      candidateFeedback: 'Créativité culinaire impressionnante.',
+      recruiterFeedback: 'Très bon travail en équipe.',
+      status: 'completed',
+      imageUrl: 'assets/images/imageannonc(2).jpg',
+      team: [
+        MissionMemberModel(
+            name: 'Jean Dupont',
+            role: 'Chef Cuisinier',
+            rating: 4.8,
+            avatarUrl: 'assets/images/pdp_4.png'),
+      ],
+    ),
+    MissionModel(
+      id: 'm7',
+      jobTitle: 'Sommelier - Dégustation de Vins',
+      companyName: 'Prestige Wines',
+      startDate: DateTime(2025, 9, 15).toIso8601String(),
+      endDate: DateTime(2025, 10, 15).toIso8601String(),
+      location: 'Bordeaux, FR',
+      recruiterName: 'Marc Beaumont',
+      candidateName: 'Farouja',
+      candidateRating: 4.6,
+      recruiterRating: 4.9,
+      candidateFeedback: 'Expérience enrichissante.',
+      recruiterFeedback: 'Connaissances exceptionnelles.',
+      status: 'completed',
+      imageUrl: 'assets/images/imageannonc(3).jpg',
+      team: [
+        MissionMemberModel(
+            name: 'Marc Beaumont',
+            role: 'Directeur des Vins',
+            rating: 4.9,
+            avatarUrl: 'assets/images/pdp_new.png'),
       ],
     ),
   ];
@@ -222,6 +412,34 @@ class JobsRepositoryMock implements JobsRepository {
   Future<List<MissionEntity>> getMissions() async {
     await Future.delayed(const Duration(milliseconds: 600));
     return _missions.map((m) => m.toEntity()).toList();
+  }
+
+  @override
+  Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    final index = _missions.indexWhere((m) => m.id == missionId);
+    if (index >= 0) {
+      final mission = _missions[index];
+      _missions[index] = MissionModel(
+        id: mission.id,
+        jobTitle: mission.jobTitle,
+        companyName: mission.companyName,
+        startDate: mission.startDate,
+        endDate: mission.endDate,
+        location: mission.location,
+        recruiterName: mission.recruiterName,
+        candidateName: mission.candidateName,
+        candidateRating: rating,
+        candidateFeedback: feedback,
+        recruiterRating: mission.recruiterRating,
+        recruiterFeedback: mission.recruiterFeedback,
+        status: 'completed',
+        imageUrl: mission.imageUrl,
+        team: mission.team,
+      );
+      return _missions[index].toEntity();
+    }
+    throw Exception('Mission not found');
   }
 }
 

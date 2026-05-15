@@ -6,6 +6,7 @@ import 'package:job_app/features/jobs/domain/mission_entity.dart';
 import 'package:job_app/features/jobs/domain/jobs_controller.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository_mock.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 
 // ─────────────────────────────────────────────
 // 1. Repository Provider
@@ -30,7 +31,7 @@ class JobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
   final JobsController _controller;
 
   JobsNotifier(this._controller) : super(const AsyncValue.loading()) {
-    fetch();
+    Future.microtask(() => fetch());
   }
 
   Future<void> fetch() async {
@@ -62,7 +63,7 @@ class MissionsNotifier extends StateNotifier<AsyncValue<List<MissionEntity>>> {
   final JobsController _controller;
 
   MissionsNotifier(this._controller) : super(const AsyncValue.loading()) {
-    fetch();
+    Future.microtask(() => fetch());
   }
 
   Future<void> fetch() async {
@@ -270,12 +271,21 @@ class MissionReviewNotifier extends StateNotifier<MissionReview> {
   /// Valide la fin de mission : soumet l'avis + met à jour le statut
   Future<bool> submit() async {
     if (!state.isValid) return false;
-    // Simule appel API
-    await Future.delayed(const Duration(milliseconds: 600));
-    // TODO: persister via repository
-    // Refresh la liste des missions
-    _ref.read(missionsNotifierProvider.notifier).fetch();
-    return true;
+    try {
+      // Appel au controller pour persister le review
+      await _ref.read(jobsControllerProvider).updateMissionReview(
+        state.missionId,
+        state.rating.toDouble(),
+        state.comment,
+      );
+      // Refresh la liste des missions (pour les recruteurs)
+      _ref.read(missionsNotifierProvider.notifier).fetch();
+      // Refresh aussi la liste des missions du candidat (pour le profil)
+      _ref.read(candidateMissionsProvider.notifier).fetch();
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 }
 

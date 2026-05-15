@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:job_app/core/theme/app_theme.dart';
 
 /// Tabs de navigation du profil : Annonces | Missions | CV | Reviews
 class ProfileTabs extends ConsumerWidget {
@@ -22,7 +23,7 @@ class ProfileTabs extends ConsumerWidget {
       width: double.infinity,
       height: 52.5,
       decoration: const BoxDecoration(
-        color: Color(0xFFF7F6F8),
+        color: Color(0xFFEFEDF2),
         border: Border(
           bottom: BorderSide(color: Color(0xFFE1E1E1)),
         ),
@@ -98,11 +99,11 @@ class _TabButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.inter(
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 13, // Slightly reduced to fit 'Compétences' perfectly
+            fontSize: 13,
             height: 1.43,
-            color: isSelected ? const Color(0xFF401E66) : const Color(0xFF64748B),
+            color: isSelected ? const Color(0xFF401E66) : const Color(0xFF475569),
           ),
         ),
       ),
