@@ -1,12 +1,13 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from apps.messaging.models.message import Message
+from apps.messaging.models.conversation import ConversationMember, ReadCursor
 from apps.messaging.serializers import MessageSerializer
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     """
-    WebSocket consumer for real-time chat between two users.
+    WebSocket consumer for real-time chat (DM + group).
 
     Supported incoming actions (via receive_json):
       {"type": "send_message",  "contenu": "..."}
@@ -15,9 +16,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
       {"type": "typing_stop"}
 
     Outgoing events broadcast to the room group:
-      chat.message       — new message (serialized MessageSerializer data)
-      chat.read_receipt   — partner marked messages as read
-      chat.typing         — partner started/stopped typing
+      chat.message        — new message
+      chat.read_receipt    — someone marked messages as read
+      chat.typing          — someone started/stopped typing
+      chat.member_update   — member added/removed (triggered by REST)
     """
 
     async def connect(self):
@@ -28,11 +30,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4001)
             return
 
-        self.partner_id = int(self.scope["url_route"]["kwargs"]["partner_id"])
+        self.conversation_id = int(self.scope["url_route"]["kwargs"]["conversation_id"])
 
-        # Deterministic room name — same for both participants
-        ids = sorted([self.user.pk, self.partner_id])
-        self.room_group = f"chat_{ids[0]}_{ids[1]}"
+        # Verify membership
+        if not await self._is_member():
+            await self.close(code=4003)
+            return
+
+        # Unified room name for both DMs and groups
+        self.room_group = f"conv_{self.conversation_id}"
 
         await self.channel_layer.group_add(self.room_group, self.channel_name)
         await self.accept()
@@ -74,22 +80,21 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def _handle_mark_read(self):
-        """Mark all unread messages FROM the partner TO this user as read."""
-        count = await self._mark_conversation_read()
+        """Update the user's ReadCursor to the latest message."""
+        last_read_id = await self._update_read_cursor()
 
-        if count > 0:
+        if last_read_id:
             await self.channel_layer.group_send(
                 self.room_group,
                 {
                     "type": "chat.read_receipt",
                     "reader_id": self.user.pk,
-                    "partner_id": self.partner_id,
-                    "count": count,
+                    "last_read_id": last_read_id,
                 },
             )
 
     async def _handle_typing(self, is_typing):
-        """Broadcast typing status to the room (excludes sender via user_id check on client)."""
+        """Broadcast typing status to the room."""
         await self.channel_layer.group_send(
             self.room_group,
             {
@@ -99,14 +104,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
-    # ── Group event handlers (called by channel_layer.group_send) ────────────
+    # ── Group event handlers ─────────────────────────────────────────────────
 
     async def chat_message(self, event):
-        """Broadcast a new message to all room members (except the sender)."""
-        # Skip echo to the sender — their client already has the message
-        # from the REST response or from optimistic local append.
-        # sender_channel is set by WS-originated sends;
-        # sender_id is set by REST-originated broadcasts.
+        """Broadcast a new message (skip sender)."""
         if event.get("sender_channel") == self.channel_name:
             return
         if event.get("sender_id") == self.user.pk:
@@ -117,20 +118,17 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         })
 
     async def chat_read_receipt(self, event):
-        """Notify the partner that their messages were read (skip the reader)."""
-        # Don't echo read receipt back to the person who triggered it
+        """Notify others that someone read messages (skip the reader)."""
         if event["reader_id"] == self.user.pk:
             return
         await self.send_json({
             "type": "read_receipt",
             "reader_id": event["reader_id"],
-            "partner_id": event["partner_id"],
-            "count": event["count"],
+            "last_read_id": event["last_read_id"],
         })
 
     async def chat_typing(self, event):
-        """Notify room members of typing status."""
-        # Don't echo typing back to the sender
+        """Notify room of typing status (skip sender)."""
         if event["user_id"] == self.user.pk:
             return
         await self.send_json({
@@ -139,26 +137,48 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             "is_typing": event["is_typing"],
         })
 
+    async def chat_member_update(self, event):
+        """Notify all members when someone is added/removed."""
+        await self.send_json({
+            "type": "member_update",
+            "action": event["action"],
+            "user_id": event["user_id"],
+            "user_name": event.get("user_name", ""),
+        })
+
     # ── Database helpers ─────────────────────────────────────────────────────
+
+    @database_sync_to_async
+    def _is_member(self):
+        return ConversationMember.objects.filter(
+            conversation_id=self.conversation_id,
+            user_id=self.user.pk,
+            left_at__isnull=True,
+        ).exists()
 
     @database_sync_to_async
     def _save_message(self, contenu):
         msg = Message.objects.create(
+            conversation_id=self.conversation_id,
             expediteur_id=self.user.pk,
-            destinataire_id=self.partner_id,
             contenu=contenu,
         )
-        msg = Message.objects.select_related("expediteur", "destinataire").get(pk=msg.pk)
+        msg = Message.objects.select_related("expediteur", "conversation").get(pk=msg.pk)
         return MessageSerializer(msg).data
 
     @database_sync_to_async
-    def _mark_conversation_read(self):
-        return (
+    def _update_read_cursor(self):
+        last_msg_id = (
             Message.objects
-            .filter(
-                expediteur_id=self.partner_id,
-                destinataire_id=self.user.pk,
-                est_lu=False,
-            )
-            .update(est_lu=True)
+            .filter(conversation_id=self.conversation_id)
+            .order_by('-date_envoi')
+            .values_list('id', flat=True)
+            .first()
         )
+        if last_msg_id:
+            ReadCursor.objects.update_or_create(
+                conversation_id=self.conversation_id,
+                user_id=self.user.pk,
+                defaults={'last_read_message_id': last_msg_id},
+            )
+        return last_msg_id

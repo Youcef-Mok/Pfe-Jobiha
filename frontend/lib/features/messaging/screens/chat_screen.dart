@@ -11,17 +11,17 @@ import 'package:job_app/features/messaging/data/providers/chat_provider.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 class ChatScreen extends ConsumerStatefulWidget {
-  final int partnerId;
-  final String partnerNom;
-  final String partnerPrenom;
-  final String? partnerRole;
+  final int conversationId;
+  final String displayName;
+  final String? subtitle; // role for DMs, member count for groups
+  final bool isGroup;
 
   const ChatScreen({
     super.key,
-    required this.partnerId,
-    required this.partnerNom,
-    required this.partnerPrenom,
-    this.partnerRole,
+    required this.conversationId,
+    required this.displayName,
+    this.subtitle,
+    this.isGroup = false,
   });
 
   @override
@@ -36,21 +36,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isTyping = false;
   bool _hasScrolledToBottom = false;
 
-  /// Cached reference to the notifier — prevents accessing an already-disposed
-  /// autoDispose provider inside this widget's dispose().
   late final ActiveChatNotifier _notifier;
 
   @override
   void initState() {
     super.initState();
-    _notifier = ref.read(activeChatProvider(widget.partnerId).notifier);
+    _notifier = ref.read(activeChatProvider(widget.conversationId).notifier);
     _loadCurrentUserId();
     _inputController.addListener(_onTextChanged);
     _scrollController.addListener(_onScroll);
 
-    // Tell the notifier the chat screen is now visible.
-    // Uses addPostFrameCallback so the notifier is guaranteed to exist
-    // and the WebSocket is connected before we fire sendMarkRead().
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _notifier.onChatOpened();
@@ -58,7 +53,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  /// Triggers pagination when the user scrolls near the top of the list.
   void _onScroll() {
     if (!_scrollController.hasClients) return;
     if (_scrollController.position.pixels <= 100) {
@@ -81,15 +75,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollController.dispose();
     _typingDebounce?.cancel();
 
-    // Stop typing indicator if still active.
-    // Uses cached _notifier to avoid accessing an already-disposed provider.
     if (_isTyping) {
       _notifier.sendTypingStop();
     }
 
-    // Tell the notifier the screen is gone — no more auto-read signals.
     _notifier.onChatClosed();
-
     super.dispose();
   }
 
@@ -103,7 +93,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _notifier.sendTypingStart();
     }
 
-    // Reset the debounce timer — send typing_stop after 2s of inactivity
     _typingDebounce?.cancel();
     _typingDebounce = Timer(const Duration(seconds: 2), () {
       if (_isTyping) {
@@ -112,7 +101,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
-    // If field was cleared, stop typing immediately
     if (text.isEmpty && _isTyping) {
       _isTyping = false;
       _typingDebounce?.cancel();
@@ -124,7 +112,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _inputController.text.trim();
     if (text.isEmpty) return;
 
-    // Stop typing indicator on send
     if (_isTyping) {
       _isTyping = false;
       _typingDebounce?.cancel();
@@ -133,14 +120,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     _notifier.sendMessage(text);
     _inputController.clear();
-
-    // Scroll to bottom after send
     _scrollToBottom(animate: true);
   }
 
-  /// Scrolls the message list to the very bottom.
-  /// [animate] – false for an instant snap (initial load),
-  ///            true for a smooth scroll (new messages).
   void _scrollToBottom({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
@@ -159,12 +141,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final chatState = ref.watch(activeChatProvider(widget.partnerId));
+    final chatState = ref.watch(activeChatProvider(widget.conversationId));
 
-    // ── Auto-scroll logic ────────────────────────────────────────────────────
-    ref.listen<ActiveChatState>(activeChatProvider(widget.partnerId),
+    ref.listen<ActiveChatState>(activeChatProvider(widget.conversationId),
         (prev, next) {
-      // 1. Initial load just completed → snap to bottom instantly
       if (prev != null &&
           !prev.initialLoadDone &&
           next.initialLoadDone &&
@@ -175,7 +155,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         return;
       }
 
-      // 2. New message arrived while chat is open → smooth scroll
       if (prev != null && next.messages.length > prev.messages.length) {
         _scrollToBottom(animate: true);
       }
@@ -187,15 +166,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           children: [
             _ChatHeader(
-              partnerNom: widget.partnerNom,
-              partnerPrenom: widget.partnerPrenom,
-              partnerRole: widget.partnerRole,
+              displayName: widget.displayName,
+              subtitle: widget.subtitle,
+              isGroup: widget.isGroup,
               isTyping: chatState.partnerIsTyping,
             ),
             const Divider(height: 1, color: AppColors.slate200),
             Expanded(child: _buildMessages(chatState)),
             if (chatState.partnerIsTyping)
-              _TypingIndicator(partnerPrenom: widget.partnerPrenom),
+              _TypingIndicator(isGroup: widget.isGroup),
             _InputBar(
               controller: _inputController,
               onSend: _sendMessage,
@@ -208,14 +187,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildMessages(ActiveChatState state) {
-    // Loading
     if (state.isLoading && state.messages.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.violet),
       );
     }
 
-    // Error
     if (state.error != null && state.messages.isEmpty) {
       return Center(
         child: Padding(
@@ -241,7 +218,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
 
-    // Empty
     if (state.messages.isEmpty) {
       return Center(
         child: Column(
@@ -261,8 +237,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
 
-    // Messages — item 0 is a "loading older" indicator when applicable,
-    // the rest are actual message bubbles.
     final hasLoadingHeader = state.hasMore;
     final totalItems = state.messages.length + (hasLoadingHeader ? 1 : 0);
 
@@ -271,7 +245,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: totalItems,
       itemBuilder: (context, index) {
-        // ── Loading-more indicator at the top ──────────────────────────
         if (hasLoadingHeader && index == 0) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -290,7 +263,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           );
         }
 
-        // ── Message bubble ─────────────────────────────────────────────
         final msgIndex = hasLoadingHeader ? index - 1 : index;
         final msg = state.messages[msgIndex];
         final isMe =
@@ -323,7 +295,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                 ),
               ),
-            _MessageBubble(message: msg, isMe: isMe),
+            _MessageBubble(
+              message: msg,
+              isMe: isMe,
+              showSenderName: widget.isGroup && !isMe,
+            ),
           ],
         );
       },
@@ -343,9 +319,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 // ── Typing Indicator ──────────────────────────────────────────────────────────
 class _TypingIndicator extends StatelessWidget {
-  final String partnerPrenom;
+  final bool isGroup;
 
-  const _TypingIndicator({required this.partnerPrenom});
+  const _TypingIndicator({this.isGroup = false});
 
   @override
   Widget build(BuildContext context) {
@@ -357,7 +333,7 @@ class _TypingIndicator extends StatelessWidget {
           SizedBox(width: 32, height: 16, child: _AnimatedDots()),
           const SizedBox(width: 8),
           Text(
-            '$partnerPrenom est en train d\'écrire…',
+            isGroup ? 'Quelqu\'un écrit…' : 'en train d\'écrire…',
             style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 12,
@@ -429,24 +405,28 @@ class _AnimatedDotsState extends State<_AnimatedDots>
 
 // ── Header ────────────────────────────────────────────────────────────────────
 class _ChatHeader extends StatelessWidget {
-  final String partnerNom;
-  final String partnerPrenom;
-  final String? partnerRole;
+  final String displayName;
+  final String? subtitle;
+  final bool isGroup;
   final bool isTyping;
 
   const _ChatHeader({
-    required this.partnerNom,
-    required this.partnerPrenom,
-    this.partnerRole,
+    required this.displayName,
+    this.subtitle,
+    this.isGroup = false,
     this.isTyping = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final displayName = '$partnerPrenom $partnerNom';
-    final initials =
-        '${partnerPrenom.isNotEmpty ? partnerPrenom[0] : ''}${partnerNom.isNotEmpty ? partnerNom[0] : ''}'
-            .toUpperCase();
+    final initials = isGroup
+        ? displayName.isNotEmpty ? displayName[0].toUpperCase() : 'G'
+        : (() {
+            final parts = displayName.split(' ');
+            final first = parts.isNotEmpty && parts[0].isNotEmpty ? parts[0][0] : '';
+            final last = parts.length > 1 && parts[1].isNotEmpty ? parts[1][0] : '';
+            return '$first$last'.toUpperCase();
+          })();
 
     return Container(
       color: AppColors.surface,
@@ -462,16 +442,18 @@ class _ChatHeader extends StatelessWidget {
           const SizedBox(width: 12),
           CircleAvatar(
             radius: 20,
-            backgroundColor: AppColors.violet,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                fontFamily: 'Inter',
-              ),
-            ),
+            backgroundColor: isGroup ? AppColors.slate400 : AppColors.violet,
+            child: isGroup
+                ? const Icon(Icons.group, color: Colors.white, size: 20)
+                : Text(
+                    initials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -495,8 +477,8 @@ class _ChatHeader extends StatelessWidget {
                       color: AppColors.violet,
                     ),
                   )
-                else if (partnerRole != null)
-                  Text(partnerRole!, style: AppTextStyles.captionLight),
+                else if (subtitle != null)
+                  Text(subtitle!, style: AppTextStyles.captionLight),
               ],
             ),
           ),
@@ -515,8 +497,13 @@ class _ChatHeader extends StatelessWidget {
 class _MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
+  final bool showSenderName;
 
-  const _MessageBubble({required this.message, required this.isMe});
+  const _MessageBubble({
+    required this.message,
+    required this.isMe,
+    this.showSenderName = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -526,6 +513,20 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment:
             isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
+          // Sender name for group chats
+          if (showSenderName)
+            Padding(
+              padding: const EdgeInsets.only(left: 8, bottom: 2),
+              child: Text(
+                '${message.expediteur.prenom} ${message.expediteur.nom}',
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.violet,
+                ),
+              ),
+            ),
           Row(
             mainAxisAlignment:
                 isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -562,30 +563,15 @@ class _MessageBubble extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            DateFormat.Hm().format(message.dateEnvoi),
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              color: isMe
-                                  ? Colors.white.withValues(alpha: 0.7)
-                                  : AppColors.slate400,
-                            ),
-                          ),
-                          if (isMe) ...[
-                            const SizedBox(width: 4),
-                            Icon(
-                              message.estLu ? Icons.done_all : Icons.done,
-                              size: 14,
-                              color: message.estLu
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.7),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        DateFormat.Hm().format(message.dateEnvoi),
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          color: isMe
+                              ? Colors.white.withValues(alpha: 0.7)
+                              : AppColors.slate400,
+                        ),
                       ),
                     ],
                   ),

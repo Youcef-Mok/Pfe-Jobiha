@@ -13,10 +13,10 @@ class ApiEndpoints {
   static const String _wsBase = 'ws://192.168.100.9:8000';        // physical device
   // static const String _wsBase = 'wss://api.petitsjobs.dz';     // production
 
-  /// WebSocket URL for a chat session with [partnerId].
+  /// WebSocket URL for a chat session with [conversationId].
   /// Token is passed as a query parameter for the JWT middleware.
-  static String chatWebSocket(int partnerId, String token) =>
-      '$_wsBase/ws/chat/$partnerId/?token=$token';
+  static String chatWebSocket(int conversationId, String token) =>
+      '$_wsBase/ws/chat/$conversationId/?token=$token';
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   static const String registerCandidat  = '$_base/auth/register/candidat';
@@ -77,11 +77,15 @@ class ApiEndpoints {
   static const String historiqueCandidat   = '$_base/candidats/me/historique';
 
   // ── Messagerie ───────────────────────────────────────────
-  static const String conversations        = '$_base/messages/conversations';
-  static String conversation(int userId)   => '$_base/messages/conversations/$userId';
-  static const String sendMessage          = '$_base/messages';
-  static String marquerMessageLu(int id)   => '$_base/messages/$id/lire';
-  static String marquerConvLue(int userId) => '$_base/messages/conversations/$userId/lire-tout';
+  static const String conversations              = '$_base/messages/conversations';
+  static String conversation(int convId)         => '$_base/messages/conversations/$convId';
+  static const String sendMessage                = '$_base/messages';
+  static String marquerConvLue(int convId)       => '$_base/messages/conversations/$convId/lire-tout';
+  static String getOrCreateDm(int userId)        => '$_base/messages/dm/$userId';
+  static const String createGroup                = '$_base/messages/groups';
+  static String groupMembers(int groupId)        => '$_base/messages/groups/$groupId/members';
+  static String addGroupMember(int groupId)      => '$_base/messages/groups/$groupId/members/add';
+  static String removeGroupMember(int gId, int uId) => '$_base/messages/groups/$gId/members/$uId';
   static const String notifCount           = '$_base/notifications/non-lues/count';
   static String marquerNotifLue(int id)    => '$_base/notifications/$id/lire';
   static const String marquerToutesLues    = '$_base/notifications/lire-tout';

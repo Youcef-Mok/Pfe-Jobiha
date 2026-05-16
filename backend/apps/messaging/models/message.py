@@ -9,12 +9,25 @@ from django.db import models
 class Message(models.Model):
     contenu = models.TextField()
     date_envoi = models.DateTimeField(auto_now_add=True)
-    est_lu = models.BooleanField(default=False)
+
+    # ── New: unified conversation FK ──────────────────────────────────────
+    conversation = models.ForeignKey(
+        'messaging.Conversation',
+        on_delete=models.CASCADE,
+        related_name='messages',
+        null=True,       # nullable during migration only
+        blank=True,
+    )
+
     expediteur = models.ForeignKey(
         "users.Utilisateur", on_delete=models.CASCADE, related_name="messages_envoyes"
     )
+
+    # ── Legacy fields — kept for backward-compat during migration ─────────
+    est_lu = models.BooleanField(default=False)
     destinataire = models.ForeignKey(
-        "users.Utilisateur", on_delete=models.CASCADE, related_name="messages_recus"
+        "users.Utilisateur", on_delete=models.CASCADE, related_name="messages_recus",
+        null=True, blank=True,
     )
 
     class Meta:
@@ -22,23 +35,23 @@ class Message(models.Model):
         ordering = ["date_envoi"]
         indexes = [
             models.Index(
-                fields=["expediteur", "destinataire", "date_envoi"],
-                name="idx_msg_exp_dest_date",
+                fields=["conversation", "date_envoi"],
+                name="idx_msg_conv_date",
             ),
             models.Index(
-                fields=["destinataire", "est_lu"],
-                name="idx_msg_dest_unread",
+                fields=["expediteur", "date_envoi"],
+                name="idx_msg_exp_date",
             ),
         ]
 
     def __str__(self):
-        return f"Msg de {self.expediteur} à {self.destinataire}"
+        return f"Msg #{self.pk} in conv {self.conversation_id}"
 
     def envoyer(self):
         pass
 
     def marquer_lu(self):
-        """Mark this single message as read (idempotent)."""
+        """Legacy — kept for backward compat during migration."""
         if not self.est_lu:
             self.est_lu = True
-            self.save(update_fields=["est_lu"])
+            self.save(update_fields=["est_lu"])

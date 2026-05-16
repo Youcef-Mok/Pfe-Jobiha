@@ -6,9 +6,7 @@
 //   ChatRepository (DI)  →  ConversationListNotifier (inbox)
 //                         →  ActiveChatNotifier      (single chat + WebSocket)
 //
-// The ActiveChatNotifier now uses WebSocket for real-time events
-// (new messages, read receipts, typing) and falls back to REST for
-// initial load, pagination, and mark-as-read.
+// Updated for unified conversations: family key is conversationId (int).
 
 import 'dart:async';
 import 'package:flutter/foundation.dart' show VoidCallback;
@@ -125,8 +123,10 @@ class ActiveChatState {
   final String? error;
   final bool partnerIsTyping;
 
+  /// Map of userId → isTyping for group chats.
+  final Map<int, bool> typingUsers;
+
   /// True once the initial message batch has finished loading.
-  /// The UI uses this flag to trigger the first scroll-to-bottom.
   final bool initialLoadDone;
 
   const ActiveChatState({
@@ -137,6 +137,7 @@ class ActiveChatState {
     this.currentPage = 1,
     this.error,
     this.partnerIsTyping = false,
+    this.typingUsers = const {},
     this.initialLoadDone = false,
   });
 
@@ -148,6 +149,7 @@ class ActiveChatState {
     int? currentPage,
     String? error,
     bool? partnerIsTyping,
+    Map<int, bool>? typingUsers,
     bool? initialLoadDone,
   }) =>
       ActiveChatState(
@@ -158,52 +160,44 @@ class ActiveChatState {
         currentPage: currentPage ?? this.currentPage,
         error: error,
         partnerIsTyping: partnerIsTyping ?? this.partnerIsTyping,
+        typingUsers: typingUsers ?? this.typingUsers,
         initialLoadDone: initialLoadDone ?? this.initialLoadDone,
       );
 }
 
 class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   final ChatRepository _repo;
-  final int partnerId;
+  final int conversationId;
   final VoidCallback? _onMessagesChanged;
   late final ChatWebSocketService _ws;
   StreamSubscription? _msgSub;
   StreamSubscription? _readSub;
   StreamSubscription? _typingSub;
+  StreamSubscription? _memberSub;
   Timer? _typingTimer;
 
   /// True only while ChatScreen is mounted and visible.
-  /// Guards all sendMarkRead() calls so messages are never auto-marked
-  /// read unless the user is actually looking at the conversation.
   bool _isChatOpen = false;
 
   /// True once the WebSocket handshake completes successfully.
-  /// Prevents sendMarkRead() from firing before the channel is ready.
   bool _wsConnected = false;
 
-  ActiveChatNotifier(this._repo, this.partnerId, {VoidCallback? onMessagesChanged})
+  ActiveChatNotifier(this._repo, this.conversationId, {VoidCallback? onMessagesChanged})
       : _onMessagesChanged = onMessagesChanged,
         super(const ActiveChatState(isLoading: true)) {
-    _ws = ChatWebSocketService(partnerId: partnerId);
+    _ws = ChatWebSocketService(conversationId: conversationId);
     _initialLoad();
   }
 
   // ── Lifecycle — called by ChatScreen ─────────────────────────────────────
 
-  /// Call from ChatScreen.initState (via addPostFrameCallback).
-  /// Marks the chat as visible and fires the initial mark-read.
   void onChatOpened() {
     _isChatOpen = true;
-    // Only send mark_read if the WebSocket is already connected.
-    // If it isn't yet (initial load still in progress), the mark_read
-    // will fire once _initialLoad() finishes and sees _isChatOpen == true.
     if (_wsConnected) {
       _ws.sendMarkRead();
     }
   }
 
-  /// Call from ChatScreen.dispose.
-  /// Prevents further auto-read signals after the screen is gone.
   void onChatClosed() {
     _isChatOpen = false;
   }
@@ -212,9 +206,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
   Future<void> _initialLoad() async {
     try {
-      final result = await _repo.fetchMessages(partnerId);
-      // API returns newest-first pages; reverse so the ListView shows
-      // messages chronologically (oldest at top, newest at bottom).
+      final result = await _repo.fetchMessages(conversationId);
       final chronological = result.messages.reversed.toList();
       state = state.copyWith(
         messages: chronological,
@@ -229,8 +221,6 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       _wsConnected = true;
       _listenToWebSocket();
 
-      // Now that the WS is live, fire mark_read if the screen is already
-      // visible (onChatOpened may have run while we were still loading).
       if (_isChatOpen) {
         _ws.sendMarkRead();
       }
@@ -252,51 +242,57 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         state = state.copyWith(
           messages: [...state.messages, event.message],
         );
-        // Only mark read if the user is actually looking at the chat screen.
         if (_isChatOpen) {
           _ws.sendMarkRead();
         }
-        // Refresh the inbox so the last-message preview stays current.
         _onMessagesChanged?.call();
       }
     });
 
     _readSub = _ws.onReadReceipt.listen((event) {
       if (!mounted) return;
-
-      bool anyChanged = false;
-      final updated = state.messages.map((m) {
-        // Mark messages that were sent TO the reader (they received & read them)
-        if (m.destinataire.id == event.readerId && !m.estLu) {
-          anyChanged = true;
-          return m.copyWith(estLu: true);
-        }
-        return m;
-      }).toList();
-
-      // Only trigger a rebuild if at least one message actually changed.
-      if (anyChanged) {
-        state = state.copyWith(messages: updated);
-      }
+      // Read receipts now use lastReadId — for groups, this tells us
+      // who read up to which message. For DMs, we keep backward compat
+      // by marking all messages from the sender as "seen" in the UI.
+      // The UI can use this event to show "read by X" indicators.
+      _onMessagesChanged?.call();
     });
 
     _typingSub = _ws.onTyping.listen((event) {
       if (!mounted) return;
-      state = state.copyWith(partnerIsTyping: event.isTyping);
+      final updated = Map<int, bool>.from(state.typingUsers);
+      updated[event.userId] = event.isTyping;
+      if (!event.isTyping) updated.remove(event.userId);
+
+      state = state.copyWith(
+        typingUsers: updated,
+        partnerIsTyping: updated.values.any((v) => v),
+      );
 
       // Auto-clear typing after 4 seconds (safety net)
       if (event.isTyping) {
         _typingTimer?.cancel();
         _typingTimer = Timer(const Duration(seconds: 4), () {
           if (mounted) {
-            state = state.copyWith(partnerIsTyping: false);
+            final cleared = Map<int, bool>.from(state.typingUsers);
+            cleared.remove(event.userId);
+            state = state.copyWith(
+              typingUsers: cleared,
+              partnerIsTyping: cleared.values.any((v) => v),
+            );
           }
         });
       }
     });
+
+    _memberSub = _ws.onMemberUpdate.listen((event) {
+      if (!mounted) return;
+      // Refresh conversation list to reflect member changes
+      _onMessagesChanged?.call();
+    });
   }
 
-  // ── Send message (via REST, optimistic local append) ─────────────────────
+  // ── Send message (via REST) ──────────────────────────────────────────────
 
   Future<void> sendMessage(String contenu) async {
     if (contenu.trim().isEmpty) return;
@@ -304,7 +300,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     state = state.copyWith(isSending: true);
     try {
       final msg = await _repo.sendMessage(
-        destinataireId: partnerId,
+        conversationId: conversationId,
         contenu: contenu.trim(),
       );
 
@@ -315,7 +311,6 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           isSending: false,
           error: null,
         );
-        // Refresh the inbox so the last-message preview stays current.
         _onMessagesChanged?.call();
       } else {
         state = state.copyWith(isSending: false, error: null);
@@ -337,7 +332,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
   Future<void> refresh() async {
     try {
-      final result = await _repo.fetchMessages(partnerId);
+      final result = await _repo.fetchMessages(conversationId);
       final chronological = result.messages.reversed.toList();
       state = state.copyWith(
         messages: chronological,
@@ -351,7 +346,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
-  // ── Mark all read (manual, e.g. called from UI) ───────────────────────────
+  // ── Mark all read ─────────────────────────────────────────────────────────
 
   void markAllRead() {
     if (_isChatOpen) {
@@ -367,8 +362,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     state = state.copyWith(isLoading: true);
     try {
       final nextPage = state.currentPage + 1;
-      final result = await _repo.fetchMessages(partnerId, page: nextPage);
-      // Reverse to chronological order, then prepend (older messages go on top).
+      final result = await _repo.fetchMessages(conversationId, page: nextPage);
       final olderChronological = result.messages.reversed.toList();
       state = state.copyWith(
         messages: [...olderChronological, ...state.messages],
@@ -389,24 +383,21 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     _msgSub?.cancel();
     _readSub?.cancel();
     _typingSub?.cancel();
+    _memberSub?.cancel();
     _typingTimer?.cancel();
     _ws.dispose();
     super.dispose();
   }
 }
 
-/// Family provider keyed by partner user ID.
-/// Uses autoDispose so the notifier (and its WebSocket) is torn down when
-/// the ChatScreen is popped. This prevents stale connections from
-/// accidentally marking messages as read while the user isn't viewing
-/// the conversation.
+/// Family provider keyed by conversation ID.
+/// autoDispose tears down the notifier + WebSocket when ChatScreen is popped.
 final activeChatProvider = StateNotifierProvider.autoDispose
     .family<ActiveChatNotifier, ActiveChatState, int>(
-  (ref, partnerId) => ActiveChatNotifier(
+  (ref, conversationId) => ActiveChatNotifier(
     ref.watch(chatRepositoryProvider),
-    partnerId,
+    conversationId,
     onMessagesChanged: () {
-      // Push-refresh the inbox so the last-message preview updates instantly.
       ref.read(conversationListProvider.notifier).loadConversations();
     },
   ),

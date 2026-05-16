@@ -1,22 +1,18 @@
 """
 apps/messaging/services.py
-Service / helper functions for the messaging module.
-
-Keeps views thin by encapsulating the heavy queryset logic here.
-All functions accept a `user` (Utilisateur instance) so they can be
-tested independently of the HTTP layer.
+Service / helper functions for the messaging module (unified conversations).
 """
-from django.db.models import (
-    Q, Max, Count, Subquery, OuterRef, F, Value, IntegerField
-)
-from django.db.models.functions import Greatest
+from django.db.models import Q
 
 from apps.messaging.models.message import Message
+from apps.messaging.models.conversation import (
+    Conversation, ConversationMember, ReadCursor,
+)
 from apps.users.models import Utilisateur
 
 
 # ---------------------------------------------------------------------------
-# 1.  Conversation list — virtual conversations for the inbox
+# 1.  Conversation list — unified inbox (DMs + groups)
 # ---------------------------------------------------------------------------
 
 def get_conversation_list(user):
@@ -24,127 +20,192 @@ def get_conversation_list(user):
     Return a list of dicts suitable for ``ConversationSummarySerializer``.
 
     Each dict contains:
-      - interlocuteur  : Utilisateur instance
-      - dernier_message: Message instance (the newest message in the pair)
-      - nb_non_lus     : int (unread messages FROM that partner TO `user`)
-
-    Steps
-    -----
-    1. Collect every distinct partner ID (users the caller exchanged at
-       least one message with).
-    2. For each partner, find the latest message and the unread count.
-    3. Sort by most-recent first.
-
-    The implementation deliberately avoids N+1 by pre-fetching users and
-    messages in bulk, then zipping in Python.
+      - conversation   : Conversation instance
+      - interlocuteur  : Utilisateur instance (DMs only, None for groups)
+      - members        : QuerySet of active ConversationMember (groups only)
+      - dernier_message: Message instance
+      - nb_non_lus     : int
     """
-    # -- Step 1: distinct partner IDs ----------------------------------------
-    sent_partners = (
-        Message.objects
-        .filter(expediteur=user)
-        .values_list("destinataire_id", flat=True)
-        .distinct()
+    memberships = (
+        ConversationMember.objects
+        .filter(user=user, left_at__isnull=True)
+        .select_related('conversation')
     )
-    received_partners = (
-        Message.objects
-        .filter(destinataire=user)
-        .values_list("expediteur_id", flat=True)
-        .distinct()
-    )
-    partner_ids = set(sent_partners) | set(received_partners)
 
-    if not partner_ids:
-        return []
+    results = []
+    for membership in memberships:
+        conv = membership.conversation
 
-    # -- Step 2: latest message per partner ----------------------------------
-    # Subquery approach: for each partner, get the max date_envoi among all
-    # messages where (exp=user,dest=partner) OR (exp=partner,dest=user).
-    conversations = []
-
-    # Pre-fetch partner user objects in one shot
-    partners = {u.pk: u for u in Utilisateur.objects.filter(pk__in=partner_ids)}
-
-    for pid in partner_ids:
-        partner = partners.get(pid)
-        if partner is None:
-            continue  # deleted user — skip
-
-        pair_q = (
-            Q(expediteur=user, destinataire_id=pid)
-            | Q(expediteur_id=pid, destinataire=user)
-        )
-
-        # Latest message (one query per partner — acceptable for inbox sizes
-        # typically < 50; a single-query Subquery version is below if needed)
+        # Latest message
         dernier = (
             Message.objects
-            .filter(pair_q)
-            .select_related("expediteur", "destinataire")
-            .order_by("-date_envoi")
+            .filter(conversation=conv)
+            .select_related('expediteur')
+            .order_by('-date_envoi')
             .first()
         )
         if dernier is None:
             continue
 
-        # Unread count: messages FROM partner that I haven't read
-        nb_non_lus = (
-            Message.objects
-            .filter(expediteur_id=pid, destinataire=user, est_lu=False)
-            .count()
-        )
+        # Unread count via ReadCursor
+        cursor = ReadCursor.objects.filter(
+            conversation=conv, user=user,
+        ).first()
+        if cursor and cursor.last_read_message_id:
+            nb_non_lus = (
+                Message.objects
+                .filter(conversation=conv, id__gt=cursor.last_read_message_id)
+                .exclude(expediteur=user)
+                .count()
+            )
+        else:
+            nb_non_lus = (
+                Message.objects
+                .filter(conversation=conv)
+                .exclude(expediteur=user)
+                .count()
+            )
 
-        conversations.append({
-            "interlocuteur": partner,
-            "dernier_message": dernier,
-            "nb_non_lus": nb_non_lus,
-        })
+        entry = {
+            'conversation': conv,
+            'dernier_message': dernier,
+            'nb_non_lus': nb_non_lus,
+            'interlocuteur': None,
+            'members': None,
+        }
 
-    # Sort by most-recent message first
-    conversations.sort(
-        key=lambda c: c["dernier_message"].date_envoi,
-        reverse=True,
+        if conv.type == Conversation.TYPE_DIRECT:
+            # Find the partner
+            partner_membership = (
+                ConversationMember.objects
+                .filter(conversation=conv, left_at__isnull=True)
+                .exclude(user=user)
+                .select_related('user')
+                .first()
+            )
+            if partner_membership:
+                entry['interlocuteur'] = partner_membership.user
+        else:
+            # Group: include active members
+            entry['members'] = (
+                ConversationMember.objects
+                .filter(conversation=conv, left_at__isnull=True)
+                .select_related('user')
+            )
+
+        results.append(entry)
+
+    results.sort(key=lambda c: c['dernier_message'].date_envoi, reverse=True)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# 2.  Conversation messages
+# ---------------------------------------------------------------------------
+
+def get_conversation_messages(user, conversation_id):
+    """
+    Return a queryset of messages in the conversation, newest-first.
+    Raises ConversationMember.DoesNotExist if user is not a member.
+    """
+    ConversationMember.objects.get(
+        conversation_id=conversation_id,
+        user=user,
+        left_at__isnull=True,
     )
-    return conversations
-
-
-# ---------------------------------------------------------------------------
-# 2.  Conversation detail — all messages between two users
-# ---------------------------------------------------------------------------
-
-def get_conversation_messages(user, partner_id):
-    """
-    Return a queryset of messages between ``user`` and the partner,
-    ordered newest-first so that page 1 always contains the most
-    recent messages.
-
-    The frontend reverses each page to display chronologically.
-    """
     return (
         Message.objects
-        .filter(
-            Q(expediteur=user, destinataire_id=partner_id)
-            | Q(expediteur_id=partner_id, destinataire=user)
-        )
-        .select_related("expediteur", "destinataire")
-        .order_by("-date_envoi")
+        .filter(conversation_id=conversation_id)
+        .select_related('expediteur')
+        .order_by('-date_envoi')
     )
 
 
 # ---------------------------------------------------------------------------
-# 3.  Mark all messages in a conversation as read
+# 3.  Mark conversation as read (update ReadCursor)
 # ---------------------------------------------------------------------------
 
-def mark_conversation_read(user, partner_id):
+def mark_conversation_read(user, conversation_id):
     """
-    Bulk-mark all unread messages FROM ``partner_id`` TO ``user`` as read.
-    Returns the number of rows updated.
+    Move the user's ReadCursor to the latest message.
+    Returns the last_read_message_id or None.
     """
-    return (
+    last_msg = (
         Message.objects
-        .filter(
-            expediteur_id=partner_id,
-            destinataire=user,
-            est_lu=False,
-        )
-        .update(est_lu=True)
+        .filter(conversation_id=conversation_id)
+        .order_by('-date_envoi')
+        .values_list('id', flat=True)
+        .first()
     )
+    if not last_msg:
+        return None
+
+    ReadCursor.objects.update_or_create(
+        conversation_id=conversation_id,
+        user=user,
+        defaults={'last_read_message_id': last_msg},
+    )
+    return last_msg
+
+
+# ---------------------------------------------------------------------------
+# 4.  Get or create direct conversation
+# ---------------------------------------------------------------------------
+
+def get_or_create_direct_conversation(user_a, user_b):
+    """
+    Find or create the DM conversation between two users.
+    Returns the Conversation instance.
+    """
+    # Find existing direct conversation shared by both users
+    common = (
+        ConversationMember.objects
+        .filter(
+            user=user_a,
+            left_at__isnull=True,
+            conversation__type=Conversation.TYPE_DIRECT,
+        )
+        .values_list('conversation_id', flat=True)
+    )
+    partner_match = (
+        ConversationMember.objects
+        .filter(
+            user=user_b,
+            left_at__isnull=True,
+            conversation_id__in=common,
+        )
+        .select_related('conversation')
+        .first()
+    )
+    if partner_match:
+        return partner_match.conversation
+
+    # Create new DM
+    conv = Conversation.objects.create(type=Conversation.TYPE_DIRECT)
+    ConversationMember.objects.create(conversation=conv, user=user_a)
+    ConversationMember.objects.create(conversation=conv, user=user_b)
+    return conv
+
+
+# ---------------------------------------------------------------------------
+# 5.  Create group conversation
+# ---------------------------------------------------------------------------
+
+def create_group_conversation(creator, nom, member_ids):
+    """
+    Create a group conversation. The creator is auto-added as admin.
+    Returns the Conversation instance.
+    """
+    conv = Conversation.objects.create(
+        type=Conversation.TYPE_GROUP,
+        nom=nom,
+        created_by=creator,
+    )
+    ConversationMember.objects.create(
+        conversation=conv, user=creator, role=ConversationMember.ROLE_ADMIN,
+    )
+    members = Utilisateur.objects.filter(pk__in=member_ids).exclude(pk=creator.pk)
+    for member in members:
+        ConversationMember.objects.create(conversation=conv, user=member)
+
+    return conv

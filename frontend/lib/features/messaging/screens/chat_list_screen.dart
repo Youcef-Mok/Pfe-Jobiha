@@ -148,14 +148,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     // Stop list polling while in chat
     ref.read(conversationListProvider.notifier).stopPolling();
 
+    final entity = conv.toEntity();
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ChatScreen(
-          partnerId: conv.interlocuteur.id,
-          partnerNom: conv.interlocuteur.nom,
-          partnerPrenom: conv.interlocuteur.prenom,
-          partnerRole: conv.interlocuteur.role,
+          conversationId: conv.conversationId,
+          displayName: entity.displayName,
+          subtitle: conv.isDirect
+              ? conv.interlocuteur?.role
+              : '${conv.members?.length ?? 0} membres',
+          isGroup: conv.isGroup,
         ),
       ),
     ).then((_) {
@@ -190,7 +194,8 @@ class _ConversationTile extends StatelessWidget {
               child: Row(
                 children: [
                   _Avatar(
-                    initials: entity.contactInitials,
+                    initials: entity.initials,
+                    isGroup: entity.isGroup,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -204,7 +209,7 @@ class _ConversationTile extends StatelessWidget {
                                 children: [
                                   Flexible(
                                     child: Text(
-                                      entity.contactDisplayName,
+                                      entity.displayName,
                                       style: AppTextStyles.labelMedium.copyWith(
                                         color: AppColors.slate900,
                                         fontWeight: FontWeight.w600,
@@ -212,7 +217,7 @@ class _ConversationTile extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  if (entity.interlocuteurRole != null) ...[
+                                  if (entity.isDirect && entity.interlocuteurRole != null) ...[
                                     const SizedBox(width: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -227,6 +232,26 @@ class _ConversationTile extends StatelessWidget {
                                           fontFamily: 'Inter',
                                           fontSize: 10,
                                           color: AppColors.violet,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  if (entity.isGroup) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.searchingBg,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Text(
+                                        'groupe',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 10,
+                                          color: AppColors.slate400,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -287,7 +312,6 @@ class _ConversationTile extends StatelessWidget {
     );
   }
 
-  /// Format the date for conversation tiles.
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
@@ -304,23 +328,26 @@ class _ConversationTile extends StatelessWidget {
 // ── Avatar ────────────────────────────────────────────────────────────────────
 class _Avatar extends StatelessWidget {
   final String initials;
+  final bool isGroup;
 
-  const _Avatar({required this.initials});
+  const _Avatar({required this.initials, this.isGroup = false});
 
   @override
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: 24,
-      backgroundColor: AppColors.violet,
-      child: Text(
-        initials,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-          fontFamily: 'Inter',
-        ),
-      ),
+      backgroundColor: isGroup ? AppColors.slate400 : AppColors.violet,
+      child: isGroup
+          ? const Icon(Icons.group, color: Colors.white, size: 22)
+          : Text(
+              initials,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                fontFamily: 'Inter',
+              ),
+            ),
     );
   }
 }
