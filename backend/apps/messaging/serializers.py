@@ -1,12 +1,10 @@
 """
 apps/messaging/serializers.py
-Serializers for the Messagerie module (unified conversations).
+Serializers for the Messagerie module.
+All field names and structures match openapi_messagerie.json exactly.
 """
 from rest_framework import serializers
 from apps.messaging.models.message import Message
-from apps.messaging.models.conversation import (
-    Conversation, ConversationMember, ReadCursor,
-)
 
 
 # ---------------------------------------------------------------------------
@@ -15,52 +13,50 @@ from apps.messaging.models.conversation import (
 
 class MessageRequestSerializer(serializers.Serializer):
     """
-    Write serializer for sending a message.
+    Write serializer — maps to MessageRequest schema.
     POST /messages
     """
-    conversation_id = serializers.IntegerField(
-        help_text="ID of the target conversation"
+    destinataire_id = serializers.IntegerField(
+        help_text="ID of the recipient user"
     )
     contenu = serializers.CharField()
 
 
-class UserBriefSerializer(serializers.Serializer):
-    """Lightweight user sub-object."""
-    id = serializers.IntegerField()
-    nom = serializers.CharField()
-    prenom = serializers.CharField()
-
-
 class MessageSerializer(serializers.ModelSerializer):
     """
-    Read serializer — used everywhere messages are returned.
+    Read serializer — maps to MessageResponse schema.
+    Used by POST /messages, GET /messages/conversations/{userId},
+    POST /messages/{id}/lire, and nested inside ConversationSummarySerializer.
     """
-    expediteur = serializers.SerializerMethodField()
-    conversation_id = serializers.IntegerField(source='conversation.id', read_only=True)
+    expediteur   = serializers.SerializerMethodField()
+    destinataire = serializers.SerializerMethodField()
 
     class Meta:
-        model = Message
+        model  = Message
         fields = [
-            'id', 'contenu', 'date_envoi',
-            'conversation_id', 'expediteur',
+            'id', 'contenu', 'date_envoi', 'est_lu',
+            'expediteur', 'destinataire',
         ]
 
-    @staticmethod
-    def _user_brief(user):
+    def get_expediteur(self, obj):
         return {
-            'id':     user.id,
-            'nom':    user.nom,
-            'prenom': user.prenom,
+            'id':     obj.expediteur.id,
+            'nom':    obj.expediteur.nom,
+            'prenom': obj.expediteur.prenom,
         }
 
-    def get_expediteur(self, obj):
-        return self._user_brief(obj.expediteur)
+    def get_destinataire(self, obj):
+        return {
+            'id':     obj.destinataire.id,
+            'nom':    obj.destinataire.nom,
+            'prenom': obj.destinataire.prenom,
+        }
 
 
 class PaginatedMessagesSerializer(serializers.Serializer):
     """
-    Maps to PaginatedMessages schema.
-    GET /messages/conversations/{conversationId}
+    Maps to PaginatedMessages schema (newest messages first).
+    GET /messages/conversations/{userId}
     """
     count    = serializers.IntegerField()
     next     = serializers.URLField(allow_null=True)
@@ -72,85 +68,37 @@ class PaginatedMessagesSerializer(serializers.Serializer):
 # Conversation
 # ---------------------------------------------------------------------------
 
-class MemberBriefSerializer(serializers.Serializer):
-    """Member info in conversation summaries."""
-    id     = serializers.IntegerField(source='user.id')
-    nom    = serializers.CharField(source='user.nom')
-    prenom = serializers.CharField(source='user.prenom')
-    role   = serializers.CharField()
-
-
 class ConversationSummarySerializer(serializers.Serializer):
     """
-    Read serializer for inbox list.
-    Each entry contains the conversation, last message, and unread count.
-    For DMs, an 'interlocuteur' field is populated.
-    For groups, 'nom' and 'members' are populated.
+    Read serializer — maps to ConversationSummary schema.
+    One entry per unique conversation partner with latest message preview.
+    GET /messages/conversations
+
+    The view is expected to pass a list of dicts, each with:
+      - 'interlocuteur': a Utilisateur instance
+      - 'dernier_message': a Message instance
+      - 'nb_non_lus': int
     """
-    conversation_id = serializers.IntegerField(source='conversation.id')
-    type            = serializers.CharField(source='conversation.type')
-    nom             = serializers.CharField(source='conversation.nom', allow_null=True)
     interlocuteur   = serializers.SerializerMethodField()
-    members         = serializers.SerializerMethodField()
     dernier_message = MessageSerializer()
     nb_non_lus      = serializers.IntegerField()
 
     def get_interlocuteur(self, obj):
-        """For DMs, return the partner's info."""
-        partner = obj.get('interlocuteur')
-        if partner is None:
-            return None
+        u = obj['interlocuteur']
         return {
-            'id':     partner.id,
-            'nom':    partner.nom,
-            'prenom': partner.prenom,
-            'role':   getattr(partner, 'role', None),
+            'id':     u.id,
+            'nom':    u.nom,
+            'prenom': u.prenom,
+            'role':   u.role,  # 'candidat' | 'recruteur' via Utilisateur.role property
         }
 
-    def get_members(self, obj):
-        """For groups, return a list of active members."""
-        members = obj.get('members')
-        if members is None:
-            return None
-        return [
-            {
-                'id':     m.user.id,
-                'nom':    m.user.nom,
-                'prenom': m.user.prenom,
-                'role':   m.role,
-            }
-            for m in members
-        ]
 
-
-# ---------------------------------------------------------------------------
-# Group management
-# ---------------------------------------------------------------------------
-
-class CreateGroupSerializer(serializers.Serializer):
-    """POST /messages/groups"""
-    nom        = serializers.CharField(max_length=100)
-    member_ids = serializers.ListField(
-        child=serializers.IntegerField(), min_length=1,
-    )
-
-
-class ConversationDetailSerializer(serializers.ModelSerializer):
-    """Full conversation detail with members."""
-    members = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Conversation
-        fields = ['id', 'type', 'nom', 'created_at', 'members']
-
-    def get_members(self, obj):
-        active = obj.memberships.filter(left_at__isnull=True).select_related('user')
-        return [
-            {
-                'id':     m.user.id,
-                'nom':    m.user.nom,
-                'prenom': m.user.prenom,
-                'role':   m.role,
-            }
-            for m in active
-        ]
+class PaginatedConversationsSerializer(serializers.Serializer):
+    """
+    Maps to PaginatedConversations schema.
+    GET /messages/conversations
+    """
+    count    = serializers.IntegerField()
+    next     = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results  = ConversationSummarySerializer(many=True)
