@@ -239,6 +239,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final hasLoadingHeader = state.hasMore;
     final totalItems = state.messages.length + (hasLoadingHeader ? 1 : 0);
+    final lastReadId = state.partnerLastReadId;
+
+    // Pre-compute: find the ID of the last message sent by me that was seen.
+    // This is where the "Vu" label should appear.
+    int? lastSeenByMeId;
+    if (lastReadId != null && _currentUserId != null) {
+      for (final m in state.messages.reversed) {
+        if (m.expediteur.id == _currentUserId && m.id <= lastReadId) {
+          lastSeenByMeId = m.id;
+          break;
+        }
+      }
+    }
 
     return ListView.builder(
       controller: _scrollController,
@@ -274,6 +287,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               msg.dateEnvoi,
             );
 
+        // Determine seen status for sent messages
+        final bool isSeen = isMe && lastReadId != null && msg.id <= lastReadId;
+
+        // Show "Vu" label only on the last sent-by-me message within the seen range
+        final bool isLastSeenMessage = isMe && msg.id == lastSeenByMeId;
+
         return Column(
           children: [
             if (showDate)
@@ -299,6 +318,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               message: msg,
               isMe: isMe,
               showSenderName: widget.isGroup && !isMe,
+              isSeen: isSeen,
+              isLastSeenMessage: isLastSeenMessage,
             ),
           ],
         );
@@ -498,11 +519,15 @@ class _MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
   final bool showSenderName;
+  final bool isSeen;
+  final bool isLastSeenMessage;
 
   const _MessageBubble({
     required this.message,
     required this.isMe,
     this.showSenderName = false,
+    this.isSeen = false,
+    this.isLastSeenMessage = false,
   });
 
   @override
@@ -563,15 +588,31 @@ class _MessageBubble extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        DateFormat.Hm().format(message.dateEnvoi),
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          color: isMe
-                              ? Colors.white.withValues(alpha: 0.7)
-                              : AppColors.slate400,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            DateFormat.Hm().format(message.dateEnvoi),
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10,
+                              color: isMe
+                                  ? Colors.white.withValues(alpha: 0.7)
+                                  : AppColors.slate400,
+                            ),
+                          ),
+                          // Seen indicator for sent messages
+                          if (isMe) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              isSeen ? Icons.done_all : Icons.done,
+                              size: 14,
+                              color: isSeen
+                                  ? Colors.white
+                                  : Colors.white.withValues(alpha: 0.5),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -580,6 +621,20 @@ class _MessageBubble extends StatelessWidget {
               if (isMe) const SizedBox(width: 4),
             ],
           ),
+          // "Vu" label shown below the last seen message
+          if (isLastSeenMessage)
+            Padding(
+              padding: const EdgeInsets.only(top: 2, right: 8),
+              child: Text(
+                'Vu',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.slate400,
+                ),
+              ),
+            ),
         ],
       ),
     );

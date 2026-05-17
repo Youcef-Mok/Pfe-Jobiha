@@ -129,6 +129,9 @@ class ActiveChatState {
   /// True once the initial message batch has finished loading.
   final bool initialLoadDone;
 
+  /// The ID of the last message the partner has read (for seen indicator).
+  final int? partnerLastReadId;
+
   const ActiveChatState({
     this.messages = const [],
     this.isLoading = false,
@@ -139,6 +142,7 @@ class ActiveChatState {
     this.partnerIsTyping = false,
     this.typingUsers = const {},
     this.initialLoadDone = false,
+    this.partnerLastReadId,
   });
 
   ActiveChatState copyWith({
@@ -151,6 +155,7 @@ class ActiveChatState {
     bool? partnerIsTyping,
     Map<int, bool>? typingUsers,
     bool? initialLoadDone,
+    int? partnerLastReadId,
   }) =>
       ActiveChatState(
         messages: messages ?? this.messages,
@@ -162,6 +167,7 @@ class ActiveChatState {
         partnerIsTyping: partnerIsTyping ?? this.partnerIsTyping,
         typingUsers: typingUsers ?? this.typingUsers,
         initialLoadDone: initialLoadDone ?? this.initialLoadDone,
+        partnerLastReadId: partnerLastReadId ?? this.partnerLastReadId,
       );
 }
 
@@ -213,6 +219,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         isLoading: false,
         hasMore: result.hasMore,
         initialLoadDone: true,
+        partnerLastReadId: result.partnerLastReadId,
         error: null,
       );
 
@@ -251,10 +258,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     _readSub = _ws.onReadReceipt.listen((event) {
       if (!mounted) return;
-      // Read receipts now use lastReadId — for groups, this tells us
-      // who read up to which message. For DMs, we keep backward compat
-      // by marking all messages from the sender as "seen" in the UI.
-      // The UI can use this event to show "read by X" indicators.
+      // Update the partner's last-read cursor so the UI can show
+      // a "seen" indicator on sent messages up to this ID.
+      state = state.copyWith(partnerLastReadId: event.lastReadId);
       _onMessagesChanged?.call();
     });
 

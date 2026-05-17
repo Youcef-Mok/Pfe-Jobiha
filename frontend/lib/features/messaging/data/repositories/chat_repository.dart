@@ -29,7 +29,10 @@ class ChatRepository {
   // ── Messages (paginated) ─────────────────────────────────────────────────
 
   /// Fetch messages in a conversation.
-  Future<({List<MessageModel> messages, bool hasMore})> fetchMessages(
+  /// On the first page the API includes `read_cursors` — a map of other
+  /// members' user-ids to the last message-id they have read.
+  Future<({List<MessageModel> messages, bool hasMore, int? partnerLastReadId})>
+      fetchMessages(
     int convId, {
     int? page,
   }) async {
@@ -40,7 +43,20 @@ class ChatRepository {
           .map((json) => MessageModel.fromJson(json as Map<String, dynamic>))
           .toList();
       final hasMore = data['next'] != null;
-      return (messages: results, hasMore: hasMore);
+
+      // Parse partner read cursors (first page only)
+      int? partnerLastReadId;
+      if (data['read_cursors'] != null) {
+        final cursors = data['read_cursors'] as Map<String, dynamic>;
+        for (final value in cursors.values) {
+          final id = value as int?;
+          if (id != null && (partnerLastReadId == null || id > partnerLastReadId)) {
+            partnerLastReadId = id;
+          }
+        }
+      }
+
+      return (messages: results, hasMore: hasMore, partnerLastReadId: partnerLastReadId);
     } on DioException catch (e) {
       throw Exception(_friendlyError(e));
     }
