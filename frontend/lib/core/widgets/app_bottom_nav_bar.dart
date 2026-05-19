@@ -4,7 +4,7 @@ import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
 import 'package:job_app/features/notifications/screens/notifications_screen.dart';
 import 'package:job_app/features/profile/screens/recruiter_profile_screen.dart';
 import 'package:job_app/features/jobs/screens/create_job_screen.dart';
-import 'package:job_app/features/candidates/screens/candidates_screen.dart'; // fallback for message if needed
+import 'package:job_app/features/messaging/screens/chat_list_screen.dart';
 
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -26,7 +26,7 @@ class AppBottomNavBar extends StatelessWidget {
         targetScreen = const JobsListScreen();
         break;
       case 3:
-        targetScreen = const CandidatesScreen(); // Placeholder for messages
+        targetScreen = const ChatListScreen(); // Placeholder for messages
         break;
       case 4:
         targetScreen = const ProfileScreen();

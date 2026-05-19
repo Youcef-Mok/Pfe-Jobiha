@@ -53,107 +53,10 @@ class CandidateNotification {
       );
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-final List<CandidateNotification> _mockNotifications = [
-  // ── TODAY ──
-  CandidateNotification(
-    id: '1',
-    title: 'Candidature acceptée',
-    message: 'Votre candidature pour le poste de Serveur a été acceptée.',
-    type: CandidateNotifType.applicationAccepted,
-    timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-    isRead: false,
-    jobTitle: 'Serveur en salle',
-    senderName: 'Le Petit Bistro',
-  ),
-  CandidateNotification(
-    id: '2',
-    title: 'Nouvelle offre à proximité',
-    message: 'Une offre de Barista est disponible à 1.2 km de vous.',
-    type: CandidateNotifType.newNearbyOffer,
-    timestamp: DateTime.now().subtract(const Duration(minutes: 43)),
-    isRead: false,
-    jobTitle: 'Barista',
-    distanceKm: 1.2,
-  ),
-  CandidateNotification(
-    id: '3',
-    title: 'Offre correspondant à vos préférences',
-    message: 'Un poste de Designer UX correspond à votre profil.',
-    type: CandidateNotifType.jobMatchingPreferences,
-    timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-    isRead: false,
-    jobTitle: 'Designer UX',
-    senderName: 'Tech Studio',
-  ),
-  CandidateNotification(
-    id: '4',
-    title: 'Votre profil a été consulté',
-    message: 'Un recruteur a consulté votre profil il y a peu.',
-    type: CandidateNotifType.profileViewed,
-    timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-    isRead: false,
-  ),
-
-  // ── YESTERDAY ──
-  CandidateNotification(
-    id: '5',
-    title: 'Candidature refusée',
-    message: "Votre candidature pour Livreur n'a pas été retenue.",
-    type: CandidateNotifType.applicationRejected,
-    timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-    isRead: true,
-    jobTitle: 'Livreur',
-    senderName: 'Express Delivery',
-  ),
-  CandidateNotification(
-    id: '6',
-    title: 'Candidature consultée',
-    message: 'Un recruteur a consulté votre candidature pour Réceptionniste.',
-    type: CandidateNotifType.applicationViewed,
-    timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-    isRead: true,
-    jobTitle: 'Réceptionniste',
-  ),
-  CandidateNotification(
-    id: '7',
-    title: 'Offre sauvegardée bientôt expirée',
-    message: "L'offre Réceptionniste expire dans 24h. Postulez vite !",
-    type: CandidateNotifType.savedJobExpiring,
-    timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 4)),
-    isRead: true,
-    jobTitle: 'Réceptionniste',
-  ),
-  CandidateNotification(
-    id: '8',
-    title: 'Nouveau poste dans votre catégorie',
-    message: '3 nouvelles offres en Restauration ont été publiées.',
-    type: CandidateNotifType.newJobInCategory,
-    timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 6)),
-    isRead: true,
-    jobTitle: 'Restauration',
-  ),
-
-  // ── EARLIER ──
-  CandidateNotification(
-    id: '9',
-    title: 'Nouvelle offre à proximité',
-    message: 'Un poste de Gérant est disponible à 2.8 km de vous.',
-    type: CandidateNotifType.newNearbyOffer,
-    timestamp: DateTime.now().subtract(const Duration(days: 2)),
-    isRead: true,
-    jobTitle: 'Gérant',
-    distanceKm: 2.8,
-  ),
-  CandidateNotification(
-    id: '10',
-    title: 'Complétez votre profil',
-    message: 'Ajoutez votre CV pour augmenter vos chances de 70%.',
-    type: CandidateNotifType.profileIncomplete,
-    timestamp: DateTime.now().subtract(const Duration(days: 3)),
-    isRead: true,
-  ),
-];
+// ── Mock Data removed — notifications should be loaded from backend ──────────
+// TODO: Convert this screen to a ConsumerStatefulWidget and use the
+//       notificationsControllerProvider to fetch real data from the API.
+//       For now, we initialize with an empty list.
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 class CandidateNotificationsScreen extends StatefulWidget {
@@ -172,7 +75,7 @@ class _CandidateNotificationsScreenState
   @override
   void initState() {
     super.initState();
-    _notifications = List.from(_mockNotifications);
+    _notifications = [];
   }
 
   List<CandidateNotification> get _filtered {

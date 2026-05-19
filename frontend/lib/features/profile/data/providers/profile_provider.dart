@@ -2,13 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
 import 'package:job_app/features/profile/domain/cv_entity.dart';
 import 'package:job_app/features/profile/data/repositories/user_repository.dart';
-import 'package:job_app/features/profile/data/repositories/user_repository_mock.dart';
+import 'package:job_app/features/profile/data/repositories/user_repository_api.dart';
 
 // ─────────────────────────────────────────────
 // 1. Repository Provider
 // ─────────────────────────────────────────────
 final userRepositoryProvider = Provider<UserRepository>(
-  (ref) => UserRepositoryMock(),
+  (ref) => UserRepositoryApi(),
 );
 
 // ─────────────────────────────────────────────

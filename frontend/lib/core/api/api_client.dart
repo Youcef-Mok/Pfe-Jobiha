@@ -37,16 +37,37 @@ class _AuthInterceptor extends Interceptor {
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
+    // Debug-only: print the full URL before every request so you can
+    // immediately spot mismatched paths in the console.
+    assert(() {
+      // ignore: avoid_print
+      print('[ApiClient] ${options.method.toUpperCase()} ${options.uri}');
+      return true;
+    }());
     handler.next(options);
   }
 
-  /// On 401 — try a silent refresh, then retry the original request.
   @override
   Future<void> onError(
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 401) {
+    final status = err.response?.statusCode;
+
+    // 403 Forbidden — permission error, not a token issue.
+    // Return a clean, human-readable error so the UI can display it.
+    if (status == 403) {
+      return handler.next(
+        DioException(
+          requestOptions: err.requestOptions,
+          error: 'Accès refusé. Vous n\'avez pas les droits nécessaires pour cette action.',
+          type: DioExceptionType.badResponse,
+          response: err.response,
+        ),
+      );
+    }
+
+    if (status == 401) {
       final refreshed = await _tryRefreshToken();
       if (refreshed) {
         // Retry the original request with the new token.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/core/widgets/api_error_widget.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/widgets/job_card.dart';
 
@@ -17,9 +18,12 @@ class ProfileAnnoncesSection extends ConsumerWidget {
         padding: EdgeInsets.all(40),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.all(32),
-        child: Center(child: Text('Erreur: $e')),
+      // Use ApiErrorWidget: scrollable + message capped at 4 lines so a
+      // verbose DioException stack trace never overflows the tab body.
+      error: (e, _) => ApiErrorWidget(
+        error: e,
+        icon: Icons.wifi_off_rounded,
+        onRetry: () => ref.invalidate(jobsNotifierProvider),
       ),
       data: (jobs) {
         if (jobs.isEmpty) {
@@ -73,6 +77,9 @@ class _EmptyState extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(48),
       child: Column(
+        // min: don't expand beyond children — prevents the 33 px overflow
+        // that occurs when this Column is inside a constrained sliver body.
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Icon(Icons.work_outline, size: 48, color: AppColors.slate400),

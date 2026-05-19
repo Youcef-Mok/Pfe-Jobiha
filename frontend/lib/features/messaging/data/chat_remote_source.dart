@@ -25,18 +25,17 @@ class ChatRemoteSource {
     );
   }
 
-  // ── POST /messages ──────────────────────────────────────────────────────
-  /// Send a new message.
+  // ── POST /conversations/<convId>/messages ────────────────────────────────
+  /// Send a new message to a specific conversation.
   Future<Response> sendMessage({
     required int conversationId,
     required String contenu,
   }) {
     return _dio.post(
-      ApiEndpoints.sendMessage,
-      data: {
-        'conversation_id': conversationId,
-        'contenu': contenu,
-      },
+      // ApiEndpoints.sendMessage is now a function — the conversation ID is
+      // embedded in the URL path as the backend expects.
+      ApiEndpoints.sendMessage(conversationId),
+      data: {'contenu': contenu},
     );
   }
 

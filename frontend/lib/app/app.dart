@@ -28,7 +28,7 @@ import 'package:job_app/features/messaging/screens/chat_list_screen.dart';
 import 'package:job_app/features/notifications/screens/candidate_notifications_screen.dart';
 import 'package:job_app/features/notifications/screens/notifications_screen.dart';
 import 'package:job_app/features/auth/screens/forgot_password_screen.dart';
-
+import 'package:job_app/features/candidates/screens/candidates_screen.dart';
 
 
 
@@ -37,19 +37,6 @@ import 'package:job_app/features/auth/providers/auth_providers.dart';
 import 'package:job_app/features/auth/data/models/auth_state.dart';
 
 
-
-
-
-// ── Placeholder home screens (TO DO : replace with real screens when ready) ─────────
-
-class _CandidatHomeScreen extends StatelessWidget {
-  const _CandidatHomeScreen();
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Candidat Dashboard')),
-    body: const Center(child: Text('Bienvenue, candidat! 🎉')),
-  );
-}
 
 
 
@@ -77,7 +64,7 @@ class _AuthGate extends ConsumerWidget {
       // Session restored and valid — skip welcome, go straight to dashboard.
       case AuthStatus.authenticated:
         return auth.role == 'candidat' 
-            ? const _CandidatHomeScreen() //if 'candidat'
+            ? const CandidatesScreen() //if 'candidat' <- i added it for test (amani)
             : const JobsListApp(); //else 'recruteur'
 
       // No session / logged out / error — show welcome as usual.
@@ -98,15 +85,12 @@ class App extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       
-      //home: const SettingsScreen(),
-      //home: const WelcomeScreen(),
-      //home: const _AuthGate(),
-      home: ChatListScreen(),
+      home: const _AuthGate(),
 
       routes: {
  
-       '/home-candidat':         (context) => const _CandidatHomeScreen(),
-       '/home-recruteur':         (context) => const JobsListApp(), //just to test
+       '/home-candidat':        (context) => const CandidatesScreen(),  // ← changed
+       '/home-recruteur':       (context) => const JobsListApp(), 
        '/welcome':              (context) => const WelcomeScreen(),
        '/login':                (context) => const LoginScreen(),
        '/signup':               (context) => const SignupRoleScreen(),
@@ -132,7 +116,7 @@ class App extends StatelessWidget {
        '/messages':                   (context) => const ChatListScreen(),
        '/candidate-notifications':    (context) => const CandidateNotificationsScreen(),
        '/recruiter-notifications':    (context) => const NotificationsScreen(),
-       '/forgot-password': (context) => const ForgotPasswordScreen(),
+       '/forgot-password':            (context) => const ForgotPasswordScreen(),
 
       },
     );

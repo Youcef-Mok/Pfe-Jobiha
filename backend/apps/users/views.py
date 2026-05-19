@@ -824,9 +824,11 @@ class BlockedUsersView(APIView):
         ).select_related('bloque')
         data = [
             {
-                'id':     b.bloque.id,
-                'nom':    b.bloque.nom,
-                'prenom': b.bloque.prenom,
+                'id':          b.bloque.id,
+                'nom':         b.bloque.nom,
+                'prenom':      b.bloque.prenom,
+                # Flutter BlockedUserModel.fromJson reads 'avatar' as String?
+                'avatar':      None,
                 'date_blocage': b.date_blocage,
             }
             for b in blocked

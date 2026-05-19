@@ -224,7 +224,7 @@ class UserMeSerializer(serializers.Serializer):
     Read serializer — returns a unified, flattened profile regardless of
     whether the user is a Candidat or Recruteur.
     """
-    id = serializers.IntegerField()
+    id = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
     domain = serializers.SerializerMethodField()
@@ -236,6 +236,9 @@ class UserMeSerializer(serializers.Serializer):
     missions_count = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
     account_type = serializers.SerializerMethodField()
+
+    def get_id(self, obj):
+        return str(obj.id)
 
     def _profile(self, obj):
         """Return the child profile (Candidat or Recruteur) if it exists."""
@@ -263,21 +266,21 @@ class UserMeSerializer(serializers.Serializer):
     def get_company(self, obj):
         p = self._profile(obj)
         if isinstance(p, Recruteur):
-            return p.nom_structure
-        return None
+            return p.nom_structure or ''
+        return ''
 
     def get_location(self, obj):
         if obj.latitude is not None and obj.longitude is not None:
             return f"{obj.latitude}, {obj.longitude}"
-        return None
+        return ''
 
     def get_bio(self, obj):
         p = self._profile(obj)
         if isinstance(p, Recruteur):
-            return p.description
+            return p.description or ''
         if isinstance(p, Candidat):
-            return p.experience
-        return None
+            return p.experience or ''
+        return ''
 
     def get_avatar_url(self, obj):
         return None
@@ -310,11 +313,12 @@ class ReviewSerializer(serializers.ModelSerializer):
     Read serializer for GET /users/:id/reviews.
     Sources data from the Evaluation model.
     """
+    id = serializers.SerializerMethodField()
     author_name = serializers.SerializerMethodField()
     author_role = serializers.SerializerMethodField()
     author_avatar = serializers.SerializerMethodField()
-    rating = serializers.IntegerField(source='note', read_only=True)
-    comment = serializers.CharField(source='commentaire', read_only=True)
+    rating = serializers.SerializerMethodField()
+    comment = serializers.SerializerMethodField()
     recruiter_reply = serializers.SerializerMethodField()
     recruiter_name = serializers.SerializerMethodField()
     recruiter_reply_date = serializers.SerializerMethodField()
@@ -327,6 +331,9 @@ class ReviewSerializer(serializers.ModelSerializer):
             'recruiter_reply_date',
         ]
 
+    def get_id(self, obj):
+        return str(obj.id)
+
     def get_author_name(self, obj):
         return f"{obj.evaluateur.prenom} {obj.evaluateur.nom}"
 
@@ -335,6 +342,12 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     def get_author_avatar(self, obj):
         return None
+
+    def get_rating(self, obj):
+        return float(obj.note)
+
+    def get_comment(self, obj):
+        return obj.commentaire or ''
 
     def get_recruiter_reply(self, obj):
         # No reply field on Evaluation yet; return None.

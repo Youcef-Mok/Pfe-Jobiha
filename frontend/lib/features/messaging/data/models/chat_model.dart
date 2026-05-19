@@ -22,7 +22,7 @@ class UserBrief {
   });
 
   factory UserBrief.fromJson(Map<String, dynamic> json) => UserBrief(
-        id:     json['id'] as int,
+        id:     (json['id'] as int?) ?? 0,
         nom:    json['nom'] as String? ?? '',
         prenom: json['prenom'] as String? ?? '',
       );
@@ -69,11 +69,15 @@ class MessageModel {
       );
 
   factory MessageModel.fromJson(Map<String, dynamic> json) => MessageModel(
-        id:             json['id'] as int,
-        contenu:        json['contenu'] as String,
-        dateEnvoi:      DateTime.parse(json['date_envoi'] as String).toLocal(),
-        conversationId: json['conversation_id'] as int,
-        expediteur:     UserBrief.fromJson(json['expediteur'] as Map<String, dynamic>),
+        id:             (json['id'] as int?) ?? 0,
+        contenu:        json['contenu'] as String? ?? '',
+        dateEnvoi:      json['date_envoi'] != null
+            ? DateTime.parse(json['date_envoi'] as String).toLocal()
+            : DateTime.now(),
+        conversationId: (json['conversation_id'] as int?) ?? 0,
+        expediteur:     json['expediteur'] != null
+            ? UserBrief.fromJson(json['expediteur'] as Map<String, dynamic>)
+            : const UserBrief(id: 0, nom: '', prenom: ''),
       );
 
   Map<String, dynamic> toJson() => {
@@ -114,7 +118,7 @@ class MemberBriefModel {
 
   factory MemberBriefModel.fromJson(Map<String, dynamic> json) =>
       MemberBriefModel(
-        id:     json['id'] as int,
+        id:     (json['id'] as int?) ?? 0,
         nom:    json['nom'] as String? ?? '',
         prenom: json['prenom'] as String? ?? '',
         role:   json['role'] as String?,
@@ -161,14 +165,22 @@ class ConversationModel {
     }
 
     return ConversationModel(
-      conversationId: json['conversation_id'] as int,
-      type:           json['type'] as String,
+      conversationId: (json['conversation_id'] as int?) ?? 0,
+      type:           json['type'] as String? ?? 'direct',
       nom:            json['nom'] as String?,
       interlocuteur:  interlocuteur,
       members:        members,
-      dernierMessage: MessageModel.fromJson(
-          json['dernier_message'] as Map<String, dynamic>),
-      nbNonLus:       json['nb_non_lus'] as int? ?? 0,
+      dernierMessage: json['dernier_message'] != null
+          ? MessageModel.fromJson(
+              json['dernier_message'] as Map<String, dynamic>)
+          : MessageModel(
+              id: 0,
+              contenu: '',
+              dateEnvoi: DateTime.now(),
+              conversationId: (json['conversation_id'] as int?) ?? 0,
+              expediteur: const UserBrief(id: 0, nom: '', prenom: ''),
+            ),
+      nbNonLus:       (json['nb_non_lus'] as int?) ?? 0,
     );
   }
 

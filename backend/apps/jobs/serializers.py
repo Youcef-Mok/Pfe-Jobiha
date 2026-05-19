@@ -14,28 +14,65 @@ from apps.jobs.models.interview import Interview
 class OffreSerializer(serializers.ModelSerializer):
     """
     Read serializer for list / detail — maps to the API-spec OffreResponse.
+    Flutter JobModel.fromJson expects:
+      id (String), title (String), company_name (String), contract_type (String?),
+      posted_at (String), status (String), candidate_count (int?), view_count (int?),
+      logo_asset (String?), is_published (bool?), candidates (List?), comments (List?)
     """
+    id = serializers.SerializerMethodField()
     title = serializers.CharField(source='titre', read_only=True)
     company_name = serializers.SerializerMethodField()
     contract_type = serializers.CharField(source='type_contrat', read_only=True)
     posted_at = serializers.DateField(source='date_debut', read_only=True)
     status = serializers.CharField(source='statut', read_only=True)
     logo_asset = serializers.SerializerMethodField()
+    candidates = serializers.SerializerMethodField()
+    comments = serializers.SerializerMethodField()
 
     class Meta:
         model  = Offre
         fields = [
             'id', 'title', 'company_name', 'contract_type', 'posted_at',
             'status', 'candidate_count', 'view_count', 'logo_asset',
-            'is_published',
+            'is_published', 'candidates', 'comments',
         ]
 
+    def get_id(self, obj):
+        # Flutter: json['id'] as String
+        return str(obj.id)
+
     def get_company_name(self, obj):
-        return getattr(obj.recruteur, 'nom_structure', None)
+        # Flutter: json['company_name'] as String (required — must not be null)
+        return getattr(obj.recruteur, 'nom_structure', None) or ''
 
     def get_logo_asset(self, obj):
         # Placeholder — no logo field on model yet.
         return None
+
+    def get_candidates(self, obj):
+        """
+        Flutter JobCandidateModel.fromJson expects:
+          initials (String), name (String), role (String),
+          rating (num → double), avatarUrl (String?)
+        Build from accepted candidatures.
+        """
+        result = []
+        for candidature in obj.candidatures.select_related('candidat').all():
+            c = candidature.candidat
+            full_name = f"{c.prenom} {c.nom}"
+            initials = ''.join(p[0].upper() for p in full_name.split() if p)[:2]
+            result.append({
+                'initials': initials or '?',
+                'name': full_name,
+                'role': 'candidat',
+                'rating': float(c.note_globale) if c.note_globale is not None else 0.0,
+                'avatarUrl': None,
+            })
+        return result
+
+    def get_comments(self, obj):
+        # No comment model exists yet — return empty list as Flutter expects List?
+        return []
 
 
 class CreateOffreSerializer(serializers.Serializer):
@@ -75,30 +112,61 @@ class UpdateOffreSerializer(serializers.Serializer):
 class MissionSerializer(serializers.ModelSerializer):
     """
     Read serializer — maps to the API-spec MissionResponse.
+    Flutter MissionModel.fromJson expects:
+      id (String), job_title (String), company_name (String),
+      start_date (String, required), end_date (String, required),
+      location (String), recruiter_name (String), candidate_name (String),
+      candidate_rating (num → double, required), recruiter_rating (num → double, required),
+      candidate_feedback (String, required), recruiter_feedback (String, required),
+      status (String), summary (String?), image_url (String?), team (List?)
     """
+    id = serializers.SerializerMethodField()
     job_title = serializers.SerializerMethodField()
     company_name = serializers.SerializerMethodField()
-    start_date = serializers.DateTimeField(source='date_debut', read_only=True)
-    end_date = serializers.DateTimeField(source='date_fin', read_only=True)
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
     status = serializers.CharField(source='statut', read_only=True)
     recruiter_name = serializers.SerializerMethodField()
     candidate_name = serializers.SerializerMethodField()
     candidate_rating = serializers.SerializerMethodField()
     recruiter_rating = serializers.SerializerMethodField()
+    candidate_feedback = serializers.SerializerMethodField()
+    recruiter_feedback = serializers.SerializerMethodField()
+    summary = serializers.SerializerMethodField()
+    team = serializers.SerializerMethodField()
 
     class Meta:
         model  = Mission
         fields = [
             'id', 'job_title', 'company_name', 'start_date', 'end_date',
             'location', 'recruiter_name', 'candidate_name',
-            'candidate_rating', 'recruiter_rating', 'status', 'image_url',
+            'candidate_rating', 'recruiter_rating',
+            'candidate_feedback', 'recruiter_feedback',
+            'status', 'summary', 'image_url', 'team',
         ]
+
+    def get_id(self, obj):
+        # Flutter: json['id'] as String
+        return str(obj.id)
 
     def get_job_title(self, obj):
         return obj.candidature.offre.titre
 
     def get_company_name(self, obj):
-        return obj.candidature.offre.recruteur.nom_structure
+        return obj.candidature.offre.recruteur.nom_structure or ''
+
+    def get_start_date(self, obj):
+        # Flutter: json['start_date'] as String (required — no null)
+        if obj.date_debut:
+            return obj.date_debut.isoformat()
+        # Fall back to ISO placeholder so Flutter can DateTime.parse() without crashing
+        return '1970-01-01T00:00:00'
+
+    def get_end_date(self, obj):
+        # Flutter: json['end_date'] as String (required — no null)
+        if obj.date_fin:
+            return obj.date_fin.isoformat()
+        return '1970-01-01T00:00:00'
 
     def get_recruiter_name(self, obj):
         r = obj.candidature.offre.recruteur
@@ -109,18 +177,61 @@ class MissionSerializer(serializers.ModelSerializer):
         return f"{c.prenom} {c.nom}"
 
     def get_candidate_rating(self, obj):
-        """Rating given to the candidate for this mission, if any."""
+        """Rating given to the candidate for this mission.
+        Flutter casts as (num).toDouble() — must not be null.
+        """
         candidat = obj.candidature.candidat
-        eval_qs = obj.evaluations.filter(evalue=candidat)
-        ev = eval_qs.first()
-        return ev.note if ev else None
+        ev = obj.evaluations.filter(evalue=candidat).first()
+        return float(ev.note) if ev else 0.0
 
     def get_recruiter_rating(self, obj):
-        """Rating given to the recruiter for this mission, if any."""
+        """Rating given to the recruiter for this mission.
+        Flutter casts as (num).toDouble() — must not be null.
+        """
         recruteur = obj.candidature.offre.recruteur
-        eval_qs = obj.evaluations.filter(evalue=recruteur)
-        ev = eval_qs.first()
-        return ev.note if ev else None
+        ev = obj.evaluations.filter(evalue=recruteur).first()
+        return float(ev.note) if ev else 0.0
+
+    def get_candidate_feedback(self, obj):
+        """Textual feedback left by the candidate.
+        Flutter: json['candidate_feedback'] as String (required).
+        Pull from the evaluation comment if available, else empty string.
+        """
+        candidat = obj.candidature.candidat
+        ev = obj.evaluations.filter(evalue=candidat).first()
+        return (ev.commentaire or '') if ev else ''
+
+    def get_recruiter_feedback(self, obj):
+        """Textual feedback left by the recruiter.
+        Flutter: json['recruiter_feedback'] as String (required).
+        """
+        recruteur = obj.candidature.offre.recruteur
+        ev = obj.evaluations.filter(evalue=recruteur).first()
+        return (ev.commentaire or '') if ev else ''
+
+    def get_summary(self, obj):
+        # Flutter: json['summary'] as String? — nullable OK
+        return None
+
+    def get_team(self, obj):
+        """
+        Flutter MissionMemberModel.fromJson expects:
+          name (String), role (String), rating (num → double), avatar_url (String?)
+        Build from other candidatures on the same offre (i.e. team members).
+        Returns [] if no team data — Flutter defaults to empty list.
+        """
+        result = []
+        for cand in obj.candidature.offre.candidatures.select_related('candidat').exclude(
+            pk=obj.candidature.pk
+        ):
+            c = cand.candidat
+            result.append({
+                'name': f"{c.prenom} {c.nom}",
+                'role': 'candidat',
+                'rating': float(c.note_globale) if c.note_globale is not None else 0.0,
+                'avatar_url': None,
+            })
+        return result
 
 
 # ---------------------------------------------------------------------------

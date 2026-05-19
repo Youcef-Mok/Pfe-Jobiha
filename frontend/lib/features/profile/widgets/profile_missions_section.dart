@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/core/widgets/api_error_widget.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/widgets/mission_card.dart';
 import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
@@ -18,9 +19,10 @@ class ProfileMissionsSection extends ConsumerWidget {
         padding: EdgeInsets.all(40),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.all(32),
-        child: Center(child: Text('Erreur: $e')),
+      error: (e, _) => ApiErrorWidget(
+        error: e,
+        icon: Icons.assignment_late_outlined,
+        onRetry: () => ref.invalidate(missionsNotifierProvider),
       ),
       data: (missions) {
         if (missions.isEmpty) {

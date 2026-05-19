@@ -49,22 +49,28 @@ from core.pagination import StandardPagination
 class ConversationListView(APIView):
     """
     GET /conversations — active conversations (not invitations).
-    Uses ConversationSerializer with contact_* fields.
+    Returns the shape the Flutter frontend expects via ConversationSummarySerializer:
+      conversation_id, type, nom, interlocuteur, members, dernier_message, nb_non_lus
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        conv_ids = ConversationMember.objects.filter(
-            user=request.user,
-            left_at__isnull=True,
-            is_invitation=False,
-        ).values_list('conversation_id', flat=True)
-        conversations = Conversation.objects.filter(
-            id__in=conv_ids
-        ).prefetch_related('memberships__user', 'messages')
-        serializer = ConversationSerializer(
-            conversations, many=True, context={'request': request}
-        )
+        # get_conversation_list already filters by membership, computes nb_non_lus,
+        # resolves the interlocuteur/members, and sorts by last message date.
+        data = services.get_conversation_list(request.user)
+        # Exclude invitation conversations so the inbox only shows accepted ones.
+        data = [
+            d for d in data
+            if not ConversationMember.objects.filter(
+                conversation=d['conversation'],
+                user=request.user,
+                is_invitation=True,
+                left_at__isnull=True,
+            ).exists()
+        ]
+        print(f'[ConversationListView] returning {len(data)} conversations')
+        serializer = ConversationSummarySerializer(data, many=True)
+        print(f'[ConversationListView] sample: {serializer.data[:1]}')
         return Response(serializer.data)
 
 
@@ -402,17 +408,20 @@ class ConversationInvitationsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        inv_conv_ids = ConversationMember.objects.filter(
-            user=request.user,
-            left_at__isnull=True,
-            is_invitation=True,
-        ).values_list('conversation_id', flat=True)
-        conversations = Conversation.objects.filter(
-            id__in=inv_conv_ids
-        ).prefetch_related('memberships__user', 'messages')
-        serializer = ConversationSerializer(
-            conversations, many=True, context={'request': request}
-        )
+        # Use the same service + summary serializer so the Flutter frontend
+        # can parse invitations the same way as regular conversations.
+        data = services.get_conversation_list(request.user)
+        # Keep only invitation memberships.
+        data = [
+            d for d in data
+            if ConversationMember.objects.filter(
+                conversation=d['conversation'],
+                user=request.user,
+                is_invitation=True,
+                left_at__isnull=True,
+            ).exists()
+        ]
+        serializer = ConversationSummarySerializer(data, many=True)
         return Response(serializer.data)
 
 
@@ -421,9 +430,10 @@ class ConvSendMessageView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, id):
-        content = request.data.get('content', '')
+        # Flutter sends 'contenu' — accept both for safety.
+        content = request.data.get('contenu') or request.data.get('content', '')
         if not content:
-            return Response({'detail': 'content is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'contenu is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not ConversationMember.objects.filter(
             conversation_id=id, user=request.user, left_at__isnull=True,

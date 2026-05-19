@@ -4,10 +4,10 @@ import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/candidates/domain/candidate_entity.dart';
 import 'package:job_app/features/candidates/data/models/candidate_model.dart';
 import 'package:job_app/features/candidates/data/repositories/candidates_repository.dart';
-import 'package:job_app/features/candidates/data/repositories/candidates_repository_mock.dart';
+import 'package:job_app/features/candidates/data/repositories/candidates_repository_api.dart';
 
 final candidatesRepositoryProvider = Provider<CandidatesRepository>((ref) {
-  return CandidatesRepositoryMock();
+  return CandidatesRepositoryApi();
 });
 
 final candidatesTabProvider = StateProvider<CandidateStatus>((ref) {
@@ -15,7 +15,7 @@ final candidatesTabProvider = StateProvider<CandidateStatus>((ref) {
 });
 
 final currentJobIdProvider = StateProvider<String>((ref) {
-  return 'job-1'; // Mock job ID
+  return ''; // Set dynamically when navigating to a job's candidates
 });
 
 class CandidatesNotifier
@@ -81,10 +81,14 @@ final selectedJobProvider = Provider<JobEntity?>((ref) {
   final jobId = ref.watch(currentJobIdProvider);
   final jobsAsync = ref.watch(jobsNotifierProvider);
   return jobsAsync.whenOrNull(
-    data: (jobs) => jobs.firstWhere(
-      (j) => j.id == jobId,
-      orElse: () => jobs.firstWhere((j) => j.id == 'job-1'), // Fallback for mock demo
-    ),
+    data: (jobs) {
+      if (jobs.isEmpty) return null;
+      try {
+        return jobs.firstWhere((j) => j.id == jobId);
+      } catch (_) {
+        return jobs.first; // Fallback to first job if id not found
+      }
+    },
   );
 });
 
@@ -105,9 +109,6 @@ class CandidatesController {
       if (tab == CandidateStatus.archive) {
         return c.status == CandidateStatus.archive;
       }
-      // Pour Nouveaux et Examine, on garde les archivés s'ils étaient de ce type
-      // Mais pour simplifier, on suit le souhait de l'utilisateur : "ne pas disparaître"
-      // Donc si on est dans l'onglet Nouveaux, on montre les Nouveaux + les archivés qui étaient Nouveaux (mock logic)
       if (tab == CandidateStatus.nouveau) {
         return c.status == CandidateStatus.nouveau || c.status == CandidateStatus.archive;
       }
@@ -118,7 +119,6 @@ class CandidatesController {
     if (sortMode == 'best') {
       list.sort((a, b) => b.rating.compareTo(a.rating));
     } else if (sortMode == 'recent') {
-      // Pour le mock, on simule par ID décroissant
       list.sort((a, b) => b.id.compareTo(a.id));
     } else if (sortMode == 'unprocessed') {
       list = list.where((c) => c.status == CandidateStatus.nouveau).toList();

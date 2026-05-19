@@ -5,14 +5,14 @@ import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
 import 'package:job_app/features/jobs/domain/jobs_controller.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
-import 'package:job_app/features/jobs/data/repositories/jobs_repository_mock.dart';
+import 'package:job_app/features/jobs/data/repositories/jobs_repository_api.dart';
 
 // ─────────────────────────────────────────────
 // 1. Repository Provider
-//    → Swapper mock par l'implémentation réelle ici
+//    → Uses real API implementation
 // ─────────────────────────────────────────────
 final jobsRepositoryProvider = Provider<JobsRepository>(
-  (ref) => JobsRepositoryMock(),
+  (ref) => JobsRepositoryApi(),
 );
 
 // ─────────────────────────────────────────────

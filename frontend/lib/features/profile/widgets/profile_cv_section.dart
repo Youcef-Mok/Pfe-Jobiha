@@ -141,7 +141,32 @@ class ProfileCvSectionState extends ConsumerState<ProfileCvSection>
 
     return cvAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erreur: $e')),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off_outlined, size: 48, color: Color(0xFF94A3B8)),
+              const SizedBox(height: 12),
+              Text(
+                'Impossible de charger le CV',
+                style: GoogleFonts.splineSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$e',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.splineSans(fontSize: 12, color: const Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+        ),
+      ),
       data: (cv) => LayoutBuilder(builder: (context, constraints) {
         // Pour que les headers soient "sticky" au bas de l'écran même lors du scroll du header profil,
         // on calcule une hauteur disponible basée sur la vue réelle (viewport).
@@ -251,22 +276,23 @@ class ProfileCvSectionState extends ConsumerState<ProfileCvSection>
 
 
   // Aide à la navigation
+  // TODO: Fetch the actual mission from the API instead of constructing a stub.
   void navigateToMission(BuildContext context, String title, String company) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => MissionDetailsScreen(
           mission: MissionEntity(
-            id: 'm-mock',
+            id: '0',
             jobTitle: title,
             companyName: company,
             startDate: DateTime.now().subtract(const Duration(days: 30)),
             endDate: DateTime.now().subtract(const Duration(days: 5)),
-            location: 'Paris, France',
+            location: '',
             status: 'completed',
-            recruiterName: 'Jean Dupont',
-            candidateName: 'John Doe',
-            summary: 'Détails de la mission effectuée...',
+            recruiterName: '',
+            candidateName: '',
+            summary: '',
           ),
         ),
       ),

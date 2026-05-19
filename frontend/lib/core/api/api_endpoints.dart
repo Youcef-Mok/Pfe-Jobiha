@@ -52,21 +52,25 @@ class ApiEndpoints {
   static const String blockedUsers      = '$_base/users/me/blocked';
   static const String deactivateAccount = '$_base/users/me/deactivate';
   static const String pushNotifPref     = '$_base/users/me/preferences';
-  static const String receivedApplications = '$_base/recruteurs/me/candidatures';
-  static const String appliedJobs       = '$_base/candidatures/me';
+  // Received applications (recruiter view) — backend: GET /applications
+  static const String receivedApplications = '$_base/applications';
+  // Applied jobs (candidate view) — backend: GET /applications
+  static const String appliedJobs       = '$_base/applications';
+  // CV data for a specific user — backend: GET /users/<id>/cv
+  static String userCv(int id)          => '$_base/users/$id/cv';
 
 
   // ── Offres ───────────────────────────────────────────────
-  static String offreDetail(int id)        => '$_base/offres/$id'; 
-  static String fermerOffre(int id)        => '$_base/offres/$id/fermer';
-  static const String offres               = '$_base/offres';
-  static const String myOffres             = '$_base/recruteurs/me/offres';
-  static String offreCandidatures(int id) => '$_base/offres/$id/candidatures';
+  static String offreDetail(int id)        => '$_base/jobs/$id';
+  static String fermerOffre(int id)        => '$_base/jobs/$id/close';
+  static const String offres               = '$_base/jobs';
+  static const String myOffres             = '$_base/jobs/mine';
+  static String offreCandidatures(int id) => '$_base/jobs/$id/candidates';
 
-  // ── Candidatures ─────────────────────────────────────────
-  static String candidatureDetail(int id)  => '$_base/candidatures/$id';
-  static String accepterCandidature(int id)=> '$_base/candidatures/$id/accepter';
-  static String refuserCandidature(int id) => '$_base/candidatures/$id/refuser';
+  // ── Candidatures ─────────────────────────────────────────────────────────
+  static String candidatureDetail(int id)  => '$_base/applications/$id';
+  static String accepterCandidature(int id)=> '$_base/applications/$id/accept';
+  static String refuserCandidature(int id) => '$_base/applications/$id/reject';
 
   // ── Missions ─────────────────────────────────────────────
   static const String missions             = '$_base/missions';
@@ -76,16 +80,23 @@ class ApiEndpoints {
   static String attestation(int id)        => '$_base/missions/$id/attestation';
   static const String historiqueCandidat   = '$_base/candidats/me/historique';
 
-  // ── Messagerie ───────────────────────────────────────────
-  static const String conversations              = '$_base/messages/conversations';
-  static String conversation(int convId)         => '$_base/messages/conversations/$convId';
-  static const String sendMessage                = '$_base/messages';
-  static String marquerConvLue(int convId)       => '$_base/messages/conversations/$convId/lire-tout';
-  static String getOrCreateDm(int userId)        => '$_base/messages/dm/$userId';
-  static const String createGroup                = '$_base/messages/groups';
-  static String groupMembers(int groupId)        => '$_base/messages/groups/$groupId/members';
-  static String addGroupMember(int groupId)      => '$_base/messages/groups/$groupId/members/add';
-  static String removeGroupMember(int gId, int uId) => '$_base/messages/groups/$gId/members/$uId';
+  // ── Messagerie ───────────────────────────────────────────────────────────
+  // Backend messaging URLs are mounted at /api/v1/ (no /messages/ prefix).
+  // All paths match apps/messaging/urls.py exactly.
+  static const String conversations              = '$_base/conversations';
+  static String conversation(int convId)         => '$_base/conversations/$convId';
+  // sendMessage: POST /conversations/<convId>/messages
+  static String sendMessage(int convId)          => '$_base/conversations/$convId/messages';
+  // Backend uses 'read-all', not 'lire-tout'
+  static String marquerConvLue(int convId)       => '$_base/conversations/$convId/read-all';
+  static String getOrCreateDm(int userId)        => '$_base/conversations/dm/$userId';
+  // Backend: POST /conversations/group
+  static const String createGroup                = '$_base/conversations/group';
+  static String groupMembers(int groupId)        => '$_base/conversations/$groupId/members';
+  // No separate add-member endpoint — use members list URL (POST)
+  static String addGroupMember(int groupId)      => '$_base/conversations/$groupId/members';
+  // No separate remove-member endpoint — DELETE on members list
+  static String removeGroupMember(int gId, int uId) => '$_base/conversations/$gId/members';
   static const String notifCount           = '$_base/notifications/non-lues/count';
   static String marquerNotifLue(int id)    => '$_base/notifications/$id/lire';
   static const String marquerToutesLues    = '$_base/notifications/lire-tout';
