@@ -4,7 +4,9 @@ All field names and structures match the OpenAPI spec exactly.
 """
 from rest_framework import serializers
 from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite
+from apps.users.models.settings import UserSettings
 from apps.uploads.models import Media
+from apps.reviews.models.evaluation import Evaluation
 
 
 # ---------------------------------------------------------------------------
@@ -211,3 +213,151 @@ class ResetPasswordSerializer(serializers.Serializer):
     email                = serializers.EmailField()
     otp                  = serializers.CharField(min_length=6, max_length=6)
     nouveau_mot_de_passe = serializers.CharField(min_length=8)
+
+
+# ---------------------------------------------------------------------------
+# UserMe — flattened profile for GET /users/me
+# ---------------------------------------------------------------------------
+
+class UserMeSerializer(serializers.Serializer):
+    """
+    Read serializer — returns a unified, flattened profile regardless of
+    whether the user is a Candidat or Recruteur.
+    """
+    id = serializers.IntegerField()
+    name = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
+    domain = serializers.SerializerMethodField()
+    company = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+    bio = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
+    followers_count = serializers.SerializerMethodField()
+    missions_count = serializers.SerializerMethodField()
+    rating = serializers.SerializerMethodField()
+    account_type = serializers.SerializerMethodField()
+
+    def _profile(self, obj):
+        """Return the child profile (Candidat or Recruteur) if it exists."""
+        for attr in ('candidat', 'recruteur'):
+            try:
+                return getattr(obj, attr)
+            except Exception:
+                continue
+        return None
+
+    def get_name(self, obj):
+        return f"{obj.prenom} {obj.nom}"
+
+    def get_role(self, obj):
+        return obj.role
+
+    def get_domain(self, obj):
+        p = self._profile(obj)
+        if isinstance(p, Candidat):
+            return p.experience or None
+        if isinstance(p, Recruteur):
+            return p.type_structure or None
+        return None
+
+    def get_company(self, obj):
+        p = self._profile(obj)
+        if isinstance(p, Recruteur):
+            return p.nom_structure
+        return None
+
+    def get_location(self, obj):
+        if obj.latitude is not None and obj.longitude is not None:
+            return f"{obj.latitude}, {obj.longitude}"
+        return None
+
+    def get_bio(self, obj):
+        p = self._profile(obj)
+        if isinstance(p, Recruteur):
+            return p.description
+        if isinstance(p, Candidat):
+            return p.experience
+        return None
+
+    def get_avatar_url(self, obj):
+        return None
+
+    def get_followers_count(self, obj):
+        return 0
+
+    def get_missions_count(self, obj):
+        p = self._profile(obj)
+        if isinstance(p, Candidat):
+            return p.candidatures.filter(mission__isnull=False).count()
+        return 0
+
+    def get_rating(self, obj):
+        p = self._profile(obj)
+        if p and hasattr(p, 'note_globale'):
+            return p.note_globale
+        return 0.0
+
+    def get_account_type(self, obj):
+        return obj.role
+
+
+# ---------------------------------------------------------------------------
+# Review — maps Evaluation to the API-spec ReviewResponse
+# ---------------------------------------------------------------------------
+
+class ReviewSerializer(serializers.ModelSerializer):
+    """
+    Read serializer for GET /users/:id/reviews.
+    Sources data from the Evaluation model.
+    """
+    author_name = serializers.SerializerMethodField()
+    author_role = serializers.SerializerMethodField()
+    author_avatar = serializers.SerializerMethodField()
+    rating = serializers.IntegerField(source='note', read_only=True)
+    comment = serializers.CharField(source='commentaire', read_only=True)
+    recruiter_reply = serializers.SerializerMethodField()
+    recruiter_name = serializers.SerializerMethodField()
+    recruiter_reply_date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Evaluation
+        fields = [
+            'id', 'author_name', 'author_role', 'author_avatar',
+            'rating', 'comment', 'recruiter_reply', 'recruiter_name',
+            'recruiter_reply_date',
+        ]
+
+    def get_author_name(self, obj):
+        return f"{obj.evaluateur.prenom} {obj.evaluateur.nom}"
+
+    def get_author_role(self, obj):
+        return obj.evaluateur.role
+
+    def get_author_avatar(self, obj):
+        return None
+
+    def get_recruiter_reply(self, obj):
+        # No reply field on Evaluation yet; return None.
+        return None
+
+    def get_recruiter_name(self, obj):
+        try:
+            recruteur = obj.mission.candidature.offre.recruteur
+            return f"{recruteur.prenom} {recruteur.nom}"
+        except Exception:
+            return None
+
+    def get_recruiter_reply_date(self, obj):
+        return None
+
+
+# ---------------------------------------------------------------------------
+# UserSettings
+# ---------------------------------------------------------------------------
+
+class UserSettingsSerializer(serializers.ModelSerializer):
+    """Read/write serializer for user preferences."""
+
+    class Meta:
+        model = UserSettings
+        fields = ['notifications_enabled', 'dark_mode', 'language_code']

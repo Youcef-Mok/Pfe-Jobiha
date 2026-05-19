@@ -5,3 +5,5 @@ from .recruteur import Recruteur
 from .disponibilite import Disponibilite
 from .otp import EmailOTP
 from .blocked_user import BlockedUser
+from .settings import UserSettings
+from .recent_search import RecentSearch

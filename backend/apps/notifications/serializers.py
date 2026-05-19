@@ -1,7 +1,7 @@
 """
 apps/notifications/serializers.py
 Serializers for the Notifications module.
-All field names and structures match openapi_messagerie.json exactly.
+All field names and structures match the API spec exactly.
 """
 from rest_framework import serializers
 from apps.notifications.models.notification import Notification
@@ -18,10 +18,16 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     'type' values: candidature | mission | message | evaluation | signalement
     """
+    message = serializers.CharField(source='contenu', read_only=True)
+    timestamp = serializers.DateTimeField(source='date_envoi', read_only=True)
+    is_read = serializers.BooleanField(source='est_lue', read_only=True)
 
     class Meta:
         model  = Notification
-        fields = ['id', 'contenu', 'type', 'date_envoi', 'est_lue']
+        fields = [
+            'id', 'title', 'message', 'type', 'timestamp', 'is_read',
+            'job_title', 'sender_name', 'avatar_url', 'count',
+        ]
 
 
 class PaginatedNotificationsSerializer(serializers.Serializer):

@@ -7,9 +7,9 @@ from django.db import models
 
 class Offre(models.Model):
     STATUT_CHOICES = [
-        ("ouverte", "Ouverte"),
-        ("fermee",  "Fermée"),
-        ("pourvue", "Pourvue"),
+        ("searching", "Searching"),
+        ("draft",     "Draft"),
+        ("closed",    "Closed"),
     ]
 
     titre        = models.CharField(max_length=200)
@@ -22,8 +22,11 @@ class Offre(models.Model):
     latitude     = models.FloatField(blank=True, null=True)
     longitude    = models.FloatField(blank=True, null=True)
     statut       = models.CharField(
-        max_length=50, choices=STATUT_CHOICES, default="ouverte"
+        max_length=50, choices=STATUT_CHOICES, default="searching"
     )
+    candidate_count = models.IntegerField(default=1)
+    view_count      = models.IntegerField(default=0)
+    is_published    = models.BooleanField(default=False)
     recruteur    = models.ForeignKey(
         "users.Recruteur", on_delete=models.CASCADE, related_name="offres"
     )

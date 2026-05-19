@@ -2,20 +2,29 @@ from django.urls import path
 from apps.messaging import views
 
 urlpatterns = [
-    # Inbox
-    path('messages/conversations', views.ConversationListView.as_view(), name='conversations-list'),
-    path('messages/conversations/<int:conv_id>', views.ConversationDetailView.as_view(), name='conversation-detail'),
-    path('messages/conversations/<int:conv_id>/lire-tout', views.MarquerConvLueView.as_view(), name='marquer-conv-lue'),
+    # ── Inbox ──────────────────────────────────────────────────────────────
+    path('conversations', views.ConversationListView.as_view(), name='conversations-list'),
+    path('conversations/invitations', views.ConversationInvitationsView.as_view(), name='conversation-invitations'),
+    path('conversations/group', views.CreateGroupConversationView.as_view(), name='create-group'),
 
-    # Send message
-    path('messages', views.SendMessageView.as_view(), name='send-message'),
+    # ── Conversation detail ────────────────────────────────────────────────
+    path('conversations/<int:conv_id>', views.ConversationDetailView.as_view(), name='conversation-detail'),
+    path('conversations/<int:conv_id>/read-all', views.MarquerConvLueView.as_view(), name='conversation-read-all'),
 
-    # DM shortcut
-    path('messages/dm/<int:user_id>', views.GetOrCreateDMView.as_view(), name='get-or-create-dm'),
+    # ── Messages in a conversation ─────────────────────────────────────────
+    path('conversations/<int:id>/messages', views.ConvSendMessageView.as_view(), name='send-message'),
+    path('conversations/<int:id>/messages/image', views.SendImageMessageView.as_view(), name='send-image-message'),
 
-    # Group management
-    path('messages/groups', views.CreateGroupView.as_view(), name='create-group'),
-    path('messages/groups/<int:id>/members', views.GroupMembersView.as_view(), name='group-members'),
-    path('messages/groups/<int:id>/members/add', views.AddMemberView.as_view(), name='add-member'),
-    path('messages/groups/<int:id>/members/<int:user_id>', views.RemoveMemberView.as_view(), name='remove-member'),
+    # ── Invitation accept/decline ──────────────────────────────────────────
+    path('conversations/<int:id>/accept', views.AcceptInvitationView.as_view(), name='conversation-accept'),
+    path('conversations/<int:id>/decline', views.DeclineInvitationView.as_view(), name='conversation-decline'),
+
+    # ── Block/Unblock ──────────────────────────────────────────────────────
+    path('conversations/<int:id>/block', views.BlockContactView.as_view(), name='conversation-block'),
+
+    # ── DM shortcut ────────────────────────────────────────────────────────
+    path('conversations/dm/<int:user_id>', views.GetOrCreateDMView.as_view(), name='get-or-create-dm'),
+
+    # ── Group management ───────────────────────────────────────────────────
+    path('conversations/<int:id>/members', views.GroupMembersView.as_view(), name='group-members'),
 ]

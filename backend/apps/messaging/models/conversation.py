@@ -52,6 +52,7 @@ class ConversationMember(models.Model):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_MEMBER)
     joined_at = models.DateTimeField(auto_now_add=True)
     left_at = models.DateTimeField(null=True, blank=True)
+    is_invitation = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'conversation_member'

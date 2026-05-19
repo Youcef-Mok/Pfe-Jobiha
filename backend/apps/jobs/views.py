@@ -1,22 +1,36 @@
 """
 Views for the Jobs module.
 """
+import math
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Q
 
-from apps.jobs.models import Offre, Mission, SavedJob, Alerte
+from apps.jobs.models import Offre, Mission, SavedJob, Alerte, Interview
 from apps.jobs.serializers import (
     OffreSerializer, CreateOffreSerializer, UpdateOffreSerializer,
-    MissionSerializer,
+    MissionSerializer, InterviewSerializer,
     SavedJobSerializer, CreateSavedJobSerializer,
     AlerteSerializer, CreateAlerteSerializer, UpdateAlerteSerializer,
 )
 from apps.applications.models import Candidature
-from apps.applications.serializers import CandidatureSerializer, CreateCandidatureSerializer
+from apps.applications.serializers import ApplicationSerializer, CreateCandidatureSerializer
+from apps.reviews.models.evaluation import Evaluation
 from core.pagination import StandardPagination
+
+
+def _haversine(lat1, lon1, lat2, lon2):
+    """Return distance in km between two lat/lng points."""
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+         * math.sin(dlon / 2) ** 2)
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 # ===========================================================================
@@ -31,37 +45,41 @@ class OffreListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        queryset = Offre.objects.annotate(
-            nb_candidatures=Count('candidatures')
-        ).order_by('-id')
+        queryset = Offre.objects.filter(
+            is_published=True
+        ).select_related('recruteur').order_by('-id')
 
         # ── Filters ──────────────────────────────────────────────
-        categorie = request.query_params.get('categorie')
-        if categorie:
-            queryset = queryset.filter(categorie__icontains=categorie)
-
-        type_contrat = request.query_params.get('type_contrat')
-        if type_contrat:
-            queryset = queryset.filter(type_contrat__icontains=type_contrat)
-
-        statut = request.query_params.get('statut', 'ouverte')
-        if statut:
-            queryset = queryset.filter(statut=statut)
-
-        salaire_min = request.query_params.get('salaire_min')
-        if salaire_min:
-            queryset = queryset.filter(salaire__gte=float(salaire_min))
-
-        date_debut = request.query_params.get('date_debut')
-        if date_debut:
-            queryset = queryset.filter(date_debut__gte=date_debut)
-
-        # Free text search on titre and description
         q = request.query_params.get('q')
         if q:
             queryset = queryset.filter(
                 Q(titre__icontains=q) | Q(description__icontains=q)
             )
+
+        category = request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(categorie__icontains=category)
+
+        contract_type = request.query_params.get('contract_type')
+        if contract_type:
+            queryset = queryset.filter(type_contrat__icontains=contract_type)
+
+        # Distance filter (haversine)
+        max_dist = request.query_params.get('max_distance_km')
+        user_lat = request.query_params.get('lat')
+        user_lng = request.query_params.get('lng')
+        if max_dist and user_lat and user_lng:
+            try:
+                max_km = float(max_dist)
+                ulat, ulng = float(user_lat), float(user_lng)
+                ids = [
+                    o.id for o in queryset
+                    if o.latitude is not None and o.longitude is not None
+                    and _haversine(ulat, ulng, o.latitude, o.longitude) <= max_km
+                ]
+                queryset = queryset.filter(id__in=ids)
+            except (ValueError, TypeError):
+                pass
 
         # ── Pagination ───────────────────────────────────────────
         paginator = StandardPagination()
@@ -109,7 +127,7 @@ class OffreDetailView(APIView):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(OffreSerializer(offre, context={'request': request}).data)
 
-    def patch(self, request, id):
+    def put(self, request, id):
         offre = self.get_offre(id)
         if not offre:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -122,6 +140,10 @@ class OffreDetailView(APIView):
             setattr(offre, field, value)
         offre.save()
         return Response(OffreSerializer(offre, context={'request': request}).data)
+
+    # Keep PATCH as alias for PUT
+    def patch(self, request, id):
+        return self.put(request, id)
 
     def delete(self, request, id):
         offre = self.get_offre(id)
@@ -148,7 +170,7 @@ class FermerOffreView(APIView):
         if not hasattr(request.user, 'recruteur') or offre.recruteur != request.user.recruteur:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        offre.statut = 'fermee'
+        offre.statut = 'closed'
         offre.save(update_fields=['statut'])
         return Response(OffreSerializer(offre, context={'request': request}).data)
 
@@ -180,10 +202,10 @@ class MyOffresView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-class OffreCandidaturesView(APIView):
+class JobCandidatesView(APIView):
     """
-    GET  /offres/{id}/candidatures → recruiter sees who applied
-    POST /offres/{id}/candidatures → candidate applies to the job
+    GET  /jobs/{id}/candidates → recruiter sees who applied
+    POST /jobs/{id}/candidates → candidate applies to the job
     """
     permission_classes = [IsAuthenticated]
 
@@ -196,20 +218,30 @@ class OffreCandidaturesView(APIView):
         if not hasattr(request.user, 'recruteur') or offre.recruteur != request.user.recruteur:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        candidatures = offre.candidatures.all()
+        candidatures = offre.candidatures.select_related('candidat', 'offre__recruteur').all()
 
-        # Optional filter by statut
-        statut = request.query_params.get('statut')
-        if statut:
-            candidatures = candidatures.filter(statut=statut)
+        # Optional filter by status
+        status_param = request.query_params.get('status')
+        if status_param:
+            api_to_db = {'pending': 'en_attente', 'accepted': 'accepte', 'rejected': 'refuse'}
+            db_val = api_to_db.get(status_param, status_param)
+            candidatures = candidatures.filter(statut=db_val)
+
+        # Sorting
+        sort = request.query_params.get('sort')
+        if sort == 'recent':
+            candidatures = candidatures.order_by('-date_postulation')
+        elif sort == 'best':
+            candidatures = candidatures.order_by('-candidat__note_globale')
+        else:
+            candidatures = candidatures.order_by('-date_postulation')
 
         paginator = StandardPagination()
         page = paginator.paginate_queryset(candidatures, request)
-        serializer = CandidatureSerializer(page, many=True)
+        serializer = ApplicationSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, id):
-        # Only candidates can apply
         if not hasattr(request.user, 'candidat'):
             return Response(
                 {'detail': 'Only candidates can apply.'},
@@ -221,7 +253,6 @@ class OffreCandidaturesView(APIView):
         except Offre.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Check if already applied — 409 Conflict
         if Candidature.objects.filter(candidat=request.user.candidat, offre=offre).exists():
             return Response(
                 {'detail': 'You have already applied to this offer.'},
@@ -237,9 +268,13 @@ class OffreCandidaturesView(APIView):
             **serializer.validated_data
         )
         return Response(
-            CandidatureSerializer(candidature).data,
+            ApplicationSerializer(candidature).data,
             status=status.HTTP_201_CREATED
         )
+
+
+# Keep legacy alias
+OffreCandidaturesView = JobCandidatesView
 
 
 # ===========================================================================
@@ -563,3 +598,263 @@ class AlerteDetailView(APIView):
         alerte.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+# ===========================================================================
+# Map Jobs
+# ===========================================================================
+
+class MapJobsView(APIView):
+    """
+    GET /jobs/map → published offres with lat/lng set.
+    Returns a flat list with distance computed via haversine if user sends lat/lng.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = Offre.objects.filter(
+            is_published=True,
+            latitude__isnull=False,
+            longitude__isnull=False,
+        ).select_related('recruteur')
+
+        # Filters
+        q = request.query_params.get('q')
+        if q:
+            queryset = queryset.filter(
+                Q(titre__icontains=q) | Q(description__icontains=q)
+            )
+        category = request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(categorie__icontains=category)
+        contract_type = request.query_params.get('contract_type')
+        if contract_type:
+            queryset = queryset.filter(type_contrat__icontains=contract_type)
+
+        user_lat = request.query_params.get('lat')
+        user_lng = request.query_params.get('lng')
+        has_coords = False
+        ulat = ulng = 0.0
+        if user_lat and user_lng:
+            try:
+                ulat, ulng = float(user_lat), float(user_lng)
+                has_coords = True
+            except (ValueError, TypeError):
+                pass
+
+        results = []
+        for o in queryset:
+            dist = 'N/A'
+            if has_coords:
+                dist = round(_haversine(ulat, ulng, o.latitude, o.longitude), 1)
+            results.append({
+                'id': o.id,
+                'title': o.titre,
+                'company': o.recruteur.nom_structure if o.recruteur else None,
+                'category': o.categorie,
+                'distance': dist,
+                'hours': None,
+                'salary': o.salaire,
+                'contract_type': o.type_contrat,
+                'rating': o.recruteur.note_globale if o.recruteur else None,
+                'lat': o.latitude,
+                'lng': o.longitude,
+                'image_asset': None,
+            })
+
+        return Response(results)
+
+
+# ===========================================================================
+# Mission Review
+# ===========================================================================
+
+class MissionReviewView(APIView):
+    """PUT /missions/{id}/review → submit a review for the other party."""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, id):
+        try:
+            mission = Mission.objects.select_related(
+                'candidature__candidat', 'candidature__offre__recruteur'
+            ).get(pk=id)
+        except Mission.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _is_mission_participant(request.user, mission):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        rating = request.data.get('rating')
+        feedback = request.data.get('feedback', '')
+
+        if not rating or int(rating) < 1 or int(rating) > 5:
+            return Response(
+                {'detail': 'rating must be between 1 and 5.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Determine who is being evaluated
+        candidat = mission.candidature.candidat
+        recruteur = mission.candidature.offre.recruteur
+        if hasattr(request.user, 'candidat') and request.user.candidat == candidat:
+            evalue = recruteur
+        else:
+            evalue = candidat
+
+        # Prevent duplicate reviews
+        if Evaluation.objects.filter(evaluateur=request.user, mission=mission).exists():
+            return Response(
+                {'detail': 'You have already reviewed this mission.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        Evaluation.objects.create(
+            mission=mission,
+            evaluateur=request.user,
+            evalue=evalue,
+            note=int(rating),
+            commentaire=feedback,
+        )
+        return Response({'detail': 'Review submitted.'})
+
+
+# ===========================================================================
+# Interviews
+# ===========================================================================
+
+class InterviewListCreateView(APIView):
+    """
+    GET  /interviews → list interviews for the user
+    POST /interviews → recruiter schedules an interview
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = Interview.objects.filter(
+            Q(candidate=request.user) | Q(recruiter=request.user)
+        ).select_related('candidate', 'recruiter', 'job').order_by('-scheduled_date')
+
+        upcoming = request.query_params.get('upcoming')
+        if upcoming and upcoming.lower() == 'true':
+            queryset = queryset.filter(
+                scheduled_date__gte=timezone.now(),
+                status='scheduled',
+            )
+
+        serializer = InterviewSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        if not hasattr(request.user, 'recruteur'):
+            return Response({'detail': 'Only recruiters can schedule interviews.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        candidate_id = request.data.get('candidate_id')
+        job_id = request.data.get('job_id')
+        scheduled_date = request.data.get('scheduled_date')
+        notes = request.data.get('notes', '')
+
+        if not all([candidate_id, job_id, scheduled_date]):
+            return Response(
+                {'detail': 'candidate_id, job_id, and scheduled_date are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from apps.users.models import Utilisateur
+        try:
+            candidate = Utilisateur.objects.get(pk=candidate_id)
+        except Utilisateur.DoesNotExist:
+            return Response({'detail': 'Candidate not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            job = Offre.objects.get(pk=job_id)
+        except Offre.DoesNotExist:
+            return Response({'detail': 'Job not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        interview = Interview.objects.create(
+            candidate=candidate,
+            recruiter=request.user,
+            job=job,
+            scheduled_date=scheduled_date,
+            notes=notes,
+        )
+        return Response(
+            InterviewSerializer(interview).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class InterviewDetailView(APIView):
+    """GET/PUT/DELETE /interviews/{id}"""
+    permission_classes = [IsAuthenticated]
+
+    def _get_interview(self, id, user):
+        try:
+            interview = Interview.objects.select_related(
+                'candidate', 'recruiter', 'job'
+            ).get(pk=id)
+        except Interview.DoesNotExist:
+            return None, Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if interview.candidate != user and interview.recruiter != user:
+            return None, Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        return interview, None
+
+    def get(self, request, id):
+        interview, err = self._get_interview(id, request.user)
+        if err:
+            return err
+        return Response(InterviewSerializer(interview).data)
+
+    def put(self, request, id):
+        interview, err = self._get_interview(id, request.user)
+        if err:
+            return err
+        if 'scheduled_date' in request.data:
+            interview.scheduled_date = request.data['scheduled_date']
+        if 'notes' in request.data:
+            interview.notes = request.data['notes']
+        interview.save()
+        return Response(InterviewSerializer(interview).data)
+
+    def delete(self, request, id):
+        interview, err = self._get_interview(id, request.user)
+        if err:
+            return err
+        interview.status = 'cancelled'
+        interview.save(update_fields=['status'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class InterviewCompleteView(APIView):
+    """PUT /interviews/{id}/complete → mark as completed."""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, id):
+        try:
+            interview = Interview.objects.select_related(
+                'candidate', 'recruiter', 'job'
+            ).get(pk=id)
+        except Interview.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if interview.candidate != request.user and interview.recruiter != request.user:
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        interview.status = 'completed'
+        if 'notes' in request.data:
+            interview.notes = request.data['notes']
+        interview.save(update_fields=['status', 'notes'])
+        return Response(InterviewSerializer(interview).data)
+
+
+# ===========================================================================
+# Stub for not-yet-implemented endpoints
+# ===========================================================================
+
+class StubView(APIView):
+    """Temporary stub — returns 501 for every HTTP method."""
+    permission_classes = [IsAuthenticated]
+
+    def handle(self, request, *args, **kwargs):
+        return Response({'detail': 'not implemented'}, status=501)
+
+    get = post = put = patch = delete = handle

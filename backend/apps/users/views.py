@@ -14,8 +14,11 @@ from django.core.mail import send_mail
 from django.conf import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP,  BlockedUser
+from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP, BlockedUser
+from apps.users.models.settings import UserSettings
+from apps.users.models.recent_search import RecentSearch
 from apps.uploads.models import Media
+from apps.reviews.models.evaluation import Evaluation
 from apps.users.serializers import (
     RegisterCandidatSerializer, RegisterRecruteurSerializer,
     LoginSerializer, ChangePasswordSerializer,
@@ -25,6 +28,7 @@ from apps.users.serializers import (
     RecruteurSerializer, RecruteurPublicSerializer, UpdateRecruteurSerializer,
     DisponibiliteSerializer, DisponibiliteRequestSerializer,
     MediaSerializer,
+    UserMeSerializer, ReviewSerializer, UserSettingsSerializer,
 )
 from core.permissions import IsCandidat, IsRecruteur, IsAdmin
 from core.pagination import StandardPagination
@@ -309,22 +313,45 @@ class ResendOtpView(APIView):
 # ===========================================================================
 
 class UserMeView(APIView):
-    """GET / PATCH  /users/me"""
+    """GET / PUT  /users/me"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(UtilisateurSerializer(request.user).data)
+        return Response(UserMeSerializer(request.user).data)
 
-    def patch(self, request):
-        serializer = UpdateUtilisateurSerializer(data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-
+    def put(self, request):
         utilisateur = request.user
-        for field, value in serializer.validated_data.items():
-            setattr(utilisateur, field, value)
-        utilisateur.save(update_fields=list(serializer.validated_data.keys()))
 
-        return Response(UtilisateurSerializer(utilisateur).data)
+        # Update base Utilisateur fields
+        base_fields = ['nom', 'prenom', 'telephone', 'latitude', 'longitude']
+        for f in base_fields:
+            if f in request.data:
+                setattr(utilisateur, f, request.data[f])
+        utilisateur.save()
+
+        # Update child profile fields
+        if hasattr(utilisateur, 'candidat'):
+            c = utilisateur.candidat
+            if 'competences' in request.data:
+                c.competences = request.data['competences']
+            if 'experience' in request.data:
+                c.experience = request.data['experience']
+            c.save()
+        elif hasattr(utilisateur, 'recruteur'):
+            r = utilisateur.recruteur
+            if 'nom_structure' in request.data:
+                r.nom_structure = request.data['nom_structure']
+            if 'type_structure' in request.data:
+                r.type_structure = request.data['type_structure']
+            if 'description' in request.data:
+                r.description = request.data['description']
+            r.save()
+
+        return Response(UserMeSerializer(utilisateur).data)
+
+    # Keep PATCH as alias
+    def patch(self, request):
+        return self.put(request)
 
 # ===========================================================================
 # Candidat endpoints
@@ -772,10 +799,6 @@ class ResetPasswordView(APIView):
 
 # __ Blocked users ______________________________________________
 
-# Add to apps/users/views.py
-
-from apps.users.models import BlockedUser  # add to existing imports
-
 
 class DeactivateAccountView(APIView):
     """POST /users/me/deactivate"""
@@ -862,3 +885,228 @@ class PushNotifPrefView(APIView):
         request.user.push_notif_enabled = value
         request.user.save(update_fields=['push_notif_enabled'])
         return Response({'push_notif_enabled': request.user.push_notif_enabled})
+
+
+# ===========================================================================
+# User Reviews
+# ===========================================================================
+
+class UserReviewsView(APIView):
+    """GET /users/<id>/reviews"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        evaluations = Evaluation.objects.filter(
+            evalue_id=id
+        ).select_related('evaluateur', 'mission__candidature__offre__recruteur'
+        ).order_by('-date_evaluation')
+        serializer = ReviewSerializer(evaluations, many=True)
+        return Response(serializer.data)
+
+
+# ===========================================================================
+# User CV
+# ===========================================================================
+
+class UserCvView(APIView):
+    """GET /users/<id>/cv"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        try:
+            candidat = Candidat.objects.get(pk=id)
+        except Candidat.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        # TODO: source from dedicated CV models when they exist
+        return Response({
+            'formations': [],
+            'experiences': [],
+            'languages': [],
+            'skills': candidat.competences or [],
+        })
+
+
+# ===========================================================================
+# Unified Register
+# ===========================================================================
+
+class UnifiedRegisterView(APIView):
+    """POST /auth/register"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        account_type = request.data.get('account_type')
+        nom = request.data.get('nom', '')
+        prenom = request.data.get('prenom', '')
+        email = request.data.get('email')
+        mot_de_passe = request.data.get('mot_de_passe') or request.data.get('password')
+
+        if not email or not mot_de_passe:
+            return Response(
+                {'detail': 'email and password are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if Utilisateur.objects.filter(email=email).exists():
+            return Response(
+                {'detail': 'A user with this email already exists.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if account_type == 'recruiter':
+            utilisateur = Recruteur.objects.create(
+                nom=nom, prenom=prenom, email=email,
+                mot_de_passe=make_password(mot_de_passe),
+                est_verifie=True,
+                nom_structure=request.data.get('nom_structure', ''),
+                type_structure=request.data.get('type_structure', ''),
+            )
+            role = 'recruteur'
+        else:
+            utilisateur = Candidat.objects.create(
+                nom=nom, prenom=prenom, email=email,
+                mot_de_passe=make_password(mot_de_passe),
+                est_verifie=True,
+            )
+            role = 'candidat'
+
+        refresh = RefreshToken.for_user(utilisateur)
+        return Response({
+            'access_token': str(refresh.access_token),
+            'user': {
+                'id': utilisateur.id,
+                'name': f"{utilisateur.prenom} {utilisateur.nom}",
+                'account_type': role,
+            },
+        }, status=status.HTTP_201_CREATED)
+
+
+# ===========================================================================
+# Account Delete
+# ===========================================================================
+
+class AccountDeleteView(APIView):
+    """DELETE /account"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        request.user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# User Settings
+# ===========================================================================
+
+class UserSettingsView(APIView):
+    """GET / PUT  /settings"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        settings_obj, _ = UserSettings.objects.get_or_create(user=request.user)
+        return Response(UserSettingsSerializer(settings_obj).data)
+
+    def put(self, request):
+        settings_obj, _ = UserSettings.objects.get_or_create(user=request.user)
+        serializer = UserSettingsSerializer(settings_obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class SettingsNotificationsView(APIView):
+    """PUT /settings/notifications"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        enabled = request.data.get('enabled')
+        if not isinstance(enabled, bool):
+            return Response({'detail': 'enabled must be a boolean.'}, status=status.HTTP_400_BAD_REQUEST)
+        settings_obj, _ = UserSettings.objects.get_or_create(user=request.user)
+        settings_obj.notifications_enabled = enabled
+        settings_obj.save(update_fields=['notifications_enabled'])
+        return Response(UserSettingsSerializer(settings_obj).data)
+
+
+class SettingsThemeView(APIView):
+    """PUT /settings/theme"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        dark_mode = request.data.get('dark_mode')
+        if not isinstance(dark_mode, bool):
+            return Response({'detail': 'dark_mode must be a boolean.'}, status=status.HTTP_400_BAD_REQUEST)
+        settings_obj, _ = UserSettings.objects.get_or_create(user=request.user)
+        settings_obj.dark_mode = dark_mode
+        settings_obj.save(update_fields=['dark_mode'])
+        return Response(UserSettingsSerializer(settings_obj).data)
+
+
+class SettingsLanguageView(APIView):
+    """PUT /settings/language"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        language_code = request.data.get('language_code')
+        if not language_code:
+            return Response({'detail': 'language_code is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        settings_obj, _ = UserSettings.objects.get_or_create(user=request.user)
+        settings_obj.language_code = language_code
+        settings_obj.save(update_fields=['language_code'])
+        return Response(UserSettingsSerializer(settings_obj).data)
+
+
+# ===========================================================================
+# Recent Searches
+# ===========================================================================
+
+class RecentSearchListView(APIView):
+    """GET /searches/recent"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        searches = RecentSearch.objects.filter(
+            user=request.user
+        ).order_by('-searched_at')[:10]
+        return Response({'searches': [s.query for s in searches]})
+
+
+class RecentSearchCreateView(APIView):
+    """POST /searches — create; DELETE /searches — clear all"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        query = request.data.get('query', '').strip()
+        if not query:
+            return Response({'detail': 'query is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.utils import timezone as tz
+        obj, created = RecentSearch.objects.get_or_create(
+            user=request.user, query=query,
+            defaults={'searched_at': tz.now()}
+        )
+        if not created:
+            obj.searched_at = tz.now()
+            obj.save(update_fields=['searched_at'])
+
+        return Response({'query': obj.query}, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        RecentSearch.objects.filter(user=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# Keep as alias
+RecentSearchClearView = RecentSearchCreateView
+
+# ===========================================================================
+# Stub for not-yet-implemented endpoints
+# ===========================================================================
+
+class StubView(APIView):
+    """Temporary stub — returns 501 for every HTTP method."""
+
+    def handle(self, request, *args, **kwargs):
+        return Response({'detail': 'not implemented'}, status=501)
+
+    get = post = put = patch = delete = handle

@@ -2,12 +2,13 @@ from django.urls import path
 from apps.jobs import views
 
 urlpatterns = [
-    # ── Offres ─────────────────────────────────────────────────────────────
-    path('offres', views.OffreListCreateView.as_view(), name='offres-list'),
-    path('offres/<int:id>', views.OffreDetailView.as_view(), name='offre-detail'),
-    path('offres/<int:id>/fermer', views.FermerOffreView.as_view(), name='fermer-offre'),
-    path('recruteurs/me/offres', views.MyOffresView.as_view(), name='my-offres'),
-    path('offres/<int:id>/candidatures', views.OffreCandidaturesView.as_view(), name='offre-candidatures'),
+    # ── Jobs (formerly Offres) ─────────────────────────────────────────────
+    path('jobs', views.OffreListCreateView.as_view(), name='jobs-list'),
+    path('jobs/mine', views.MyOffresView.as_view(), name='my-jobs'),
+    path('jobs/map', views.MapJobsView.as_view(), name='jobs-map'),
+    path('jobs/<int:id>', views.OffreDetailView.as_view(), name='job-detail'),
+    path('jobs/<int:id>/close', views.FermerOffreView.as_view(), name='close-job'),
+    path('jobs/<int:id>/candidates', views.JobCandidatesView.as_view(), name='job-candidates'),
 
     # ── Missions ────────────────────────────────────────────────────────────
     path('missions', views.MissionListCreateView.as_view(), name='missions-list'),
@@ -15,6 +16,12 @@ urlpatterns = [
     path('missions/<int:id>/valider-debut', views.ValiderDebutView.as_view(), name='valider-debut'),
     path('missions/<int:id>/valider-fin', views.ValiderFinView.as_view(), name='valider-fin'),
     path('missions/<int:id>/attestation', views.AttestationView.as_view(), name='attestation'),
+    path('missions/<int:id>/review', views.MissionReviewView.as_view(), name='mission-review'),
+
+    # ── Interviews ──────────────────────────────────────────────────────────
+    path('interviews', views.InterviewListCreateView.as_view(), name='interviews-list'),
+    path('interviews/<int:id>', views.InterviewDetailView.as_view(), name='interview-detail'),
+    path('interviews/<int:id>/complete', views.InterviewCompleteView.as_view(), name='interview-complete'),
 
     # ── Candidat — historique & saved jobs ─────────────────────────────────
     path('candidats/me/historique', views.HistoriqueCandidatView.as_view(), name='historique-candidat'),
@@ -23,4 +30,4 @@ urlpatterns = [
     # ── Candidat — alertes ─────────────────────────────────────────────────
     path('candidats/me/alertes', views.AlerteListCreateView.as_view(), name='alertes-list'),
     path('candidats/me/alertes/<int:id>', views.AlerteDetailView.as_view(), name='alerte-detail'),
-]
+]

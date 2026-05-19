@@ -25,6 +25,8 @@ class Mission(models.Model):
     statut       = models.CharField(
         max_length=50, choices=STATUT_CHOICES, default="en_attente"
     )
+    location     = models.CharField(max_length=200, blank=True)
+    image_url    = models.CharField(max_length=500, blank=True, null=True)
 
     class Meta:
         db_table = "mission"

@@ -28,6 +28,7 @@ from apps.messaging.models.conversation import (
     Conversation, ConversationMember, ReadCursor,
 )
 from apps.messaging.serializers import (
+    ConversationSerializer,
     ConversationSummarySerializer,
     ConversationDetailSerializer,
     MessageSerializer,
@@ -35,7 +36,9 @@ from apps.messaging.serializers import (
     CreateGroupSerializer,
 )
 from apps.messaging import services
-from apps.users.models import Utilisateur
+from apps.users.models import Utilisateur, BlockedUser
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from core.pagination import StandardPagination
 
 
@@ -45,13 +48,23 @@ from core.pagination import StandardPagination
 
 class ConversationListView(APIView):
     """
-    Return every conversation the authenticated user belongs to.
-    Sorted by most-recent message first.
+    GET /conversations — active conversations (not invitations).
+    Uses ConversationSerializer with contact_* fields.
     """
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        conversations = services.get_conversation_list(request.user)
-        serializer = ConversationSummarySerializer(conversations, many=True)
+        conv_ids = ConversationMember.objects.filter(
+            user=request.user,
+            left_at__isnull=True,
+            is_invitation=False,
+        ).values_list('conversation_id', flat=True)
+        conversations = Conversation.objects.filter(
+            id__in=conv_ids
+        ).prefetch_related('memberships__user', 'messages')
+        serializer = ConversationSerializer(
+            conversations, many=True, context={'request': request}
+        )
         return Response(serializer.data)
 
 
@@ -378,3 +391,252 @@ class RemoveMemberView(APIView):
             )
 
         return Response({'detail': 'Membre retiré.'}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# New conversation endpoints
+# ---------------------------------------------------------------------------
+
+class ConversationInvitationsView(APIView):
+    """GET /conversations/invitations"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        inv_conv_ids = ConversationMember.objects.filter(
+            user=request.user,
+            left_at__isnull=True,
+            is_invitation=True,
+        ).values_list('conversation_id', flat=True)
+        conversations = Conversation.objects.filter(
+            id__in=inv_conv_ids
+        ).prefetch_related('memberships__user', 'messages')
+        serializer = ConversationSerializer(
+            conversations, many=True, context={'request': request}
+        )
+        return Response(serializer.data)
+
+
+class ConvSendMessageView(APIView):
+    """POST /conversations/<id>/messages"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id):
+        content = request.data.get('content', '')
+        if not content:
+            return Response({'detail': 'content is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not ConversationMember.objects.filter(
+            conversation_id=id, user=request.user, left_at__isnull=True,
+        ).exists():
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        message = Message.objects.create(
+            conversation_id=id, expediteur=request.user, contenu=content,
+        )
+        message = Message.objects.select_related('expediteur', 'conversation').get(pk=message.pk)
+
+        out = MessageSerializer(message)
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                f'conv_{id}',
+                {'type': 'chat.message', 'message': out.data, 'sender_id': request.user.pk},
+            )
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class SendImageMessageView(APIView):
+    """POST /conversations/<id>/messages/image"""
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, id):
+        if not ConversationMember.objects.filter(
+            conversation_id=id, user=request.user, left_at__isnull=True,
+        ).exists():
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'detail': 'file is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.core.files.storage import default_storage
+        from django.conf import settings as django_settings
+        path = default_storage.save(f'chat_images/{file.name}', file)
+        url = request.build_absolute_uri(django_settings.MEDIA_URL + path)
+
+        message = Message.objects.create(
+            conversation_id=id, expediteur=request.user, contenu=url,
+        )
+        message = Message.objects.select_related('expediteur', 'conversation').get(pk=message.pk)
+        out = MessageSerializer(message)
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                f'conv_{id}',
+                {'type': 'chat.message', 'message': out.data, 'sender_id': request.user.pk},
+            )
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class AcceptInvitationView(APIView):
+    """PUT /conversations/<id>/accept"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, id):
+        try:
+            membership = ConversationMember.objects.get(
+                conversation_id=id, user=request.user, left_at__isnull=True,
+            )
+        except ConversationMember.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        membership.is_invitation = False
+        membership.save(update_fields=['is_invitation'])
+        return Response({'detail': 'Invitation accepted.'})
+
+
+class DeclineInvitationView(APIView):
+    """DELETE /conversations/<id>/decline"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, id):
+        try:
+            membership = ConversationMember.objects.get(
+                conversation_id=id, user=request.user, left_at__isnull=True,
+            )
+        except ConversationMember.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        membership.left_at = timezone.now()
+        membership.save(update_fields=['left_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BulkDeleteConversationsView(APIView):
+    """DELETE /conversations — body: { ids: [int] }"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({'detail': 'ids is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        ConversationMember.objects.filter(
+            conversation_id__in=ids, user=request.user, left_at__isnull=True,
+        ).update(left_at=timezone.now())
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BlockContactView(APIView):
+    """POST /conversations/<id>/block"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id):
+        other = ConversationMember.objects.filter(
+            conversation_id=id, left_at__isnull=True,
+        ).exclude(user=request.user).first()
+        if not other:
+            return Response({'detail': 'No other member found.'}, status=status.HTTP_404_NOT_FOUND)
+        BlockedUser.objects.get_or_create(bloqueur=request.user, bloque=other.user)
+        return Response({'detail': 'Contact blocked.'})
+
+
+class UnblockContactView(APIView):
+    """DELETE /conversations/<id>/block"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, id):
+        other = ConversationMember.objects.filter(
+            conversation_id=id, left_at__isnull=True,
+        ).exclude(user=request.user).first()
+        if not other:
+            return Response({'detail': 'No other member found.'}, status=status.HTTP_404_NOT_FOUND)
+        BlockedUser.objects.filter(bloqueur=request.user, bloque=other.user).delete()
+        return Response({'detail': 'Contact unblocked.'})
+
+
+class GetOrCreateConversationView(APIView):
+    """POST /conversations — body: { contact_id }"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        contact_id = request.data.get('contact_id')
+        if not contact_id:
+            return Response({'detail': 'contact_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if int(contact_id) == request.user.pk:
+            return Response({'detail': 'Cannot create conversation with yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            partner = Utilisateur.objects.get(pk=contact_id)
+        except Utilisateur.DoesNotExist:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Find existing DM
+        my_convs = set(ConversationMember.objects.filter(
+            user=request.user, left_at__isnull=True,
+        ).values_list('conversation_id', flat=True))
+        partner_convs = set(ConversationMember.objects.filter(
+            user=partner, left_at__isnull=True,
+        ).values_list('conversation_id', flat=True))
+        shared = my_convs & partner_convs
+        existing = Conversation.objects.filter(
+            id__in=shared, type=Conversation.TYPE_DIRECT
+        ).first()
+
+        if existing:
+            serializer = ConversationSerializer(existing, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Create new DM
+        conv = Conversation.objects.create(type=Conversation.TYPE_DIRECT, created_by=request.user)
+        ConversationMember.objects.create(
+            conversation=conv, user=request.user, role=ConversationMember.ROLE_MEMBER,
+        )
+        ConversationMember.objects.create(
+            conversation=conv, user=partner, role=ConversationMember.ROLE_MEMBER,
+            is_invitation=True,
+        )
+        serializer = ConversationSerializer(conv, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class CreateGroupConversationView(APIView):
+    """POST /conversations/group"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        group_name = request.data.get('group_name', '')
+        member_ids = request.data.get('member_ids', [])
+        if not member_ids:
+            return Response({'detail': 'member_ids is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        conv = Conversation.objects.create(
+            type=Conversation.TYPE_GROUP, nom=group_name, created_by=request.user,
+        )
+        # Creator is admin
+        ConversationMember.objects.create(
+            conversation=conv, user=request.user, role=ConversationMember.ROLE_ADMIN,
+        )
+        # Add members
+        for uid in member_ids:
+            try:
+                user = Utilisateur.objects.get(pk=uid)
+                ConversationMember.objects.get_or_create(
+                    conversation=conv, user=user,
+                    defaults={'role': ConversationMember.ROLE_MEMBER},
+                )
+            except Utilisateur.DoesNotExist:
+                continue
+
+        serializer = ConversationDetailSerializer(conv)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# ---------------------------------------------------------------------------
+# Stub for not-yet-implemented endpoints
+# ---------------------------------------------------------------------------
+
+class StubView(APIView):
+    """Temporary stub — returns 501 for every HTTP method."""
+
+    def handle(self, request, *args, **kwargs):
+        return Response({'detail': 'not implemented'}, status=501)
+
+    get = post = put = patch = delete = handle

@@ -2,12 +2,18 @@ from django.urls import path
 from apps.applications import views
 
 urlpatterns = [
-    # Recruiter side
-    path('recruteurs/me/candidatures', views.ReceivedApplicationsView.as_view(), name='received-applications'),
+    # GET/POST /applications
+    path('applications', views.ApplicationsView.as_view(), name='applications-list'),
 
-    # Candidate side
-    path('candidatures/me', views.AppliedJobsView.as_view(), name='applied-jobs'),
-    path('candidatures/<int:id>', views.CandidatureDetailView.as_view(), name='candidature-detail'),
-    path('candidatures/<int:id>/accepter', views.AccepterCandidatureView.as_view(), name='accepter-candidature'),
-    path('candidatures/<int:id>/refuser', views.RefuserCandidatureView.as_view(), name='refuser-candidature'),
+    # DELETE /applications/<id>
+    path('applications/<int:id>', views.ApplicationDetailView.as_view(), name='application-detail'),
+
+    # PUT /applications/<id>/accept
+    path('applications/<int:id>/accept', views.AcceptApplicationView.as_view(), name='accept-application'),
+
+    # PUT /applications/<id>/reject
+    path('applications/<int:id>/reject', views.RejectApplicationView.as_view(), name='reject-application'),
+
+    # PUT /candidates/<id>/status
+    path('candidates/<int:id>/status', views.UpdateCandidateStatusView.as_view(), name='update-candidate-status'),
 ]
