@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
+import 'package:job_app/features/profile/domain/cv_entity.dart';
 import 'package:job_app/features/profile/data/repositories/user_repository.dart';
 import 'package:job_app/features/profile/data/repositories/user_repository_mock.dart';
 
@@ -29,8 +30,18 @@ final employeeReviewsProvider =
 });
 
 // ─────────────────────────────────────────────
-// 4. Profile Tab Selection
+// 4. CV Data Provider
 // ─────────────────────────────────────────────
-enum ProfileTab { all, activeJobs, drafts }
+final cvDataProvider = FutureProvider<CvEntity>((ref) async {
+  final repo = ref.watch(userRepositoryProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  return await repo.getCvData(user.id);
+});
 
-final profileTabProvider = StateProvider<ProfileTab>((ref) => ProfileTab.all);
+// ─────────────────────────────────────────────
+// 5. Profile Tab Selection
+// ─────────────────────────────────────────────
+enum ProfileTab { annonces, missions, competences, reviews }
+
+final profileTabProvider =
+    StateProvider<ProfileTab>((ref) => ProfileTab.annonces);

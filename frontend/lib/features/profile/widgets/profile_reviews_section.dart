@@ -9,7 +9,8 @@ class ProfileReviewsSection extends ConsumerStatefulWidget {
   const ProfileReviewsSection({super.key});
 
   @override
-  ConsumerState<ProfileReviewsSection> createState() => _ProfileReviewsSectionState();
+  ConsumerState<ProfileReviewsSection> createState() =>
+      _ProfileReviewsSectionState();
 }
 
 class _ProfileReviewsSectionState extends ConsumerState<ProfileReviewsSection> {
@@ -21,14 +22,13 @@ class _ProfileReviewsSectionState extends ConsumerState<ProfileReviewsSection> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(15, 16, 15, 40),
-      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(15, 10, 15, 40),
+      color: AppColors.background,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Titre de section
           const Text(
-            'Recent Employee Reviews',
+            'Employee Reviews',
             style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontWeight: FontWeight.w700,
@@ -37,34 +37,23 @@ class _ProfileReviewsSectionState extends ConsumerState<ProfileReviewsSection> {
               color: Color(0xFF0F172A),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Filter Tabs
-          SizedBox(
-            height: 38,
+          const SizedBox(height: 8),
+          // Liste horizontale de filtres
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _FilterButton(
-                  label: 'Plus récents',
-                  isSelected: _selectedFilter == 'recent',
-                  onTap: () => setState(() => _selectedFilter = 'recent'),
-                ),
+                _buildFilterChip('recent', 'Plus récents'),
                 const SizedBox(width: 8),
-                _FilterButton(
-                  label: 'Mieux notés',
-                  isSelected: _selectedFilter == 'best',
-                  onTap: () => setState(() => _selectedFilter = 'best'),
-                ),
+                _buildFilterChip('best', 'Mieux notés'),
                 const SizedBox(width: 8),
-                _FilterButton(
-                  label: 'Avec réponse',
-                  isSelected: _selectedFilter == 'replied',
-                  onTap: () => setState(() => _selectedFilter = 'replied'),
-                ),
+                _buildFilterChip('replied', 'Avec réponse'),
+                const SizedBox(width: 8),
+                _buildFilterChip('unreplied', 'Sans réponse'),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // Liste des avis
           reviewsAsync.when(
@@ -78,7 +67,18 @@ class _ProfileReviewsSectionState extends ConsumerState<ProfileReviewsSection> {
               child: Text('Erreur: $error'),
             ),
             data: (reviews) {
-              if (reviews.isEmpty) {
+              // Appliquer le filtrage
+              var filtered = List<EmployeeReviewEntity>.from(reviews);
+              if (_selectedFilter == 'best') {
+                filtered.sort((a, b) => b.rating.compareTo(a.rating));
+              } else if (_selectedFilter == 'replied') {
+                filtered = filtered.where((r) => r.recruiterReply != null).toList();
+              } else if (_selectedFilter == 'unreplied') {
+                filtered = filtered.where((r) => r.recruiterReply == null).toList();
+              }
+              // 'recent' est supposé être le défaut du backend
+
+              if (filtered.isEmpty) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
@@ -93,7 +93,8 @@ class _ProfileReviewsSectionState extends ConsumerState<ProfileReviewsSection> {
                   final review = entry.value;
 
                   return Padding(
-                    padding: EdgeInsets.only(bottom: index == reviews.length - 1 ? 0 : 16),
+                    padding: EdgeInsets.only(
+                        bottom: index == reviews.length - 1 ? 0 : 16),
                     child: _ReviewCard(review: review),
                   );
                 }).toList(),
@@ -104,40 +105,42 @@ class _ProfileReviewsSectionState extends ConsumerState<ProfileReviewsSection> {
       ),
     );
   }
-}
 
-class _FilterButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _FilterButton({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildFilterChip(String value, String label) {
+    final isSelected = _selectedFilter == value;
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: isSelected ? 9 : 8,
-        ),
+      onTap: () {
+        if (!isSelected) {
+          setState(() => _selectedFilter = value);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF401E66) : Colors.white,
-          borderRadius: BorderRadius.circular(9999),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF401E66) : const Color(0xFFE2E8F0),
+            width: 1.5,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF401E66).withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  )
+                ]
+              : [],
         ),
         child: Text(
           label,
           style: TextStyle(
             fontFamily: 'Plus Jakarta Sans',
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 14,
-            height: 1.43,
-            color: isSelected ? Colors.white : const Color(0xFF475569),
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+            fontSize: 13,
+            color: isSelected ? Colors.white : const Color(0xFF64748B),
           ),
         ),
       ),
@@ -145,19 +148,44 @@ class _FilterButton extends StatelessWidget {
   }
 }
 
-class _ReviewCard extends StatelessWidget {
+class _ReviewCard extends StatefulWidget {
   final EmployeeReviewEntity review;
 
   const _ReviewCard({required this.review});
 
   @override
+  State<_ReviewCard> createState() => _ReviewCardState();
+}
+
+class _ReviewCardState extends State<_ReviewCard> {
+  final TextEditingController _replyController = TextEditingController();
+  String? _localReply;
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    super.dispose();
+  }
+
+  void _submitReply() {
+    final text = _replyController.text.trim();
+    if (text.isNotEmpty) {
+      setState(() {
+        _localReply = text;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final hasReply =
+        widget.review.recruiterReply != null || _localReply != null;
+    final replyText = _localReply ?? widget.review.recruiterReply;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 15, 5, 15),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDFBFF),
-        border: Border.all(color: const Color(0xFFF6F3F8)),
-        borderRadius: BorderRadius.circular(15),
+        color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -165,6 +193,7 @@ class _ReviewCard extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,16 +214,16 @@ class _ReviewCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(9999),
                       color: AppColors.slate100,
                     ),
-                    child: review.authorAvatar != null
+                    child: widget.review.authorAvatar != null
                         ? ClipOval(
-                            child: Image.network(
-                              review.authorAvatar!,
+                            child: Image.asset(
+                              widget.review.authorAvatar!,
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Center(
                                 child: Text(
-                                  review.authorName[0].toUpperCase(),
+                                  widget.review.authorName[0].toUpperCase(),
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
                                     fontWeight: FontWeight.w700,
@@ -207,7 +236,7 @@ class _ReviewCard extends StatelessWidget {
                           )
                         : Center(
                             child: Text(
-                              review.authorName[0].toUpperCase(),
+                              widget.review.authorName[0].toUpperCase(),
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.w700,
@@ -224,7 +253,7 @@ class _ReviewCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        review.authorName,
+                        widget.review.authorName,
                         style: const TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontWeight: FontWeight.w700,
@@ -234,7 +263,7 @@ class _ReviewCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        review.authorRole,
+                        widget.review.authorRole,
                         style: const TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontWeight: FontWeight.w400,
@@ -249,7 +278,7 @@ class _ReviewCard extends StatelessWidget {
               ),
 
               // Rating étoiles
-              _StarRating(rating: review.rating),
+              _StarRating(rating: widget.review.rating),
             ],
           ),
           const SizedBox(height: 8),
@@ -258,7 +287,9 @@ class _ReviewCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 5),
             child: Text(
-              review.comment.trim().isEmpty ? 'Aucun commentaire' : review.comment,
+              widget.review.comment.trim().isEmpty
+                  ? 'Aucun commentaire'
+                  : widget.review.comment,
               style: const TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontWeight: FontWeight.w400,
@@ -269,14 +300,13 @@ class _ReviewCard extends StatelessWidget {
             ),
           ),
 
-          // Réponse du recruteur (si elle existe)
-          if (review.recruiterReply != null) ...[
-            const SizedBox(height: 8),
+          if (hasReply) ...[
+            const SizedBox(height: 9),
             Container(
-              width: double.infinity,
+              width: 342,
               padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
               decoration: BoxDecoration(
-                color: const Color(0x0D7F13EC),
+                color: const Color(0xFFF8F3FE),
                 border: const Border(
                   left: BorderSide(color: Color(0xFF401E66), width: 2),
                 ),
@@ -285,11 +315,11 @@ class _ReviewCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Nom du recruteur + Date
+                  // Nom du recruteur + Label Response
                   Row(
                     children: [
                       Text(
-                        review.recruiterName ?? 'Marc-Antoine Lefebvre',
+                        widget.review.recruiterName ?? 'Marc-Antoine Lefebvre',
                         style: const TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontWeight: FontWeight.w700,
@@ -299,9 +329,9 @@ class _ReviewCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        review.recruiterReplyDate ?? 'Réponse',
-                        style: const TextStyle(
+                      const Text(
+                        'Response',
+                        style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontWeight: FontWeight.w400,
                           fontSize: 12,
@@ -315,7 +345,7 @@ class _ReviewCard extends StatelessWidget {
 
                   // Réponse
                   Text(
-                    review.recruiterReply!,
+                    replyText!,
                     style: const TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontWeight: FontWeight.w400,
@@ -330,7 +360,7 @@ class _ReviewCard extends StatelessWidget {
           ],
 
           // Champ de réponse (si pas de réponse du recruteur)
-          if (review.recruiterReply == null) ...[
+          if (!hasReply) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(16),
@@ -366,28 +396,47 @@ class _ReviewCard extends StatelessWidget {
                   // Input field
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 0), // Modifié pour TextField
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(9999),
                       ),
                       child: Row(
                         children: [
-                          const Expanded(
-                            child: Text(
-                              'Écrire une réponse...',
-                              style: TextStyle(
+                          Expanded(
+                            child: TextField(
+                              controller: _replyController,
+                              onSubmitted: (_) => _submitReply(),
+                              decoration: const InputDecoration(
+                                hintText: 'Écrire une réponse...',
+                                hintStyle: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 14,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding:
+                                    EdgeInsets.symmetric(vertical: 9),
+                              ),
+                              style: const TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
                                 fontWeight: FontWeight.w400,
                                 fontSize: 14,
-                                color: Color(0xFF94A3B8),
+                                color: Color(0xFF0F172A),
                               ),
                             ),
                           ),
-                          const Icon(
-                            Icons.send,
-                            size: 16,
-                            color: Color(0xFF7F13EC),
+                          GestureDetector(
+                            onTap: _submitReply,
+                            child: const Icon(
+                              Icons.send,
+                              size: 16,
+                              color: AppColors.violet,
+                            ),
                           ),
                         ],
                       ),
@@ -412,12 +461,15 @@ class _StarRating extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: List.generate(5, (index) {
-        return Icon(
-          Icons.star,
-          size: 15,
-          color: index < rating.floor()
-              ? const Color(0xFF7F13EC)
-              : const Color(0xFFCBD5E1),
+        return Padding(
+          padding: const EdgeInsets.only(right: 2),
+          child: Icon(
+            Icons.star,
+            size: 13,
+            color: index < rating.floor()
+                ? const Color(0xFF7F13EC)
+                : const Color(0xFFCBD5E1),
+          ),
         );
       }),
     );

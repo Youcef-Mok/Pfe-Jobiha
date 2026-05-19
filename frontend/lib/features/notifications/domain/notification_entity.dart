@@ -4,6 +4,8 @@ enum NotificationType {
   jobQuestion,
   missionExpiring,
   interviewAccepted,
+  missionCompleted,
+  announcementCreated,
   system
 }
 
@@ -17,6 +19,7 @@ class NotificationEntity {
   final String? jobTitle;
   final String? senderName;
   final String? avatarUrl;
+  final String? contextImageUrl; // Added for job icons or office pictures
   final int? count;
 
   NotificationEntity({
@@ -29,6 +32,7 @@ class NotificationEntity {
     this.jobTitle,
     this.senderName,
     this.avatarUrl,
+    this.contextImageUrl,
     this.count,
   });
 
@@ -45,6 +49,7 @@ class NotificationEntity {
       jobTitle: jobTitle,
       senderName: senderName,
       avatarUrl: avatarUrl,
+      contextImageUrl: contextImageUrl,
       count: count,
     );
   }

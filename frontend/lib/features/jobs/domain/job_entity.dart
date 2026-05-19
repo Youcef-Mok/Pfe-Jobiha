@@ -17,7 +17,7 @@ class JobEntity {
   final String? logoAsset;
   final bool isPublished;
   final List<JobCandidateEntity> candidates; // Ajout
-  final List<JobCommentEntity> comments;     // Ajout
+  final List<JobCommentEntity> comments; // Ajout
 
   const JobEntity({
     required this.id,
@@ -31,7 +31,7 @@ class JobEntity {
     this.logoAsset,
     required this.isPublished,
     this.candidates = const [], // Ajout
-    this.comments = const [],   // Ajout
+    this.comments = const [], // Ajout
   });
 
   bool get isActive => status == JobStatus.searching;
