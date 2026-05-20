@@ -22,3 +22,8 @@ build/
 # OS related
 Thumbs.db
 Desktop.ini
+
+frontend/build/
+frontend/build - Copy/
+**/build/
+*.apk
