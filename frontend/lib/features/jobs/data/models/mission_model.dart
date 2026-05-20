@@ -2,8 +2,10 @@ import 'package:job_app/features/jobs/domain/mission_entity.dart';
 
 class MissionModel {
   final String id;
+  final String jobId;
   final String jobTitle;
   final String companyName;
+  final String department;
   final String startDate;
   final String endDate;
   final String location;
@@ -20,8 +22,10 @@ class MissionModel {
 
   const MissionModel({
     required this.id,
+    this.jobId = '',
     required this.jobTitle,
     required this.companyName,
+    this.department = 'IT',
     required this.startDate,
     required this.endDate,
     required this.location,
@@ -39,8 +43,10 @@ class MissionModel {
 
   factory MissionModel.fromJson(Map<String, dynamic> json) => MissionModel(
         id: json['id'] as String,
+        jobId: json['job_id'] as String? ?? '',
         jobTitle: json['job_title'] as String,
         companyName: json['company_name'] as String,
+        department: json['department'] as String? ?? 'IT',
         startDate: json['start_date'] as String,
         endDate: json['end_date'] as String,
         location: json['location'] as String,
@@ -61,8 +67,10 @@ class MissionModel {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'job_id': jobId,
         'job_title': jobTitle,
         'company_name': companyName,
+        'department': department,
         'start_date': startDate,
         'end_date': endDate,
         'location': location,
@@ -80,8 +88,10 @@ class MissionModel {
 
   MissionEntity toEntity() => MissionEntity(
         id: id,
+        jobId: jobId,
         jobTitle: jobTitle,
         companyName: companyName,
+        department: department,
         startDate: DateTime.parse(startDate),
         endDate: DateTime.parse(endDate),
         location: location,
@@ -99,8 +109,10 @@ class MissionModel {
 
   factory MissionModel.fromEntity(MissionEntity entity) => MissionModel(
         id: entity.id,
+        jobId: entity.jobId,
         jobTitle: entity.jobTitle,
         companyName: entity.companyName,
+        department: entity.department,
         startDate: entity.startDate.toIso8601String(),
         endDate: entity.endDate.toIso8601String(),
         location: entity.location,

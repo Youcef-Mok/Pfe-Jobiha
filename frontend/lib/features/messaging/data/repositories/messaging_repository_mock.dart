@@ -2,6 +2,7 @@
 import 'package:job_app/features/messaging/data/repositories/messaging_repository.dart';
 import 'package:job_app/features/messaging/domain/message_entity.dart';
 
+// TODO(API): Remplacer par MessagingRepositoryHttp dans messaging_provider.dart.
 class MessagingRepositoryMock implements MessagingRepository {
   static final Set<String> _blockedIds = {};
   static final Set<String> _restrictedIds = {};
@@ -219,18 +220,21 @@ class MessagingRepositoryMock implements MessagingRepository {
 
   @override
   Future<List<ConversationEntity>> getConversations() async {
+    // TODO(API): GET /api/v1/conversations
     await Future.delayed(const Duration(milliseconds: 300));
     return _conversations.map((c) => c.toEntity()).toList();
   }
 
   @override
   Future<List<ConversationEntity>> getInvitations() async {
+    // TODO(API): GET /api/v1/conversations/invitations
     await Future.delayed(const Duration(milliseconds: 300));
     return _invitations.map((c) => c.toEntity()).toList();
   }
 
   @override
   Future<void> sendMessage(String conversationId, String content) async {
+    // TODO(API): POST /api/v1/conversations/:conversationId/messages  body: { content, type: "text" }
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
     if (idx == -1) return;
 
@@ -261,6 +265,7 @@ class MessagingRepositoryMock implements MessagingRepository {
 
   @override
   Future<void> sendImageMessage(String conversationId, String imagePath) async {
+    // TODO(API): POST /api/v1/conversations/:conversationId/messages  multipart: { file, type: "image" }
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
     if (idx == -1) return;
 
@@ -291,6 +296,7 @@ class MessagingRepositoryMock implements MessagingRepository {
 
   @override
   Future<void> sendFileMessage(String conversationId, String filePath) async {
+    // TODO(API): POST /api/v1/conversations/:conversationId/messages  multipart: { file, type: "file" }
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
     if (idx == -1) return;
 
@@ -322,6 +328,7 @@ class MessagingRepositoryMock implements MessagingRepository {
 
   @override
   Future<void> acceptInvitation(String conversationId) async {
+    // TODO(API): POST /api/v1/conversations/:conversationId/accept
     final idx = _invitations.indexWhere((c) => c.id == conversationId);
     if (idx == -1) return;
     final inv = _invitations[idx];
@@ -345,38 +352,50 @@ class MessagingRepositoryMock implements MessagingRepository {
 
   @override
   Future<void> declineInvitation(String conversationId) async {
+    // TODO(API): DELETE /api/v1/conversations/:conversationId/invitation
     _invitations.removeWhere((c) => c.id == conversationId);
   }
 
   @override
   Future<void> deleteConversations(List<String> ids) async {
+    // TODO(API): DELETE /api/v1/conversations  body: { ids }
     _conversations.removeWhere((c) => ids.contains(c.id));
     _invitations.removeWhere((c) => ids.contains(c.id));
   }
 
   @override
-  Future<Set<String>> getBlockedIds() async => Set.from(_blockedIds);
+  Future<Set<String>> getBlockedIds() async {
+    // TODO(API): GET /api/v1/users/me/blocked
+    return Set.from(_blockedIds);
+  }
 
   @override
-  Future<Set<String>> getRestrictedIds() async => Set.from(_restrictedIds);
+  Future<Set<String>> getRestrictedIds() async {
+    // TODO(API): GET /api/v1/users/me/restricted
+    return Set.from(_restrictedIds);
+  }
 
   @override
   Future<void> blockContact(String conversationId) async {
+    // TODO(API): POST /api/v1/users/me/blocked  body: { contactId: conversationId }
     _blockedIds.add(conversationId);
   }
 
   @override
   Future<void> unblockContact(String conversationId) async {
+    // TODO(API): DELETE /api/v1/users/me/blocked/:contactId
     _blockedIds.remove(conversationId);
   }
 
   @override
   Future<void> restrictContact(String conversationId) async {
+    // TODO(API): POST /api/v1/users/me/restricted  body: { contactId: conversationId }
     _restrictedIds.add(conversationId);
   }
 
   @override
   Future<void> unrestrictContact(String conversationId) async {
+    // TODO(API): DELETE /api/v1/users/me/restricted/:contactId
     _restrictedIds.remove(conversationId);
   }
 
@@ -386,7 +405,7 @@ class MessagingRepositoryMock implements MessagingRepository {
     required String contactRole,
     String? contactAvatar,
   }) async {
-    // Chercher une conversation existante avec ce contact
+    // TODO(API): GET /api/v1/conversations?contactName=... ou POST /api/v1/conversations  body: { contactName, contactRole }
     final existing = _conversations.where((c) => 
       c.contactName == contactName && !c.isGroup
     ).firstOrNull;
@@ -419,6 +438,7 @@ class MessagingRepositoryMock implements MessagingRepository {
     List<String> memberNames,
     List<String?> memberAvatars,
   ) async {
+    // TODO(API): POST /api/v1/conversations/group  body: { groupName, memberNames }
     final id = 'group_${DateTime.now().millisecondsSinceEpoch}';
     final displayName = groupName.isNotEmpty
         ? groupName

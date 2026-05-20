@@ -6,6 +6,7 @@ class JobModel {
   final String id;
   final String title;
   final String companyName;
+  final String department;
   final String contractType; // "cdi" | "mission" | "freelance"
   final String postedAt; // ISO 8601 depuis l'API
   final String status; // "active" | "draft" | "closed"
@@ -20,6 +21,7 @@ class JobModel {
     required this.id,
     required this.title,
     required this.companyName,
+    this.department = 'IT',
     required this.contractType,
     required this.postedAt,
     required this.status,
@@ -36,6 +38,7 @@ class JobModel {
         id: json['id'] as String,
         title: json['title'] as String,
         companyName: json['company_name'] as String,
+        department: json['department'] as String? ?? 'IT',
         contractType: json['contract_type'] as String? ?? 'cdi',
         postedAt: json['posted_at'] as String,
         status: json['status'] as String,
@@ -60,6 +63,7 @@ class JobModel {
         'id': id,
         'title': title,
         'company_name': companyName,
+        'department': department,
         'contract_type': contractType,
         'posted_at': postedAt,
         'status': status,
@@ -76,6 +80,7 @@ class JobModel {
         id: id,
         title: title,
         companyName: companyName,
+        department: department,
         contractType: _parseContract(contractType),
         postedAt: DateTime.parse(postedAt),
         status: _parseStatus(status),
@@ -92,6 +97,7 @@ class JobModel {
         id: entity.id,
         title: entity.title,
         companyName: entity.companyName,
+        department: entity.department,
         contractType: entity.contractType.name,
         postedAt: entity.postedAt.toIso8601String(),
         status: entity.status.name,

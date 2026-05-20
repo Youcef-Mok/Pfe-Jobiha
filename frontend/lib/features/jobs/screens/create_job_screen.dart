@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers/jobs_provider.dart';
 import '../domain/job_entity.dart';
+import '../widgets/job_candidate_preferences_fields.dart';
 import '../../../core/theme/app_theme.dart';
 
 class CreateJobScreen extends ConsumerStatefulWidget {
@@ -79,6 +80,9 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                             .updateDescription(v),
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    const JobCandidatePreferencesFields(),
                     const SizedBox(height: 16),
 
                     // Candidats recherchés
@@ -209,7 +213,7 @@ class _TopAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 41,
+      height: 58,
       decoration: const BoxDecoration(
         color: Color(0xCCFDFCFE),
         border: Border(
@@ -228,8 +232,10 @@ class _TopAppBar extends StatelessWidget {
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.only(right: 48),
-                child: Text('Créer une annonce',
-                    style: AppTextStyles.heading2),
+                child: Text(
+                  'Créer une annonce',
+                  style: AppTextStyles.heading2.copyWith(fontSize: 22),
+                ),
               ),
             ),
           ),
@@ -695,8 +701,7 @@ class _ActionFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 129,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(
@@ -709,44 +714,37 @@ class _ActionFooter extends StatelessWidget {
           Expanded(
             flex: 146,
             child: SizedBox(
-              height: 80,
+              height: 48,
               child: OutlinedButton(
                 onPressed: isLoading ? null : onSaveDraft,
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.inputBorder),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: Text('Sauvegarder', style: AppTextStyles.saveDraftBtn),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           // Publier l'annonce
           Expanded(
             flex: 179,
             child: SizedBox(
-              height: 80,
+              height: 48,
               child: Stack(
                 children: [
-                  // Shadow décorative violet
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x4D8B5CF6),
-                            blurRadius: 15,
-                            offset: Offset(0, 10),
+                            blurRadius: 10,
+                            offset: Offset(0, 6),
                             spreadRadius: -3,
-                          ),
-                          BoxShadow(
-                            color: Color(0x4D8B5CF6),
-                            blurRadius: 6,
-                            offset: Offset(0, 4),
-                            spreadRadius: -4,
                           ),
                         ],
                       ),
@@ -757,16 +755,16 @@ class _ActionFooter extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.violet,
                       foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 80),
+                      minimumSize: const Size(double.infinity, 48),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: isLoading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                               color: Colors.white,
                               strokeWidth: 2,
@@ -775,10 +773,9 @@ class _ActionFooter extends StatelessWidget {
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text("Publier\nl'annonce",
-                                  style: AppTextStyles.publishBtn,
-                                  textAlign: TextAlign.center),
-                              const SizedBox(width: 8),
+                              Text("Publier l'annonce",
+                                  style: AppTextStyles.publishBtn),
+                              const SizedBox(width: 6),
                               const Icon(Icons.send_outlined,
                                   size: 14, color: Colors.white),
                             ],

@@ -54,12 +54,10 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
 
             // ── Featured horizontal cards ──────────
             SliverToBoxAdapter(
-              child: ref.watch(jobsNotifierProvider).when(
+              child: ref.watch(publishedJobsProvider).when(
                     loading: () => _buildHeroShimmer(),
                     error: (_, __) => const SizedBox.shrink(),
-                    data: (jobs) => _buildHeroCards(
-                      jobs.where((j) => j.isPublished).toList(),
-                    ),
+                    data: (jobs) => _buildHeroCards(jobs),
                   ),
             ),
 
@@ -78,14 +76,13 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
             ),
 
             // Vertical job list
-            ref.watch(jobsNotifierProvider).when(
+            ref.watch(publishedJobsProvider).when(
                   loading: () =>
                       SliverToBoxAdapter(child: _buildSuggestedJobsShimmer()),
                   error: (_, __) => const SliverToBoxAdapter(
                     child: Center(child: Text('Erreur de chargement')),
                   ),
-                  data: (jobs) {
-                    final list = jobs.where((j) => j.isPublished).toList();
+                  data: (list) {
                     return SliverToBoxAdapter(
                       child: Container(
                         margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),

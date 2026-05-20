@@ -5,13 +5,13 @@ import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/widgets/mission_card.dart';
 import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
 
-/// Section "Mes missions" du profil — affiche les MissionCards scrollables
+/// Section "Mes missions" du profil — grand cadre avec cartes colorées
 class ProfileMissionsSection extends ConsumerWidget {
   const ProfileMissionsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final missionsAsync = ref.watch(missionsNotifierProvider);
+    final missionsAsync = ref.watch(filteredMissionsProvider);
 
     return missionsAsync.when(
       data: (missions) {
@@ -21,37 +21,38 @@ class ProfileMissionsSection extends ConsumerWidget {
           );
         }
 
-        return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              if (index == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 2, left: 16, right: 16, top: 10),
-                  child: Text(
-                    'Mes missions',
-                    style: AppTextStyles.heading2.copyWith(
-                      color: AppColors.slate900,
-                      fontSize: 18,
+        return SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 10, 16, 100),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...missions.map((mission) {
+                  final isInProgress = mission.status == 'in_progress';
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: isInProgress ? 16 : 12),
+                    child: MissionCard(
+                      mission: mission,
+                      cardColor: const Color(0xFFEFEDF2),
+                      onTap: () {
+                        if (mission.isCompleted) {
+                          showCompletedMissionSheet(context, mission,
+                              isRecruiterView: true);
+                        } else {
+                          showMissionInProgressSheet(context, mission,
+                              isRecruiterView: true);
+                        }
+                      },
                     ),
-                  ),
-                );
-              }
-              final mission = missions[index - 1];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: MissionCard(
-                  mission: mission,
-                  onTap: () {
-                    if (mission.isCompleted) {
-                      showCompletedMissionSheet(context, mission);
-                    } else {
-                      showMissionInProgressSheet(context, mission);
-                    }
-                  },
-                ),
-              );
-            },
-            childCount: missions.length + 1,
+                  );
+                }),
+              ],
+            ),
           ),
         );
       },

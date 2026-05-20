@@ -1,17 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
 import 'package:job_app/core/utils/icon_utils.dart';
 import 'package:job_app/core/utils/color_utils.dart';
 
 class ProfileDescriptionSection extends ConsumerWidget {
-  const ProfileDescriptionSection({super.key});
+  final bool isRecruiterView;
+
+  const ProfileDescriptionSection({super.key, this.isRecruiterView = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = ref.watch(candidateCurrentUserProvider);
-    final reviewsAsync = ref.watch(candidateEmployeeReviewsProvider);
+    final userAsync = isRecruiterView
+        ? ref.watch(currentUserProvider)
+        : ref.watch(candidateCurrentUserProvider);
+    final reviewsAsync = isRecruiterView
+        ? ref.watch(employeeReviewsProvider)
+        : ref.watch(candidateEmployeeReviewsProvider);
+    final jobsCount = ref.watch(jobsNotifierProvider).valueOrNull?.length ?? 0;
 
     return userAsync.when(
       loading: () => const Center(
@@ -22,10 +30,6 @@ class ProfileDescriptionSection extends ConsumerWidget {
       ),
       error: (_, __) => const SizedBox.shrink(),
       data: (user) {
-        final parts = user.location.split(' ');
-        final city = parts.isNotEmpty ? parts.first : user.location;
-        final subCity = parts.length > 1 ? parts.sublist(1).join(' ') : '';
-
         return Padding(
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 40),
           child: Column(
@@ -38,22 +42,33 @@ class ProfileDescriptionSection extends ConsumerWidget {
                   children: [
                     _InfoChip(
                       circleColor: const Color(0xFFF3F3F3),
-                      icon: Icons.location_pin,
+                      icon: Icons.star_rounded,
                       iconColor: const Color(0xFF401E66),
-                      mainText: city,
+                      mainText: user.rating.toStringAsFixed(1),
                       mainTextSize: 14,
-                      subText: subCity.isNotEmpty ? subCity : null,
+                      subText: 'Notation',
                       iconSpacing: 18,
                     ),
                     const SizedBox(width: 13),
-                    _InfoChip(
-                      circleColor: const Color(0xFFF3F3F3),
-                      icon: IconUtils.getSmartIcon(user.domain),
-                      iconColor: Colors.black,
-                      mainText: user.domain, // Utiliser domain au lieu de company
-                      mainTextSize: 11,
-                      iconSpacing: 6,
-                    ),
+                    if (isRecruiterView)
+                      _InfoChip(
+                        circleColor: const Color(0xFFF3F3F3),
+                        icon: Icons.campaign_outlined,
+                        iconColor: Colors.black,
+                        mainText: '$jobsCount',
+                        mainTextSize: 14,
+                        subText: 'Annonces',
+                        iconSpacing: 10,
+                      )
+                    else
+                      _InfoChip(
+                        circleColor: const Color(0xFFF3F3F3),
+                        icon: IconUtils.getSmartIcon(user.domain),
+                        iconColor: Colors.black,
+                        mainText: user.domain,
+                        mainTextSize: 11,
+                        iconSpacing: 6,
+                      ),
                     const SizedBox(width: 13),
                     _InfoChip(
                       circleColor: const Color(0xFF401E66),

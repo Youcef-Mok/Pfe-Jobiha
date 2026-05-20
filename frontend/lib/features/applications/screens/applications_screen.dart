@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/applications/domain/application_entity.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
+import 'package:job_app/features/applications/domain/applications_controller.dart';
 import 'package:job_app/core/widgets/candidate_nav_bar.dart';
 import 'package:job_app/core/widgets/candidate_filter_overlay.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
@@ -16,8 +17,7 @@ class ApplicationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final appsAsync = ref.watch(applicationsNotifierProvider);
-    final tabFilter = ref.watch(applicationsTabProvider);
+    final appsAsync = ref.watch(candidateApplicationsListProvider);
     final overlayFilter = ref.watch(applicationsOverlayFilterProvider);
 
     return Scaffold(
@@ -31,7 +31,9 @@ class ApplicationsScreen extends ConsumerWidget {
             // "”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"” Tab filter segments "”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”"”
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _TabFilter(current: tabFilter),
+              child: _TabFilter(
+                current: ref.watch(applicationsTabProvider),
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -43,11 +45,8 @@ class ApplicationsScreen extends ConsumerWidget {
                         CircularProgressIndicator(color: AppColors.violet)),
                 error: (_, __) =>
                     const Center(child: Text('Erreur de chargement')),
-                data: (apps) {
-                  final filtered = _filterApps(apps, tabFilter);
-                  final sorted = _sortApps(filtered, overlayFilter);
-                  return _buildList(context, ref, sorted, overlayFilter);
-                },
+                data: (apps) =>
+                    _buildList(context, ref, apps, overlayFilter),
               ),
             ),
           ],
@@ -85,19 +84,6 @@ class ApplicationsScreen extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  List<ApplicationEntity> _filterApps(
-      List<ApplicationEntity> apps, ApplicationsTabFilter filter) {
-    return switch (filter) {
-      ApplicationsTabFilter.all => apps,
-      ApplicationsTabFilter.pending =>
-        apps.where((a) => a.status == ApplicationStatus.pending).toList(),
-      ApplicationsTabFilter.accepted =>
-        apps.where((a) => a.status == ApplicationStatus.accepted).toList(),
-      ApplicationsTabFilter.rejected =>
-        apps.where((a) => a.status == ApplicationStatus.rejected).toList(),
-    };
   }
 
   Widget _buildList(
@@ -197,32 +183,6 @@ class ApplicationsScreen extends ConsumerWidget {
       ],
     );
   }
-
-  List<ApplicationEntity> _sortApps(List<ApplicationEntity> apps, String filter) {
-    final sorted = [...apps];
-    switch (filter) {
-      case 'proche':
-        sorted.sort((a, b) => a.location.compareTo(b.location));
-        return sorted;
-      case 'mieux_paye':
-        sorted.sort((a, b) {
-          final byStatus = _statusPriority(a.status) - _statusPriority(b.status);
-          if (byStatus != 0) return byStatus;
-          return b.appliedAt.compareTo(a.appliedAt);
-        });
-        return sorted;
-      case 'recent':
-      default:
-        sorted.sort((a, b) => b.appliedAt.compareTo(a.appliedAt));
-        return sorted;
-    }
-  }
-
-  int _statusPriority(ApplicationStatus status) => switch (status) {
-        ApplicationStatus.accepted => 0,
-        ApplicationStatus.pending => 1,
-        ApplicationStatus.rejected => 2,
-      };
 
   Future<void> _openApplicationDetails(
     BuildContext context,

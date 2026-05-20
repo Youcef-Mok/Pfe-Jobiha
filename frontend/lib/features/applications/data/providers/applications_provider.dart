@@ -1,30 +1,41 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/applications/domain/application_entity.dart';
+import 'package:job_app/features/applications/domain/applications_controller.dart';
+import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/applications/data/repositories/applications_repository.dart';
 import 'package:job_app/features/applications/data/repositories/applications_repository_mock.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 
 // ─────────────────────────────────────────────
 // 1. Repository Provider
 // ─────────────────────────────────────────────
+// TODO(API): Remplacer ApplicationsRepositoryMock par ApplicationsRepositoryHttp ici.
 final applicationsRepositoryProvider = Provider<ApplicationsRepository>(
   (ref) => ApplicationsRepositoryMock(),
 );
 
 // ─────────────────────────────────────────────
-// 2. Applications Notifier
+// 2. Controller Provider
+// ─────────────────────────────────────────────
+final applicationsControllerProvider = Provider<ApplicationsController>(
+  (ref) => ApplicationsController(ref.watch(applicationsRepositoryProvider)),
+);
+
+// ─────────────────────────────────────────────
+// 3. Applications Notifier
 // ─────────────────────────────────────────────
 class ApplicationsNotifier
     extends StateNotifier<AsyncValue<List<ApplicationEntity>>> {
-  final ApplicationsRepository _repo;
+  final ApplicationsController _controller;
 
-  ApplicationsNotifier(this._repo) : super(const AsyncValue.loading()) {
+  ApplicationsNotifier(this._controller) : super(const AsyncValue.loading()) {
     Future.microtask(() => fetch());
   }
 
   Future<void> fetch() async {
     state = const AsyncValue.loading();
     try {
-      final apps = await _repo.getMyApplications();
+      final apps = await _controller.fetchApplications();
       state = AsyncValue.data(apps);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -33,14 +44,28 @@ class ApplicationsNotifier
 
   Future<void> apply(String jobId) async {
     try {
-      await _repo.applyToJob(jobId);
+      await _controller.apply(jobId);
       await fetch();
     } catch (_) {}
   }
 
   Future<void> cancel(String applicationId) async {
     try {
-      await _repo.cancelApplication(applicationId);
+      await _controller.cancel(applicationId);
+      await fetch();
+    } catch (_) {}
+  }
+
+  Future<void> accept(String applicationId) async {
+    try {
+      await _controller.accept(applicationId);
+      await fetch();
+    } catch (_) {}
+  }
+
+  Future<void> reject(String applicationId) async {
+    try {
+      await _controller.reject(applicationId);
       await fetch();
     } catch (_) {}
   }
@@ -48,14 +73,71 @@ class ApplicationsNotifier
 
 final applicationsNotifierProvider = StateNotifierProvider<ApplicationsNotifier,
     AsyncValue<List<ApplicationEntity>>>(
-  (ref) => ApplicationsNotifier(ref.watch(applicationsRepositoryProvider)),
+  (ref) => ApplicationsNotifier(ref.watch(applicationsControllerProvider)),
 );
 
-// ─────────────────────────────────────────────
-// 3. Applications Tab Filter
-// ─────────────────────────────────────────────
-enum ApplicationsTabFilter { all, pending, accepted, rejected }
+class SavedApplicationsNotifier extends StateNotifier<Set<String>> {
+  SavedApplicationsNotifier() : super({});
 
+  void toggle(String applicationId) {
+    if (state.contains(applicationId)) {
+      state = {...state}..remove(applicationId);
+    } else {
+      state = {...state, applicationId};
+    }
+  }
+
+  bool isSaved(String applicationId) => state.contains(applicationId);
+}
+
+final savedApplicationsProvider =
+    StateNotifierProvider<SavedApplicationsNotifier, Set<String>>(
+  (ref) => SavedApplicationsNotifier(),
+);
+
+/// Candidatures filtrées — homepage recruteur (onglet Mes candidatures).
+final recruiterFilteredApplicationsProvider =
+    Provider<AsyncValue<List<ApplicationEntity>>>((ref) {
+  final appsAsync = ref.watch(applicationsNotifierProvider);
+  final filters = ref.watch(recruiterFiltersProvider);
+  final controller = ref.watch(applicationsControllerProvider);
+  final savedIds = ref.watch(savedApplicationsProvider);
+  return appsAsync.whenData(
+    (apps) => controller.filterByRecruiterFilters(
+      apps,
+      filters,
+      savedIds: savedIds,
+    ),
+  );
+});
+
+/// Candidatures d'une offre — détail annonce (triées par date).
+final jobDetailApplicationsProvider =
+    Provider.family<AsyncValue<List<ApplicationEntity>>, String>((ref, jobId) {
+  final appsAsync = ref.watch(applicationsNotifierProvider);
+  final controller = ref.watch(applicationsControllerProvider);
+  return appsAsync.whenData((apps) => controller.forJob(apps, jobId));
+});
+
+/// Liste candidat — onglet + tri overlay (écran Mes candidatures).
+final candidateApplicationsListProvider =
+    Provider<AsyncValue<List<ApplicationEntity>>>((ref) {
+  final appsAsync = ref.watch(applicationsNotifierProvider);
+  final tab = ref.watch(applicationsTabProvider);
+  final overlay = ref.watch(applicationsOverlayFilterProvider);
+  final controller = ref.watch(applicationsControllerProvider);
+  return appsAsync.whenData(
+    (apps) => controller.applyCandidateListFilters(
+      apps: apps,
+      tab: tab,
+      overlayFilter: overlay,
+    ),
+  );
+});
+
+// ─────────────────────────────────────────────
+// 3. Applications Tab Filter (état UI)
+// ─────────────────────────────────────────────
 final applicationsTabProvider =
     StateProvider<ApplicationsTabFilter>((ref) => ApplicationsTabFilter.all);
 final applicationsOverlayFilterProvider =
@@ -76,7 +158,8 @@ final savedJobsFilterValuesProvider = StateProvider<Map<String, List<String>>>(
 // 4. Saved Jobs Provider (list of jobIds)
 // ─────────────────────────────────────────────
 class SavedJobsNotifier extends StateNotifier<Set<String>> {
-  SavedJobsNotifier() : super({'4', '5'}); // pre-saved for demo
+  // TODO(API): GET /api/v1/users/me/saved-jobs — remplacer les IDs hardcodés par un fetch au démarrage
+  SavedJobsNotifier() : super({'4', '5'});
 
   void toggle(String jobId) {
     if (state.contains(jobId)) {
@@ -162,3 +245,23 @@ final candidateFiltersProvider =
     StateNotifierProvider<CandidateFiltersNotifier, CandidateFilters>(
   (ref) => CandidateFiltersNotifier(),
 );
+
+final recentApplicationsProvider = Provider<AsyncValue<List<ApplicationEntity>>>((ref) {
+  final applicationsAsync = ref.watch(applicationsNotifierProvider);
+  final controller = ref.watch(applicationsControllerProvider);
+  return applicationsAsync.whenData(controller.filterRecent);
+});
+
+/// Jobs enregistrés filtrés + triés (écran Jobs enregistrés).
+final savedJobsDisplayProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
+  final jobsAsync = ref.watch(jobsNotifierProvider);
+  final savedIds = ref.watch(savedJobsProvider);
+  final filterValues = ref.watch(savedJobsFilterValuesProvider);
+  final chip = ref.watch(savedJobsActiveChipProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return jobsAsync.whenData((jobs) {
+    final saved = jobs.where((j) => savedIds.contains(j.id)).toList();
+    final filtered = controller.filterSavedJobs(saved, filterValues);
+    return controller.sortSavedJobs(filtered, chip);
+  });
+});

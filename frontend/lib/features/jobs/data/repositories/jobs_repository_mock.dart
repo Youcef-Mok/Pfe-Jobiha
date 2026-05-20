@@ -1,11 +1,22 @@
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
+import 'package:job_app/features/jobs/domain/create_mission_params.dart';
 import 'package:job_app/features/jobs/data/models/job_model.dart';
 import 'package:job_app/features/jobs/data/models/mission_model.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 
 /// Implémentation mock du repository.
 /// Simule des appels réseau avec des délais artificiels.
+///
+/// TODO(API): Remplacer par JobsRepositoryHttp dans jobs_provider.dart.
+/// Endpoints attendus :
+///   GET    /api/jobs/mine             → getMyJobs()
+///   GET    /api/jobs/:id              → getJobById()
+///   POST   /api/jobs                  → saveJob()  (création)
+///   PUT    /api/jobs/:id              → saveJob()  (mise à jour)
+///   DELETE /api/jobs/:id              → deleteJob()
+///   GET    /api/missions              → getMissions()
+///   PUT    /api/missions/:id/review   → updateMissionReview()
 class JobsRepositoryMock implements JobsRepository {
   // Données simulées
   static final List<JobModel> _mockData = [
@@ -13,8 +24,9 @@ class JobsRepositoryMock implements JobsRepository {
       id: '2',
       title: 'Chef de Produit',
       companyName: 'TechCorp Solutions',
+      department: 'IT',
       contractType: 'cdi',
-      postedAt: DateTime(2024, 10, 8).toIso8601String(),
+      postedAt: DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
       status: 'searching',
       candidateCount: 8,
       viewCount: 210,
@@ -66,14 +78,25 @@ class JobsRepositoryMock implements JobsRepository {
           reply:
               'Absolument ! Les horaires de bureau sont flexibles entre 8h et 10h le matin.',
         ),
+        JobCommentModel(
+          initials: 'NL',
+          authorName: 'Nadia Larbi',
+          date: '11 Oct.',
+          question:
+              'Est-ce que vous proposez une formation interne pendant la prise de poste ?',
+          recruitorLabel: 'Recrutor',
+          recruitorDate: '',
+          reply: '',
+        ),
       ],
     ),
     JobModel(
       id: '3',
       title: 'Responsable Marketing',
       companyName: 'TechCorp Solutions',
+      department: 'Marketing',
       contractType: 'freelance',
-      postedAt: DateTime(2024, 10, 11).toIso8601String(),
+      postedAt: DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
       status: 'draft',
       candidateCount: 0,
       viewCount: 0,
@@ -84,8 +107,9 @@ class JobsRepositoryMock implements JobsRepository {
       id: '4',
       title: 'Développeur Flutter',
       companyName: 'ServicePro',
+      department: 'IT',
       contractType: 'cdi',
-      postedAt: DateTime(2024, 10, 15).toIso8601String(),
+      postedAt: DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
       status: 'searching',
       candidateCount: 12,
       viewCount: 340,
@@ -96,8 +120,9 @@ class JobsRepositoryMock implements JobsRepository {
       id: '5',
       title: 'Designer UX',
       companyName: 'Creative Agency',
+      department: 'Design',
       contractType: 'mission',
-      postedAt: DateTime(2024, 10, 18).toIso8601String(),
+      postedAt: DateTime.now().subtract(const Duration(days: 12)).toIso8601String(),
       status: 'searching',
       candidateCount: 5,
       viewCount: 180,
@@ -108,8 +133,9 @@ class JobsRepositoryMock implements JobsRepository {
       id: '6',
       title: 'Chef de projet',
       companyName: 'BuildCorp',
+      department: 'Opérations',
       contractType: 'cdi',
-      postedAt: DateTime(2024, 10, 20).toIso8601String(),
+      postedAt: DateTime.now().subtract(const Duration(days: 90)).toIso8601String(),
       status: 'closed',
       candidateCount: 15,
       viewCount: 520,
@@ -126,6 +152,7 @@ class JobsRepositoryMock implements JobsRepository {
       id: 'cm_1',
       jobTitle: 'Serveur Senior',
       companyName: 'Sonatrach',
+      department: 'Opérations',
       startDate: DateTime.now().subtract(const Duration(days: 20)).toIso8601String(),
       endDate: DateTime.now().add(const Duration(days: 18)).toIso8601String(),
       location: 'Alger',
@@ -150,6 +177,7 @@ class JobsRepositoryMock implements JobsRepository {
       id: 'cm_2',
       jobTitle: 'Responsable RH',
       companyName: 'Cevital',
+      department: 'RH',
       startDate: DateTime.now().subtract(const Duration(days: 90)).toIso8601String(),
       endDate: DateTime.now().subtract(const Duration(days: 10)).toIso8601String(),
       location: 'Béjaïa',
@@ -199,6 +227,7 @@ class JobsRepositoryMock implements JobsRepository {
       id: 'm1',
       jobTitle: 'Designer UX Senior',
       companyName: 'TechCorp Solutions',
+      department: 'Design',
       startDate:
           DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
       endDate: DateTime.now().add(const Duration(days: 14)).toIso8601String(),
@@ -408,10 +437,80 @@ class JobsRepositoryMock implements JobsRepository {
     }
   }
 
+  static void _purgeExpiredUnconfirmedMissions(List<MissionModel> missions) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    missions.removeWhere((m) {
+      if (m.status != 'unconfirmed') return false;
+      final start = DateTime.parse(m.startDate);
+      final startDay = DateTime(start.year, start.month, start.day);
+      return !today.isBefore(startDay);
+    });
+  }
+
   @override
   Future<List<MissionEntity>> getMissions() async {
+    // TODO(API): GET /api/v1/missions — le backend purge les non confirmées expirées
     await Future.delayed(const Duration(milliseconds: 600));
+    _purgeExpiredUnconfirmedMissions(_missions);
     return _missions.map((m) => m.toEntity()).toList();
+  }
+
+  @override
+  Future<MissionEntity> createMission(CreateMissionParams params) async {
+    // TODO(API): POST /api/v1/missions
+    await Future.delayed(const Duration(milliseconds: 400));
+    final model = MissionModel(
+      id: 'm_${DateTime.now().millisecondsSinceEpoch}',
+      jobId: params.jobId,
+      jobTitle: params.jobTitle,
+      companyName: params.companyName,
+      department: params.department,
+      startDate: params.startDate.toIso8601String(),
+      endDate: params.endDate.toIso8601String(),
+      location: params.location,
+      recruiterName: 'Ahmed',
+      candidateName: params.candidateName,
+      status: 'unconfirmed',
+      imageUrl: params.imageUrl,
+      candidateRating: 0,
+      recruiterRating: 0,
+      candidateFeedback: '',
+      recruiterFeedback: '',
+      team: const [],
+    );
+    _missions.insert(0, model);
+    return model.toEntity();
+  }
+
+  @override
+  Future<MissionEntity> confirmMission(String missionId) async {
+    // TODO(API): PATCH /api/v1/missions/:id/confirm
+    await Future.delayed(const Duration(milliseconds: 300));
+    final index = _missions.indexWhere((m) => m.id == missionId);
+    if (index < 0) throw StateError('Mission not found');
+    final m = _missions[index];
+    _missions[index] = MissionModel(
+      id: m.id,
+      jobId: m.jobId,
+      jobTitle: m.jobTitle,
+      companyName: m.companyName,
+      department: m.department,
+      startDate: m.startDate,
+      endDate: m.endDate,
+      location: m.location,
+      recruiterName: m.recruiterName,
+      candidateName: m.candidateName,
+      candidateRating: m.candidateRating,
+      recruiterRating: m.recruiterRating,
+      candidateFeedback: m.candidateFeedback,
+      recruiterFeedback: m.recruiterFeedback,
+      status: 'in_progress',
+      summary: m.summary,
+      imageUrl: m.imageUrl,
+      team: m.team,
+    );
+    return _missions[index].toEntity();
   }
 
   @override
@@ -422,8 +521,10 @@ class JobsRepositoryMock implements JobsRepository {
       final mission = _missions[index];
       _missions[index] = MissionModel(
         id: mission.id,
+        jobId: mission.jobId,
         jobTitle: mission.jobTitle,
         companyName: mission.companyName,
+        department: mission.department,
         startDate: mission.startDate,
         endDate: mission.endDate,
         location: mission.location,

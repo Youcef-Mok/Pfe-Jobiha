@@ -21,136 +21,118 @@ class MissionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mission.isCompleted) {
-      return _buildCompletedCard();
+      return CompletedMissionCard(
+        mission: mission,
+        onTap: onTap,
+      );
     }
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor ?? const Color(0xFFEFEDF2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFEEEBF4),
-          width: 1.5,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          splashColor: mission.status == 'in_progress' ? Colors.transparent : null,
-          highlightColor: mission.status == 'in_progress' ? Colors.transparent : null,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTopSection(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  // ── Carte TERMINÉE ──────────────────────────────────────────────────────────
-  Widget _buildCompletedCard() {
-    return CompletedMissionCard(
-      mission: mission,
+    final bool emphasized = mission.isInProgress || mission.isUnconfirmed;
+    final double logoSize = emphasized ? 64 : 52;
+    final double padding = emphasized ? 12 : 8;
+    final double titleSize = emphasized ? 16 : 15;
+    final double subtitleSize = emphasized ? 13 : 12;
+
+    return GestureDetector(
       onTap: onTap,
-    );
-  }
-
-  Widget _buildTopSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _buildLogo(),
-          const SizedBox(width: 16),
-          Expanded(child: _buildInfo()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLogo() {
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: AppColors.draftBg,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: mission.imageUrl != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                mission.imageUrl!,
-                width: 64,
-                height: 64,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.description_outlined, color: AppColors.slate400, size: 28),
+      child: Container(
+        padding: EdgeInsets.all(padding),
+        decoration: BoxDecoration(
+          color: cardColor ?? Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildLogo(logoSize),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildInfo(
+                titleSize: titleSize,
+                subtitleSize: subtitleSize,
               ),
-            )
-          : const Icon(Icons.description_outlined, color: AppColors.slate400, size: 28),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildInfo() {
+  Widget _buildLogo(double size) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: mission.imageUrl != null
+          ? Image.asset(
+              mission.imageUrl!,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _logoPlaceholder(size),
+            )
+          : _logoPlaceholder(size),
+    );
+  }
+
+  Widget _logoPlaceholder(double size) {
+    return Container(
+      width: size,
+      height: size,
+      color: AppColors.draftBg,
+      child: const Icon(Icons.description_outlined,
+          color: AppColors.slate400, size: 22),
+    );
+  }
+
+  Widget _buildInfo({
+    required double titleSize,
+    required double subtitleSize,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: Text(
                 mission.jobTitle,
                 style: AppTextStyles.plusJakarta.copyWith(
                   fontWeight: FontWeight.w600,
-                  fontSize: 17,
+                  fontSize: titleSize,
                   color: const Color(0xFF2A292B),
                 ),
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (mission.status == 'in_progress') ...[
-              const SizedBox(width: 8),
-              _StatusBadge(status: mission.status),
-            ],
+            const SizedBox(width: 8),
+            _StatusBadge(status: mission.status),
           ],
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           '${mission.companyName} • ${_formatPeriod()}',
           style: AppTextStyles.plusJakarta.copyWith(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            color: const Color.fromARGB(255, 91, 91, 92),
+            fontWeight: FontWeight.w500,
+            fontSize: subtitleSize,
+            color: const Color(0xFF5B5B5C),
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        if (mission.status == 'in_progress')
+        if (mission.isInProgress || mission.isUnconfirmed)
           Padding(
-            padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
-            child: ExpiryBadge(label: _getExpiryLabel(mission.endDate)),
+            padding: const EdgeInsets.only(top: 8),
+            child: mission.isUnconfirmed
+                ? Text(
+                    'À confirmer avant le ${DateFormat('d MMM', 'fr_FR').format(mission.startDate)}',
+                    style: AppTextStyles.captionLight.copyWith(
+                      fontSize: 11,
+                      color: AppColors.slate600,
+                    ),
+                  )
+                : ExpiryBadge(label: _getExpiryLabel(mission.endDate)),
           ),
       ],
     );
@@ -179,6 +161,11 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, textColor, label) = switch (status) {
+      'unconfirmed' => (
+          const Color(0xFFFFF7ED),
+          const Color(0xFFC2410C),
+          'NON CONFIRMÉE'
+        ),
       'in_progress' => (AppColors.searchingBg, AppColors.searchingText, 'EN COURS'),
       'completed' => (AppColors.activeBg, AppColors.activeText, 'TERMINÉ'),
       _ => (AppColors.draftBg, AppColors.draftText, status.toUpperCase()),
@@ -197,4 +184,3 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 }
-

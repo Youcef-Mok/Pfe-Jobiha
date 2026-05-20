@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
-import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
 import 'package:job_app/features/jobs/widgets/candidate_job_card.dart';
 
@@ -28,8 +27,7 @@ class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final savedIds = ref.watch(savedJobsProvider);
-    final jobsAsync = ref.watch(jobsNotifierProvider);
+    final jobsAsync = ref.watch(savedJobsDisplayProvider);
     final selectedChip = ref.watch(savedJobsActiveChipProvider);
     final savedFilterValues = ref.watch(savedJobsFilterValuesProvider);
 
@@ -53,16 +51,7 @@ class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
                     ),
                     error: (_, __) =>
                         const Center(child: Text('Erreur de chargement')),
-                    data: (jobs) {
-                      final saved = jobs.where((j) => savedIds.contains(j.id)).toList();
-                      final filtered = _applySavedFilters(saved, savedFilterValues);
-                      final display = _sortSavedJobs(
-                        filtered,
-                        selectedChip,
-                        savedFilterValues,
-                      );
-                      return _buildList(context, ref, display);
-                    },
+                    data: (jobs) => _buildList(context, ref, jobs),
                   ),
                 ),
               ],
@@ -316,61 +305,6 @@ class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
     );
   }
 
-  List<JobEntity> _applySavedFilters(
-    List<JobEntity> jobs,
-    Map<String, List<String>> selectedValues,
-  ) {
-    return jobs.where((job) {
-      final contracts = selectedValues['contrat'] ?? [];
-      if (contracts.isNotEmpty) {
-        final matchesContract = contracts.any((contract) {
-          return switch (contract.toLowerCase()) {
-            'cdi' => job.contractType == ContractType.cdi,
-            'cdd' => job.contractType == ContractType.mission,
-            'freelance' => job.contractType == ContractType.freelance,
-            _ => true,
-          };
-        });
-        if (!matchesContract) return false;
-      }
-
-      for (final cat in ['horraires', 'categorie', 'localisation', 'domaine']) {
-        final options = selectedValues[cat] ?? [];
-        if (options.isNotEmpty) {
-          final haystack = '${job.title} ${job.companyName}'.toLowerCase();
-          final matchesCat = options.any((opt) => haystack.contains(opt.toLowerCase()));
-          if (!matchesCat) return false;
-        }
-      }
-      return true;
-    }).toList();
-  }
-
-  List<JobEntity> _sortSavedJobs(
-    List<JobEntity> jobs,
-    String chip,
-    Map<String, List<String>> selectedValues,
-  ) {
-    final sorted = [...jobs];
-    switch (chip) {
-      case 'categorie':
-        sorted.sort((a, b) => a.title.compareTo(b.title));
-        return sorted;
-      case 'contrat':
-        sorted.sort((a, b) => a.contractType.index.compareTo(b.contractType.index));
-        return sorted;
-      case 'localisation':
-        sorted.sort((a, b) => a.companyName.compareTo(b.companyName));
-        return sorted;
-      case 'domaine':
-        sorted.sort((a, b) => b.viewCount.compareTo(a.viewCount));
-        return sorted;
-      case 'horraires':
-      default:
-        sorted.sort((a, b) => b.postedAt.compareTo(a.postedAt));
-        return sorted;
-    }
-  }
 }
 
 class _SavedFilterChip extends StatelessWidget {

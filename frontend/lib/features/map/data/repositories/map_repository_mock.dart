@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:job_app/features/map/domain/map_job_entity.dart';
 import 'package:job_app/features/map/data/repositories/map_repository.dart';
 
+// TODO(API): Remplacer par MapRepositoryHttp dans map_providers.dart.
 class MapRepositoryMock implements MapRepository {
   final List<MapJobEntity> _mockJobs = [
     const MapJobEntity(
@@ -78,17 +79,20 @@ class MapRepositoryMock implements MapRepository {
 
   @override
   Future<List<MapJobEntity>> getAllMapJobs() async {
+    // TODO(API): GET /api/v1/jobs/map?lat=&lng=&radius=  (retourne les offres géolocalisées)
     await Future.delayed(const Duration(milliseconds: 300));
     return _mockJobs;
   }
 
   @override
   Future<List<String>> getRecentSearches() async {
+    // TODO(API): GET /api/v1/users/me/recent-searches  (ou stockage local SharedPreferences)
     return _recentSearches;
   }
 
   @override
   Future<void> saveRecentSearch(String query) async {
+    // TODO(API): POST /api/v1/users/me/recent-searches  body: { query }
     if (query.isEmpty) return;
     _recentSearches.remove(query);
     _recentSearches.insert(0, query);
@@ -97,6 +101,7 @@ class MapRepositoryMock implements MapRepository {
 
   @override
   Future<void> clearRecentSearches() async {
+    // TODO(API): DELETE /api/v1/users/me/recent-searches
     _recentSearches.clear();
   }
 }

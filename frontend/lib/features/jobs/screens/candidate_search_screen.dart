@@ -21,8 +21,6 @@ class CandidateSearchScreen extends ConsumerStatefulWidget {
 class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  String _query = '';
-  
   // Fake recent searches state for demo purposes as shown in Figma
   final List<Map<String, dynamic>> _recentSearches = [
     {'type': 'query', 'title': 'Développeur Fullstack'},
@@ -36,9 +34,8 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      setState(() {
-        _query = _searchController.text;
-      });
+      ref.read(candidateJobSearchQueryProvider.notifier).state =
+          _searchController.text;
     });
     // Request focus with microtask to prevent visual jank during route transition
     Future.microtask(() => _focusNode.requestFocus());
@@ -72,7 +69,8 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final jobsAsync = ref.watch(jobsNotifierProvider);
+    final query = ref.watch(candidateJobSearchQueryProvider);
+    final jobsAsync = ref.watch(candidateJobSearchResultsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -129,7 +127,7 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
                               ),
                             ),
                           ),
-                          if (_query.isNotEmpty)
+                          if (query.isNotEmpty)
                             GestureDetector(
                               onTap: () {
                                 _searchController.clear();
@@ -164,7 +162,7 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
             
             // Body Selection depending on query
             Expanded(
-              child: _query.isEmpty
+              child: query.isEmpty
                   ? _buildRecentSearches()
                   : Column(
                       children: [
@@ -302,10 +300,7 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
       child: jobsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => const Center(child: Text('Erreur de chargement')),
-        data: (jobs) {
-          final queryLower = _query.toLowerCase();
-          final results = jobs.where((j) => j.isPublished && j.title.toLowerCase().contains(queryLower)).toList();
-
+        data: (results) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

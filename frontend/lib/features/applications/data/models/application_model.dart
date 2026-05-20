@@ -6,6 +6,7 @@ class ApplicationModel {
   final String jobId;
   final String jobTitle;
   final String companyName;
+  final String department;
   final String? logoAsset;
   final String status; // 'pending' | 'interview' | 'accepted' | 'rejected'
   final String appliedAt;
@@ -13,12 +14,18 @@ class ApplicationModel {
   final String contractType;
   final String? scheduleLabel;
   final String? interviewDate;
+  final String? candidateName;
+  final String? candidateAvatar;
+  final String? candidateDomain;
+  final double candidateRating;
+  final String? motivationLetter;
 
   const ApplicationModel({
     required this.id,
     required this.jobId,
     required this.jobTitle,
     required this.companyName,
+    this.department = 'IT',
     this.logoAsset,
     required this.status,
     required this.appliedAt,
@@ -26,6 +33,11 @@ class ApplicationModel {
     required this.contractType,
     this.scheduleLabel,
     this.interviewDate,
+    this.candidateName,
+    this.candidateAvatar,
+    this.candidateDomain,
+    this.candidateRating = 0.0,
+    this.motivationLetter,
   });
 
   ApplicationEntity toEntity() => ApplicationEntity(
@@ -33,6 +45,7 @@ class ApplicationModel {
         jobId: jobId,
         jobTitle: jobTitle,
         companyName: companyName,
+        department: department,
         logoAsset: logoAsset,
         status: _parseStatus(status),
         appliedAt: DateTime.parse(appliedAt),
@@ -40,6 +53,11 @@ class ApplicationModel {
         contractType: _parseContract(contractType),
         scheduleLabel: scheduleLabel,
         interviewDate: interviewDate,
+        candidateName: candidateName,
+        candidateAvatar: candidateAvatar,
+        candidateDomain: candidateDomain,
+        candidateRating: candidateRating,
+        motivationLetter: motivationLetter,
       );
 
   static ApplicationStatus _parseStatus(String v) => switch (v) {

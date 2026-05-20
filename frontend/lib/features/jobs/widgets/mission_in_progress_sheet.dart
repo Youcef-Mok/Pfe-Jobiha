@@ -4,35 +4,56 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/screens/end_mission_screen.dart';
 import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
 import 'package:job_app/features/messaging/screens/private_message_screen.dart';
 
 /// Overlay centré pour les missions en cours et terminées.
-void showMissionInProgressSheet(BuildContext context, MissionEntity mission) {
+void showMissionInProgressSheet(
+  BuildContext context,
+  MissionEntity mission, {
+  bool isRecruiterView = false,
+}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => MissionInProgressSheet(mission: mission),
+    builder: (_) => MissionInProgressSheet(
+      mission: mission,
+      isRecruiterView: isRecruiterView,
+    ),
   );
 }
 
-void showCompletedMissionSheet(BuildContext context, MissionEntity mission) {
+void showCompletedMissionSheet(
+  BuildContext context,
+  MissionEntity mission, {
+  bool isRecruiterView = false,
+}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => CompletedMissionSheet(mission: mission),
+    builder: (_) => CompletedMissionSheet(
+      mission: mission,
+      isRecruiterView: isRecruiterView,
+    ),
   );
 }
 
-class MissionInProgressSheet extends StatelessWidget {
+class MissionInProgressSheet extends ConsumerWidget {
   final MissionEntity mission;
-  const MissionInProgressSheet({super.key, required this.mission});
+  final bool isRecruiterView;
+
+  const MissionInProgressSheet({
+    super.key,
+    required this.mission,
+    this.isRecruiterView = false,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Align(
       alignment: Alignment.center,
       child: Container(
@@ -53,7 +74,10 @@ class MissionInProgressSheet extends StatelessWidget {
           children: [
             SingleChildScrollView(
               padding: const EdgeInsets.only(top: 8, bottom: 60),
-              child: _InProgressMissionView(mission: mission),
+              child: _InProgressMissionView(
+                mission: mission,
+                isRecruiterView: isRecruiterView,
+              ),
             ),
             // Bouton fermer (croix)
             Positioned(
@@ -78,13 +102,30 @@ class MissionInProgressSheet extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => EndMissionScreen(mission: mission),
-                      ),
-                    );
+                  onPressed: () async {
+                    if (mission.isUnconfirmed) {
+                      await ref
+                          .read(jobsControllerProvider)
+                          .confirmMission(mission.id);
+                      await ref
+                          .read(missionsNotifierProvider.notifier)
+                          .fetch();
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Mission confirmée'),
+                          ),
+                        );
+                      }
+                    } else {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EndMissionScreen(mission: mission),
+                        ),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.violet,
@@ -94,9 +135,11 @@ class MissionInProgressSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Mettre fin à la mission',
-                    style: TextStyle(
+                  child: Text(
+                    mission.isUnconfirmed
+                        ? 'Confirmer la mission'
+                        : 'Mettre fin à la mission',
+                    style: const TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontWeight: FontWeight.w700,
                       fontSize: 16,
@@ -115,7 +158,12 @@ class MissionInProgressSheet extends StatelessWidget {
 
 class _InProgressMissionView extends StatelessWidget {
   final MissionEntity mission;
-  const _InProgressMissionView({required this.mission});
+  final bool isRecruiterView;
+
+  const _InProgressMissionView({
+    required this.mission,
+    this.isRecruiterView = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +172,7 @@ class _InProgressMissionView extends StatelessWidget {
       children: [
         _MissionHeader(mission: mission),
         const SizedBox(height: 25),
-        _MissionBody(mission: mission),
+        _MissionBody(mission: mission, isRecruiterView: isRecruiterView),
         const SizedBox(height: 27),
       ],
     );
@@ -300,7 +348,12 @@ class _StatusBadge extends StatelessWidget {
 
 class _MissionBody extends StatelessWidget {
   final MissionEntity mission;
-  const _MissionBody({required this.mission});
+  final bool isRecruiterView;
+
+  const _MissionBody({
+    required this.mission,
+    this.isRecruiterView = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -309,9 +362,9 @@ class _MissionBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Recruteur',
-            style: TextStyle(
+          Text(
+            isRecruiterView ? 'Employés' : 'Recruteur',
+            style: const TextStyle(
               fontFamily: 'Inter',
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -517,7 +570,13 @@ class _RecruiterCard extends ConsumerWidget {
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class CompletedMissionSheet extends StatelessWidget {
   final MissionEntity mission;
-  const CompletedMissionSheet({super.key, required this.mission});
+  final bool isRecruiterView;
+
+  const CompletedMissionSheet({
+    super.key,
+    required this.mission,
+    this.isRecruiterView = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -542,7 +601,10 @@ class CompletedMissionSheet extends StatelessWidget {
                     top: 30, 
                     bottom: mission.candidateRating == 0.0 ? 96 : 16,
                   ),
-                  child: _CompletedMissionView(mission: mission),
+                  child: _CompletedMissionView(
+                    mission: mission,
+                    isRecruiterView: isRecruiterView,
+                  ),
                 ),
               ),
               // Fixed bottom button - only show if candidate hasn't rated yet
@@ -601,7 +663,12 @@ class CompletedMissionSheet extends StatelessWidget {
 
 class _CompletedMissionView extends StatelessWidget {
   final MissionEntity mission;
-  const _CompletedMissionView({required this.mission});
+  final bool isRecruiterView;
+
+  const _CompletedMissionView({
+    required this.mission,
+    this.isRecruiterView = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -610,7 +677,10 @@ class _CompletedMissionView extends StatelessWidget {
       children: [
         _CompletedMissionHeader(mission: mission),
         const SizedBox(height: 0),
-        _CompletedMissionBody(mission: mission),
+        _CompletedMissionBody(
+          mission: mission,
+          isRecruiterView: isRecruiterView,
+        ),
       ],
     );
   }
@@ -742,7 +812,12 @@ class _CompletedMissionHeader extends StatelessWidget {
 
 class _CompletedMissionBody extends StatelessWidget {
   final MissionEntity mission;
-  const _CompletedMissionBody({required this.mission});
+  final bool isRecruiterView;
+
+  const _CompletedMissionBody({
+    required this.mission,
+    this.isRecruiterView = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -795,7 +870,9 @@ class _CompletedMissionBody extends StatelessWidget {
                   // Évaluation recruteur - n'afficher que si elle existe
                   if (hasRecruiterReview) ...[
                     _EvaluationCard(
-                      title: 'Évaluation Recruteur',
+                      title: isRecruiterView
+                          ? 'Évaluation employeur'
+                          : 'Évaluation Recruteur',
                       subtitle: 'Par ${mission.companyName}',
                       rating: mission.recruiterRating,
                       feedback: mission.recruiterFeedback,
@@ -811,9 +888,9 @@ class _CompletedMissionBody extends StatelessWidget {
           
           // Recruteur - afficher après les évaluations
           if (hasTeam) ...[
-            const Text(
-              'Recruteur',
-              style: TextStyle(
+            Text(
+              isRecruiterView ? 'Employés' : 'Recruteur',
+              style: const TextStyle(
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w800,
                 fontSize: 18,

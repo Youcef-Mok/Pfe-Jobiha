@@ -4,4 +4,6 @@ abstract class ApplicationsRepository {
   Future<List<ApplicationEntity>> getMyApplications();
   Future<ApplicationEntity> applyToJob(String jobId);
   Future<void> cancelApplication(String applicationId);
+  Future<void> acceptApplication(String applicationId);
+  Future<void> rejectApplication(String applicationId);
 }

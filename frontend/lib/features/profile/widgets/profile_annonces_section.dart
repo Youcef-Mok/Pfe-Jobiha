@@ -3,14 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/widgets/job_card.dart';
+import 'package:job_app/features/jobs/screens/job_details_screen.dart';
 
-/// Section "Mes annonces" du profil — affiche les JobCards scrollables
+/// Section "Mes annonces" du profil — grand cadre avec cartes colorées
 class ProfileAnnoncesSection extends ConsumerWidget {
   const ProfileAnnoncesSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final jobsAsync = ref.watch(jobsNotifierProvider);
+    final jobsAsync = ref.watch(filteredJobsProvider);
 
     return jobsAsync.when(
       data: (jobs) {
@@ -20,34 +21,31 @@ class ProfileAnnoncesSection extends ConsumerWidget {
           );
         }
 
-        return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              if (index == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 2, left: 16, right: 16, top: 10),
-                  child: Text(
-                    'Mes annonces',
-                    style: AppTextStyles.heading2.copyWith(
-                      color: AppColors.slate900,
-                      fontSize: 18,
-                    ),
-                  ),
-                );
-              }
-              final job = jobs[index - 1];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: JobCard(
-                  job: job,
-                  onTap: () {},
-                  onEdit: () {},
-                  onViewCandidates: () {},
-                  onComplete: () {},
-                ),
-              );
-            },
-            childCount: jobs.length + 1,
+        return SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 10, 16, 100),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...jobs.map((job) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: JobCard(
+                        job: job,
+                        cardColor: const Color(0xFFEFEDF2),
+                        onTap: () => showJobDetailsSheet(context, job),
+                        onEdit: () {},
+                        onViewCandidates: () =>
+                            showJobApplicationsOverlay(context, ref, job),
+                        onComplete: () {},
+                      ),
+                    )),
+              ],
+            ),
           ),
         );
       },
@@ -66,7 +64,6 @@ class ProfileAnnoncesSection extends ConsumerWidget {
     );
   }
 }
-
 
 class _EmptyState extends StatelessWidget {
   final String message;

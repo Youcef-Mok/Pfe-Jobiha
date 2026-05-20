@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
 
-/// Header du profil avec dimensions CSS Figma
+/// Header du profil avec avatar, nom, rôle, localisation et boutons
 class ProfileHeader extends StatelessWidget {
   final UserEntity user;
 
@@ -10,211 +10,201 @@ class ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color grayColor = Color(0xFF475569); // slate600
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      child: Column(
+   return Padding(
+  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Avatar
-              Container(
-                width: 84.56,
-                height: 84.56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFE2E8F0),
-                  image: user.avatarUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(user.avatarUrl!),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: user.avatarUrl == null
-                    ? Center(
+          // 🔻 Avatar réduit
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(9999),
+              color: AppColors.slate100,
+            ),
+            child: user.avatarUrl != null
+                ? ClipOval(
+                    child: Image.network(
+                      user.avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
                         child: Text(
                           user.initials,
-                          style: GoogleFonts.inter(
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
                             fontWeight: FontWeight.w700,
-                            fontSize: 32,
-                            color: const Color(0xFF401E66),
+                            fontSize: 28, // 🔻 un peu réduit
+                            color: AppColors.violet,
                           ),
                         ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 16),
-
-              // Text Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user.name,
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 24,
-                              height: 1.33,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                        ),
-                        if (user.accountType == 'recruiter')
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0x1A7F19E6),
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            child: Text(
-                              'RECRUTOR',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 10,
-                                letterSpacing: 1,
-                                color: const Color(0xFF401E66),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      user.role,
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 16,
-                        height: 1.5,
-                        color: grayColor,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.restaurant,
-                            size: 14, color: grayColor),
-                        const SizedBox(width: 6),
-                        Text(
-                          user.company,
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 16,
-                            height: 1.5,
-                            color: grayColor,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '•',
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 16,
-                            height: 1.5,
-                            color: grayColor,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.location_on,
-                            size: 14, color: grayColor),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            user.location,
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16,
-                              height: 1.5,
-                              color: grayColor,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                  )
+                : Center(
+                    child: Text(
+                      user.initials,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 28,
+                        color: AppColors.violet,
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
           ),
+          const SizedBox(width: 12), // 🔻 espace réduit
 
-          const SizedBox(height: 12),
-
-          // Row of Buttons
-          Row(
-            children: [
-              const SizedBox(width: 84.56 + 16),
-              Expanded(
-                child: Row(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
-                      child: SizedBox(
-                        height: 34.29,
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF401E66),
-                            foregroundColor: const Color(0xFFFAFAFA),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            padding: EdgeInsets.zero,
-                          ),
-                          child: Text(
-                            'Modifier',
-                            style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w600, fontSize: 14),
-                          ),
+                      child: Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 24,
+                          height: 1.2, // 🔻 plus compact
+                          color: Color(0xFF0F172A),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 14),
                     Container(
-                      width: 59,
-                      height: 32.28,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2), // 🔻 réduit
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEDE3F7),
-                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0x1A7F19E6),
+                        borderRadius: BorderRadius.circular(5),
                       ),
-                      child: const Icon(
-                        Icons.share,
-                        color: Color(0xFF401E66),
-                        size: 20,
+                      child: const Text(
+                        'RECRUTOR',
+                        style: TextStyle(
+                          fontFamily: 'Spline Sans',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 9, // 🔻 plus petit
+                          letterSpacing: 1,
+                          color: AppColors.violet,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
 
-          const SizedBox(height: 16),
+                const SizedBox(height: 2), // 🔻 moins d’espace
 
-          // Bio Text
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Text(
-              user.bio,
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w400,
-                fontSize: 14,
-                height: 1.64,
-                color: const Color(0xFF334155),
-              ),
+                // 🔻 Statut réduit
+                Text(
+                  user.role,
+                  style: const TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14, // 🔻 réduit
+                    height: 1.3,
+                    color: AppColors.slate600,
+                  ),
+                ),
+
+                const SizedBox(height: 2), // 🔻 moins d’espace
+
+                Row(
+                  children: [
+                    const Icon(Icons.location_on,
+                        size: 11, color: AppColors.slate600), // 🔻 réduit
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '${user.company} • ${user.location}',
+                        style: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14, // 🔻 réduit
+                          height: 1.3,
+                          color: AppColors.slate600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
       ),
-    );
+
+      const SizedBox(height: 8),
+
+      Row(
+        children: [
+          SizedBox(
+            width: 116,
+            height: 42,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.violet,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+              ),
+              child: const Text(
+                'Follow',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 59,
+            height: 40,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0x1A7F19E6),
+                foregroundColor: AppColors.violet,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: EdgeInsets.zero,
+              ),
+              child: const Icon(Icons.mail_outline, size: 20),
+            ),
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 14),
+
+      // 🔺 Bio agrandie
+      Text(
+        user.bio,
+        style: const TextStyle(
+          fontFamily: 'Plus Jakarta Sans',
+          fontWeight: FontWeight.w400,
+          fontSize: 15, // 🔺 plus grand
+          height: 1.8,
+          color: Color(0xFF475569),
+        ),
+      ),
+    ],
+  ),
+);
   }
 }

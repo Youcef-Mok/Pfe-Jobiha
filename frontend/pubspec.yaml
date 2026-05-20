@@ -32,6 +32,9 @@ dependencies:
   flutter_map_cancellable_tile_provider: ^3.0.2
   url_launcher: ^6.3.1
 
+  # SVG support
+  flutter_svg: ^2.0.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -48,3 +51,4 @@ flutter:
   # Assets
   assets:
     - assets/images/
+    - assets/icons/

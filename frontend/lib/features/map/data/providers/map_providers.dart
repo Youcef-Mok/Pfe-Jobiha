@@ -9,6 +9,7 @@ import 'package:job_app/features/applications/data/providers/applications_provid
 // ─────────────────────────────────────────────
 // 1. Repository Provider
 // ─────────────────────────────────────────────
+// TODO(API): Remplacer MapRepositoryMock par MapRepositoryHttp ici.
 final mapRepositoryProvider = Provider<MapRepository>(
   (ref) => MapRepositoryMock(),
 );
@@ -40,74 +41,13 @@ final filteredMapJobsProvider = Provider<List<MapJobEntity>>((ref) {
   final controller = ref.watch(mapControllerProvider);
 
   return jobsAsync.when(
-    data: (jobs) {
-      var result = controller.filterJobs(jobs, query);
-
-      // --- FILTRES GLOBAUX (CandidateFilters) ---
-
-      // Catégorie (Domaine)
-      if (candidateFilters.category != null) {
-        final cat = candidateFilters.category!.toLowerCase();
-        result = result
-            .where((j) => j.category.toLowerCase().contains(cat))
-            .toList();
-      }
-
-      // Types de contrat
-      if (candidateFilters.contractTypes.isNotEmpty) {
-        result = result
-            .where((j) => candidateFilters.contractTypes.contains(j.contractType))
-            .toList();
-      }
-
-      // Localisation (recherche textuelle simple sur la ville/commune si disponible)
-      if (candidateFilters.location != null) {
-        // Pour la démo, on considère que si la localisation est fixée, on peut filtrer (si l'entité avait un champ ville)
-        // Ici on n'a pas de champ ville explicite dans MapJobEntity, mais on peut imaginer une logique
-      }
-
-      // --- FILTRES SPÉCIFIQUES CARTE ---
-
-      // Filtre Categorie → contractType
-      if (mapFilters.containsKey('Categorie')) {
-        final cat = mapFilters['Categorie']!;
-        result = result.where((j) => j.contractType == cat).toList();
-      }
-
-      // Filtre Domaine → category
-      if (mapFilters.containsKey('Domaine')) {
-        final dom = mapFilters['Domaine']!;
-        result = result
-            .where(
-              (j) => j.category.toLowerCase().contains(dom.toLowerCase()),
-            )
-            .toList();
-      }
-
-      // Filtre Horraires → hours
-      if (mapFilters.containsKey('Horaires')) {
-        final hours = mapFilters['Horaires']!;
-        result = result.where((j) => j.hours.contains(hours)).toList();
-      }
-
-      // Filtre Emplacement → distance
-      if (mapFilters.containsKey('Emplacement')) {
-        final limitStr = mapFilters['Emplacement']!; // e.g. "< 10 km"
-        final limit = double.tryParse(
-          limitStr.replaceAll('<', '').replaceAll('km', '').trim(),
-        );
-        if (limit != null) {
-          result = result.where((j) {
-            final dist = double.tryParse(
-              j.distance.replaceAll('km', '').trim(),
-            );
-            return dist != null && dist <= limit;
-          }).toList();
-        }
-      }
-
-      return result;
-    },
+    data: (jobs) => controller.applyMapFilters(
+      jobs: jobs,
+      searchQuery: query,
+      mapFilters: mapFilters,
+      candidateCategory: candidateFilters.category,
+      candidateContractTypes: candidateFilters.contractTypes,
+    ),
     loading: () => [],
     error: (_, __) => [],
   );

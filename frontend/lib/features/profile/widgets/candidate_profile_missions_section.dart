@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/jobs/widgets/mission_card.dart';
 import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
-import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 
 class CandidateProfileMissionsSection extends ConsumerWidget {
   const CandidateProfileMissionsSection({super.key});

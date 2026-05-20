@@ -1,11 +1,13 @@
 class MissionEntity {
   final String id;
+  final String jobId;
   final String jobTitle;
   final String companyName;
+  final String department;
   final DateTime startDate;
   final DateTime endDate;
   final String location;
-  final String status; // 'in_progress', 'completed'
+  final String status; // 'unconfirmed' | 'in_progress' | 'completed'
   final String recruiterName;
   final String candidateName;
   final double candidateRating;
@@ -18,8 +20,10 @@ class MissionEntity {
 
   const MissionEntity({
     required this.id,
+    this.jobId = '',
     required this.jobTitle,
     required this.companyName,
+    this.department = 'IT',
     required this.startDate,
     required this.endDate,
     required this.location,
@@ -35,6 +39,8 @@ class MissionEntity {
     this.team = const [],
   });
 
+  bool get isUnconfirmed => status == 'unconfirmed';
+  bool get isInProgress => status == 'in_progress';
   bool get isCompleted => status == 'completed';
 }
 

@@ -6,21 +6,26 @@ import 'package:job_app/features/profile/data/repositories/user_repository.dart'
 /// Implémentation mock du repository utilisateur
 class UserRepositoryMock implements UserRepository {
   static final UserModel _currentUser = UserModel(
-    id: 'user_1',
-    name: 'Farouja',
-    role: 'Gérante',
+    id: 'recruiter_1',
+    name: 'Ahmed Bensalem',
+    role: 'Recruteur Senior',
     domain: 'Restauration',
-    company: 'Le petit bistro',
-    location: 'Alger Birlmouta',
+    company: 'Le Petit Bistro',
+    location: 'Alger, DZ',
     bio:
-        'Passionné par la gastronomie et le service d\'excellence, je recrute des talents pour dynamiser nos équipes en cuisine et en salle. Mon objectif est de créer une expérience client inoubliable au quotidien.',
-    avatarUrl: 'https://i.pravatar.cc/150?img=47',
-    followersCount: 1200,
-    missionsCount: 45,
-    rating: 4.8,
+        'Je recrute des profils cuisine et salle pour renforcer des equipes performantes et offrir une experience client de haut niveau.',
+    avatarUrl: 'assets/images/pdp_1.png',
+    followersCount: 860,
+    missionsCount: 52,
+    rating: 4.9,
     accountType: 'recruiter',
   );
 
+  // TODO(API): GET /api/v1/users/:userId/reviews
+  //            En production, le backend filtre par userId côté serveur.
+  //            Supprimer la branche candidate_1 ici et utiliser directement l'endpoint.
+
+  // Avis reçus sur le profil recruteur
   static final List<EmployeeReviewModel> _reviews = [
     EmployeeReviewModel(
       id: 'review_1',
@@ -56,6 +61,46 @@ class UserRepositoryMock implements UserRepository {
       rating: 4.0,
       comment:
           'Bonne expérience globale, l\'équipe est respectueuse. J\'aurais aimé un planning un peu plus stable.',
+      recruiterReply: null,
+      recruiterName: null,
+      recruiterReplyDate: null,
+    ),
+  ];
+
+  // Avis reçus sur le profil candidat (Farouja — userId: 'candidate_1')
+  static final List<EmployeeReviewModel> _candidateReviews = [
+    EmployeeReviewModel(
+      id: 'review_c1',
+      authorName: 'Karim Bensalem',
+      authorRole: 'Recruteur chez Sonatrach',
+      authorAvatar: 'assets/images/pdp_1.png',
+      rating: 5.0,
+      comment:
+          'Excellente collaboration sur la mission de Tech Recruiter. Farouja a su s\'adapter rapidement à nos besoins et a fait preuve d\'un grand professionnalisme.',
+      recruiterReply: null,
+      recruiterName: null,
+      recruiterReplyDate: null,
+    ),
+    EmployeeReviewModel(
+      id: 'review_c2',
+      authorName: 'Amira Hadj',
+      authorRole: 'DRH chez Cevital',
+      authorAvatar: 'assets/images/pdp_2.png',
+      rating: 5.0,
+      comment:
+          'Mission de Responsable RH accomplie avec brio. Une vraie expertise en recrutement et gestion d\'équipe. Je recommande vivement !',
+      recruiterReply: null,
+      recruiterName: null,
+      recruiterReplyDate: null,
+    ),
+    EmployeeReviewModel(
+      id: 'review_c3',
+      authorName: 'Sofiane Mebarki',
+      authorRole: 'Manager RH chez Air Algérie',
+      authorAvatar: 'assets/images/pdp_4.png',
+      rating: 4.0,
+      comment:
+          'Très bonne expérience sur la mission de Chargée de Recrutement. Farouja a su gérer efficacement le processus de recrutement.',
       recruiterReply: null,
       recruiterName: null,
       recruiterReplyDate: null,
@@ -148,7 +193,10 @@ class UserRepositoryMock implements UserRepository {
   @override
   Future<List<EmployeeReviewEntity>> getEmployeeReviews(String userId) async {
     await Future.delayed(const Duration(milliseconds: 400));
-    return _reviews.map((r) => r.toEntity()).toList();
+    // TODO(API): GET /api/v1/users/:userId/reviews — supprimer ce if/else,
+    //            le backend retournera les avis du bon utilisateur.
+    final source = userId == 'candidate_1' ? _candidateReviews : _reviews;
+    return source.map((r) => r.toEntity()).toList();
   }
 
   @override

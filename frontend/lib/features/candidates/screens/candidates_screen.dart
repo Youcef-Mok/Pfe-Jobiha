@@ -15,10 +15,12 @@ class CandidatesScreen extends ConsumerStatefulWidget {
 }
 
 class _CandidatesScreenState extends ConsumerState<CandidatesScreen> {
-  String _sortMode = 'recent'; // 'recent', 'best', 'unprocessed'
-
   @override
   Widget build(BuildContext context) {
+    final sortMode = ref.watch(candidatesSortModeProvider);
+    final filteredAsync = ref.watch(filteredCandidatesProvider);
+    final count = filteredAsync.whenOrNull(data: (list) => list.length) ?? 0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F3F8),
       body: SafeArea(
@@ -32,13 +34,15 @@ class _CandidatesScreenState extends ConsumerState<CandidatesScreen> {
                   children: [
                     const _JobInfoCard(),
                     _CandidatesCountRow(
-                      count: filteredLength,
-                      currentSort: _sortMode,
-                      onSortChanged: (val) => setState(() => _sortMode = val),
+                      count: count,
+                      currentSort: sortMode,
+                      onSortChanged: (val) => ref
+                          .read(candidatesSortModeProvider.notifier)
+                          .state = val,
                     ),
                     const _TabSection(),
                     const SizedBox(height: 10),
-                    _CandidatesGrid(sortMode: _sortMode),
+                    const _CandidatesGrid(),
                   ],
                 ),
               ),
@@ -46,21 +50,8 @@ class _CandidatesScreenState extends ConsumerState<CandidatesScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 2),
     );
-  }
-
-  int get filteredLength {
-     final candidatesAsync = ref.watch(candidatesNotifierProvider);
-     final currentTab = ref.watch(candidatesTabProvider);
-     final controller = ref.watch(candidatesControllerProvider);
-     return candidatesAsync.whenOrNull(
-       data: (list) => controller.filterAndSort(
-         candidates: list, 
-         tab: currentTab, 
-         sortMode: _sortMode
-       ).length
-     ) ?? 0;
   }
 }
 
@@ -395,14 +386,11 @@ class _TabButton extends StatelessWidget {
 // Candidates Grid - 2 columns
 // ─────────────────────────────────────────────
 class _CandidatesGrid extends ConsumerWidget {
-  final String sortMode;
-  const _CandidatesGrid({required this.sortMode});
+  const _CandidatesGrid();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final candidatesAsync = ref.watch(candidatesNotifierProvider);
-    final currentTab = ref.watch(candidatesTabProvider);
-    final controller = ref.watch(candidatesControllerProvider);
+    final candidatesAsync = ref.watch(filteredCandidatesProvider);
 
     return candidatesAsync.when(
       loading: () => const Center(
@@ -417,13 +405,7 @@ class _CandidatesGrid extends ConsumerWidget {
           child: Text('Erreur: $e'),
         ),
       ),
-      data: (candidates) {
-        final filtered = controller.filterAndSort(
-          candidates: candidates, 
-          tab: currentTab,
-          sortMode: sortMode
-        );
-
+      data: (filtered) {
         if (filtered.isEmpty) {
           return const Center(
             child: Padding(

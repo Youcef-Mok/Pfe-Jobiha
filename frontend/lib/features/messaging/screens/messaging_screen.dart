@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 import 'package:job_app/core/widgets/candidate_nav_bar.dart';
 import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
 import 'package:job_app/features/messaging/domain/message_entity.dart';
@@ -9,7 +10,9 @@ import 'package:job_app/features/messaging/screens/new_message_screen.dart';
 import 'package:job_app/features/messaging/screens/private_message_screen.dart';
 
 class MessagingScreen extends ConsumerStatefulWidget {
-  const MessagingScreen({super.key});
+  final bool isRecruiterView;
+
+  const MessagingScreen({super.key, this.isRecruiterView = false});
 
   @override
   ConsumerState<MessagingScreen> createState() => _MessagingScreenState();
@@ -280,7 +283,9 @@ class _MessagingScreenState extends ConsumerState<MessagingScreen> {
                 ],
               ),
       ),
-      bottomNavigationBar: const CandidateNavBar(currentIndex: 2),
+      bottomNavigationBar: widget.isRecruiterView
+          ? const AppBottomNavBar(currentIndex: 2)
+          : const CandidateNavBar(currentIndex: 2),
     );
   }
 }

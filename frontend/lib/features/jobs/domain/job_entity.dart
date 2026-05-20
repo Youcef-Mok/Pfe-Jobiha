@@ -10,6 +10,7 @@ class JobEntity {
   final String title;
   final String companyName;
   final ContractType contractType; // Ajouté
+  final String department;
   final DateTime postedAt;
   final JobStatus status;
   final int candidateCount;
@@ -24,6 +25,7 @@ class JobEntity {
     required this.title,
     required this.companyName,
     required this.contractType, // Ajouté
+    this.department = 'IT',
     required this.postedAt,
     required this.status,
     required this.candidateCount,

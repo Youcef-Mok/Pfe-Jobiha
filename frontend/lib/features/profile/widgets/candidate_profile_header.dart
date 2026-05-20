@@ -1,28 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
-import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/core/utils/color_utils.dart';
 import 'dart:io';
 
 class CandidateProfileHeader extends ConsumerWidget {
   final UserEntity user;
   final VoidCallback? onEdit;
+  final bool isRecruiterView;
 
   const CandidateProfileHeader({
     super.key,
     required this.user,
     this.onEdit,
+    this.isRecruiterView = false,
   });
 
   Widget _buildProfileImage() {
     final avatarUrl = user.avatarUrl;
-    
-    // Check if it's a local file path
-    if (avatarUrl != null && !avatarUrl.startsWith('assets/') && File(avatarUrl).existsSync()) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(999),
+
+    if (!kIsWeb &&
+        avatarUrl != null &&
+        !avatarUrl.startsWith('assets/') &&
+        File(avatarUrl).existsSync()) {
+      return ClipOval(
         child: Image.file(
           File(avatarUrl),
           fit: BoxFit.cover,
@@ -31,10 +35,8 @@ class CandidateProfileHeader extends ConsumerWidget {
         ),
       );
     }
-    
-    // Use asset image
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
+
+    return ClipOval(
       child: Image.asset(
         avatarUrl ?? 'assets/images/imageannonc(3).jpg',
         fit: BoxFit.cover,
@@ -44,10 +46,7 @@ class CandidateProfileHeader extends ConsumerWidget {
           return Container(
             width: 108,
             height: 108,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.background,
-            ),
+            color: AppColors.background,
             child: const Icon(Icons.person, size: 54, color: Colors.white),
           );
         },
@@ -148,6 +147,7 @@ class CandidateProfileHeader extends ConsumerWidget {
                       Container(
                         width: 108,
                         height: 108,
+                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 4),
@@ -196,7 +196,25 @@ class CandidateProfileHeader extends ConsumerWidget {
                       color: Color(0xFF0B1C30),
                     ),
                   ),
-                  if (hasActiveMission) ...[
+                  if (isRecruiterView) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF401E66),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'Recruteur',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ] else if (hasActiveMission) ...[
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

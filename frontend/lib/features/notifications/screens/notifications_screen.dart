@@ -22,7 +22,7 @@ class NotificationsScreen extends ConsumerWidget {
           children: [
             // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Container(
-              color: const Color(0xFFEFEDF2),
+              color: AppColors.background,
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -106,7 +106,7 @@ class _FilterTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFEFEDF2),
+      color: AppColors.background,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Container(
         height: 35,
@@ -124,7 +124,7 @@ class _FilterTabs extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   decoration: BoxDecoration(
-                    color: isActive ? const Color(0xFFEFEDF2) : Colors.transparent,
+                    color: isActive ? AppColors.background : Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: isActive
                         ? [const BoxShadow(color: Color(0x1A7F13EC), blurRadius: 2, offset: Offset(0, 1))]

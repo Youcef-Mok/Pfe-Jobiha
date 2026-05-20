@@ -1,5 +1,6 @@
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
+import 'package:job_app/features/jobs/domain/create_mission_params.dart';
 // features/candidates/data/repositories/candidates_repository.dart
 
 /// Interface abstraite du repository.
@@ -19,7 +20,13 @@ abstract class JobsRepository {
 
   /// Retourne les missions de l'utilisateur
   Future<List<MissionEntity>> getMissions();
-  
+
+  /// Crée une mission (statut non confirmée).
+  Future<MissionEntity> createMission(CreateMissionParams params);
+
+  /// Confirme une mission non confirmée → en cours.
+  Future<MissionEntity> confirmMission(String missionId);
+
   /// Met à jour une mission avec le review du candidat
   Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback);
 }
