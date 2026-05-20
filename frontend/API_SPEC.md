@@ -54,7 +54,7 @@ Connexion avec email + mot de passe.
 ```
 **Response 200**
 ```json
-{ "access_token": "string", "refresh_token": "string", "user": { "id", "name", "account_type": "recruiter|candidate" } }
+{ "access_token": "str2ing", "refresh_token": "string", "user": { "id", "name", "account_type": "recruiter|candidate" } }
 ```
 **Notes** : Stocker les tokens en secure storage. `account_type` détermine quel flow afficher (recruiter ou candidate).
 
@@ -113,6 +113,30 @@ Retourne le profil de l'utilisateur authentifié.
 }
 ```
 **Notes** : Remplace `UserRepositoryMock.getCurrentUser()`.
+
+---
+
+### GET /api/v1/users/:userId
+Retourne le profil public d'un utilisateur (ex: recruteur depuis une annonce).
+
+**Response 200**
+```json
+{
+  "id": "string",
+  "name": "string",
+  "role": "string",
+  "domain": "string",
+  "company": "string",
+  "location": "string",
+  "bio": "string",
+  "avatar_url": "string|null",
+  "followers_count": 0,
+  "missions_count": 0,
+  "rating": 4.8,
+  "account_type": "recruiter|candidate"
+}
+```
+**Notes** : utilisé pour la page profil public recruteur. Remplace `UserRepositoryMock.getUserById()`.
 
 ---
 
@@ -179,6 +203,10 @@ Retourne les annonces du recruteur connecté.
   "id": "string",
   "title": "string",
   "company_name": "string",
+  "recruiter_id": "string",
+  "recruiter_name": "string",
+  "recruiter_role": "string",
+  "recruiter_avatar_asset": "string|null",
   "department": "string",
   "contract_type": "cdi|freelance|mission",
   "posted_at": "ISO8601",
@@ -210,6 +238,7 @@ Crée une nouvelle annonce (brouillon ou publiée).
 ```
 **Response 201** : Annonce créée.
 **Notes** : Remplace `JobsRepositoryMock.saveJob()` en mode création.
+Le backend doit utiliser la société du recruteur connecté par défaut (`company_name`) et renseigner les champs recruteur (`recruiter_id`, `recruiter_name`, `recruiter_role`, `recruiter_avatar_asset`) dans la réponse.
 
 ---
 

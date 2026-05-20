@@ -5,21 +5,110 @@ import 'package:job_app/features/profile/data/repositories/user_repository.dart'
 
 /// Implémentation mock du repository utilisateur
 class UserRepositoryMock implements UserRepository {
-  static final UserModel _currentUser = UserModel(
-    id: 'recruiter_1',
-    name: 'Ahmed Bensalem',
-    role: 'Recruteur Senior',
-    domain: 'Restauration',
-    company: 'Le Petit Bistro',
-    location: 'Alger, DZ',
-    bio:
-        'Je recrute des profils cuisine et salle pour renforcer des equipes performantes et offrir une experience client de haut niveau.',
-    avatarUrl: 'assets/images/pdp_1.png',
-    followersCount: 860,
-    missionsCount: 52,
-    rating: 4.9,
-    accountType: 'recruiter',
-  );
+  static final Map<String, UserModel> _recruiters = {
+    'recruiter_1': UserModel(
+      id: 'recruiter_1',
+      name: 'Ahmed Bensalem',
+      role: 'Responsable RH',
+      domain: 'Restauration',
+      company: 'Le Petit Bistro',
+      location: 'Alger, DZ',
+      bio:
+          'Je recrute des profils cuisine et salle pour renforcer des equipes performantes et offrir une experience client de haut niveau.',
+      avatarUrl: 'assets/images/pdp_1.png',
+      followersCount: 860,
+      missionsCount: 52,
+      rating: 4.9,
+      accountType: 'recruiter',
+    ),
+    'recruiter_2': UserModel(
+      id: 'recruiter_2',
+      name: 'Amira Hadj',
+      role: 'DRH',
+      domain: 'Industrie',
+      company: 'Cevital',
+      location: 'Bejaia, DZ',
+      bio: 'DRH avec 10+ ans d experience en recrutement et structuration RH.',
+      avatarUrl: 'assets/images/pdp_2.png',
+      followersCount: 540,
+      missionsCount: 38,
+      rating: 4.8,
+      accountType: 'recruiter',
+    ),
+    'recruiter_3': UserModel(
+      id: 'recruiter_3',
+      name: 'Sofiane Mebarki',
+      role: 'Talent Acquisition Lead',
+      domain: 'Aérien',
+      company: 'Air Algerie',
+      location: 'Alger, DZ',
+      bio: 'J accompagne les equipes dans le recrutement de profils operationnels.',
+      avatarUrl: 'assets/images/pdp_4.png',
+      followersCount: 430,
+      missionsCount: 44,
+      rating: 4.7,
+      accountType: 'recruiter',
+    ),
+    'recruiter_4': UserModel(
+      id: 'recruiter_4',
+      name: 'Sarah Jenkins',
+      role: 'Head of Design',
+      domain: 'Design',
+      company: 'Creative Agency',
+      location: 'Lyon, FR',
+      bio: 'I build high-performing design teams and product design processes.',
+      avatarUrl: 'assets/images/pdp_new.png',
+      followersCount: 920,
+      missionsCount: 61,
+      rating: 4.9,
+      accountType: 'recruiter',
+    ),
+    'recruiter_5': UserModel(
+      id: 'recruiter_5',
+      name: 'Karim Bensalem',
+      role: 'Responsable Recrutement',
+      domain: 'Operations',
+      company: 'BuildCorp',
+      location: 'Oran, DZ',
+      bio: 'Specialise dans le recrutement terrain et la gestion de missions longues.',
+      avatarUrl: 'assets/images/pdp_1.png',
+      followersCount: 310,
+      missionsCount: 29,
+      rating: 4.6,
+      accountType: 'recruiter',
+    ),
+  };
+  static final Map<String, UserModel> _candidates = {
+    'candidate_1': const UserModel(
+      id: 'candidate_1',
+      name: 'Farouja',
+      role: 'Serveuse',
+      domain: 'Restauration',
+      company: 'Indépendant',
+      location: 'Alger, DZ',
+      bio:
+          'Candidate experimentee en restauration, service en salle et coordination d equipe.',
+      avatarUrl: 'assets/images/imageannonc(3).jpg',
+      followersCount: 0,
+      missionsCount: 120,
+      rating: 4.9,
+      accountType: 'candidate',
+    ),
+    'candidate_2': const UserModel(
+      id: 'candidate_2',
+      name: 'Lina Rahal',
+      role: 'Chargee de recrutement',
+      domain: 'RH',
+      company: 'Freelance',
+      location: 'Oran, DZ',
+      bio: 'J accompagne les equipes RH sur le sourcing et la preselection.',
+      avatarUrl: 'assets/images/pdp_2.png',
+      followersCount: 0,
+      missionsCount: 34,
+      rating: 4.7,
+      accountType: 'candidate',
+    ),
+  };
 
   // TODO(API): GET /api/v1/users/:userId/reviews
   //            En production, le backend filtre par userId côté serveur.
@@ -106,6 +195,15 @@ class UserRepositoryMock implements UserRepository {
       recruiterReplyDate: null,
     ),
   ];
+  static final Map<String, List<EmployeeReviewModel>> _reviewsByUserId = {
+    'candidate_1': _candidateReviews,
+    'candidate_2': _candidateReviews,
+    'recruiter_1': _reviews,
+    'recruiter_2': _reviews,
+    'recruiter_3': _reviews,
+    'recruiter_4': _reviews,
+    'recruiter_5': _reviews,
+  };
 
   static const _cvData = CvEntity(
     formations: [
@@ -187,15 +285,21 @@ class UserRepositoryMock implements UserRepository {
   @override
   Future<UserEntity> getCurrentUser() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return _currentUser.toEntity();
+    return _recruiters['recruiter_1']!.toEntity();
+  }
+
+  @override
+  Future<UserEntity> getUserById(String userId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final user = _recruiters[userId] ?? _candidates[userId] ?? _recruiters['recruiter_1']!;
+    return user.toEntity();
   }
 
   @override
   Future<List<EmployeeReviewEntity>> getEmployeeReviews(String userId) async {
     await Future.delayed(const Duration(milliseconds: 400));
-    // TODO(API): GET /api/v1/users/:userId/reviews — supprimer ce if/else,
-    //            le backend retournera les avis du bon utilisateur.
-    final source = userId == 'candidate_1' ? _candidateReviews : _reviews;
+    // TODO(API): GET /api/v1/users/:userId/reviews.
+    final source = _reviewsByUserId[userId] ?? const <EmployeeReviewModel>[];
     return source.map((r) => r.toEntity()).toList();
   }
 

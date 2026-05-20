@@ -9,6 +9,10 @@ class JobEntity {
   final String id;
   final String title;
   final String companyName;
+  final String recruiterId;
+  final String recruiterName;
+  final String recruiterRole;
+  final String? recruiterAvatarAsset;
   final ContractType contractType; // Ajouté
   final String department;
   final DateTime postedAt;
@@ -24,6 +28,10 @@ class JobEntity {
     required this.id,
     required this.title,
     required this.companyName,
+    this.recruiterId = 'recruiter_1',
+    this.recruiterName = 'Ahmed Bensalem',
+    this.recruiterRole = 'Responsable RH',
+    this.recruiterAvatarAsset = 'assets/images/pdp_1.png',
     required this.contractType, // Ajouté
     this.department = 'IT',
     required this.postedAt,

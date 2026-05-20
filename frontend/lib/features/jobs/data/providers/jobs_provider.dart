@@ -105,6 +105,34 @@ final publishedJobsProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
   return jobsAsync.whenData(controller.filterPublished);
 });
 
+final recruiterPublishedJobsProvider =
+    Provider.family<AsyncValue<List<JobEntity>>, String>((ref, recruiterId) {
+  final publishedAsync = ref.watch(publishedJobsProvider);
+  return publishedAsync.whenData(
+    (jobs) => jobs.where((j) => j.recruiterId == recruiterId).toList(),
+  );
+});
+
+final recruiterFilteredPublishedJobsProvider =
+    Provider.family<AsyncValue<List<JobEntity>>, String>((ref, recruiterId) {
+  final jobsAsync = ref.watch(recruiterPublishedJobsProvider(recruiterId));
+  final filters = ref.watch(recruiterFiltersProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return jobsAsync.whenData((jobs) => controller.filterJobs(jobs, filters));
+});
+
+final recruiterFilteredMissionsByNameProvider =
+    Provider.family<AsyncValue<List<MissionEntity>>, String>(
+        (ref, recruiterName) {
+  final missionsAsync = ref.watch(missionsNotifierProvider);
+  final filters = ref.watch(recruiterFiltersProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return missionsAsync.whenData((missions) {
+    final scoped = missions.where((m) => m.recruiterName == recruiterName).toList();
+    return controller.filterMissions(scoped, filters);
+  });
+});
+
 final candidateJobSearchQueryProvider = StateProvider<String>((ref) => '');
 
 final candidateJobSearchResultsProvider =
@@ -358,6 +386,14 @@ class CandidateMissionsNotifier extends StateNotifier<AsyncValue<List<MissionEnt
 final candidateMissionsProvider =
     StateNotifierProvider<CandidateMissionsNotifier, AsyncValue<List<MissionEntity>>>((ref) {
   return CandidateMissionsNotifier(ref);
+});
+
+final candidateMissionsByNameProvider =
+    Provider.family<AsyncValue<List<MissionEntity>>, String>((ref, candidateName) {
+  final missionsAsync = ref.watch(missionsNotifierProvider);
+  return missionsAsync.whenData(
+    (missions) => missions.where((m) => m.candidateName == candidateName).toList(),
+  );
 });
 
 

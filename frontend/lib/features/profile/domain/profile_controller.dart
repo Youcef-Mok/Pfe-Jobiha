@@ -15,6 +15,11 @@ class ProfileController {
     return _repository.getCurrentUser();
   }
 
+  Future<UserEntity> fetchUserById(String userId) {
+    // TODO(API): GET /api/v1/users/:userId
+    return _repository.getUserById(userId);
+  }
+
   Future<List<EmployeeReviewEntity>> fetchEmployeeReviews(String userId) {
     // TODO(API): GET /api/v1/users/:userId/reviews
     return _repository.getEmployeeReviews(userId);

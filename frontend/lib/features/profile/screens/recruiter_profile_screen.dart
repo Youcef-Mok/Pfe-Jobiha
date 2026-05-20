@@ -35,7 +35,7 @@ class ProfileScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     CandidateProfileHeader(user: user, isRecruiterView: true),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 2),
                   ],
                 ),
               ),

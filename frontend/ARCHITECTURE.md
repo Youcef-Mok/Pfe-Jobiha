@@ -130,13 +130,13 @@ lib/
 ### jobs
 | Fichier | Rôle |
 |---------|------|
-| `domain/job_entity.dart` | `JobEntity`, `ContractType`, `CreateJobForm`, `EditJobForm` |
+| `domain/job_entity.dart` | `JobEntity` (+ `recruiterId`, `recruiterName`, `recruiterRole`, `recruiterAvatarAsset`), `ContractType`, `CreateJobForm`, `EditJobForm` |
 | `domain/mission_entity.dart` | `MissionEntity`, `MissionReview` |
 | `domain/recruiter_filters.dart` | `RecruiterFilters`, `RecruiterFilterDates` (intervalles date) |
 | `domain/jobs_controller.dart` | `fetchMyJobs`, `fetchMissions`, `createJob`, `publishJob`, `updateJob`, `deleteJob`, `updateMissionReview`, `filterActive`, `filterDrafts`, `filterJobs`, `filterMissions` |
 | `data/repositories/jobs_repository.dart` | Interface abstraite |
 | `data/repositories/jobs_repository_mock.dart` | TODO(API) sur chaque méthode |
-| `data/providers/jobs_provider.dart` | `jobsRepositoryProvider`, `jobsControllerProvider`, `JobsNotifier`, `MissionsNotifier`, `recruiterFiltersProvider`, `filteredJobsProvider`, `filteredMissionsProvider`, `combinedJobsAndMissionsProvider`, `CreateJobFormNotifier`, `EditJobFormNotifier`, `MissionReviewNotifier`, `CandidateMissionsNotifier`, `candidateMissionsProvider` |
+| `data/providers/jobs_provider.dart` | `jobsRepositoryProvider`, `jobsControllerProvider`, `JobsNotifier`, `MissionsNotifier`, `recruiterFiltersProvider`, `filteredJobsProvider`, `filteredMissionsProvider`, `recruiterPublishedJobsProvider`, `recruiterFilteredPublishedJobsProvider`, `recruiterFilteredMissionsByNameProvider`, `combinedJobsAndMissionsProvider`, `CreateJobFormNotifier`, `EditJobFormNotifier`, `MissionReviewNotifier`, `CandidateMissionsNotifier`, `candidateMissionsProvider` |
 | `widgets/recruiter_filter_bar.dart` | Chips Statut / Date / Département (homepage recruteur) |
 | `widgets/recruiter_filter_sheets.dart` | Overlays statut (liste), date (chips), département (chips) |
 
@@ -181,11 +181,11 @@ lib/
 |---------|------|
 | `domain/user_entity.dart` | `UserEntity`, `EmployeeReviewEntity` |
 | `domain/cv_entity.dart` | `CvEntity`, `CvFormationEntity`, `CvExperienceEntity`, `CvLanguageEntity`, `CvSkillEntity` |
-| `domain/profile_controller.dart` | `fetchCurrentUser`, `fetchEmployeeReviews(userId)`, `fetchCvData(userId)`, `updateProfile` |
+| `domain/profile_controller.dart` | `fetchCurrentUser`, `fetchUserById(userId)`, `fetchEmployeeReviews(userId)`, `fetchCvData(userId)`, `updateProfile` |
 | `data/models/user_model.dart` | `UserModel`, `EmployeeReviewModel` + `.toEntity()` |
-| `data/repositories/user_repository.dart` | Interface abstraite |
+| `data/repositories/user_repository.dart` | Interface abstraite (`getCurrentUser`, `getUserById`, `getEmployeeReviews`, `updateProfile`, `getCvData`) |
 | `data/repositories/user_repository_mock.dart` | Données recruteur + candidat (`_reviews` / `_candidateReviews`), branch sur `userId` dans `getEmployeeReviews` |
-| `data/providers/profile_provider.dart` | `userRepositoryProvider`, `profileControllerProvider`, `UserNotifier`, `candidateCurrentUserProvider`, `CvNotifier`, `cvNotifierProvider`, `candidateEmployeeReviewsProvider`, `candidateCvDataProvider`, `profileTabProvider`, `candidateProfileTabProvider` |
+| `data/providers/profile_provider.dart` | `userRepositoryProvider`, `profileControllerProvider`, `UserNotifier`, `publicRecruiterProvider(userId)`, `publicRecruiterReviewsProvider(userId)`, alias `publicUserProvider(userId)` / `publicUserReviewsProvider(userId)`, `candidateCurrentUserProvider`, `CvNotifier`, `cvNotifierProvider`, `candidateEmployeeReviewsProvider`, `candidateCvDataProvider`, `profileTabProvider`, `candidateProfileTabProvider` |
 
 > **Note** : `candidateMissionsProvider` a été volontairement placé dans `jobs_provider.dart` (évite une dépendance circulaire profile ↔ jobs).
 

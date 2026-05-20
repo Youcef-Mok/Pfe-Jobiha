@@ -9,6 +9,8 @@ import 'package:job_app/features/auth/screens/signup_role_screen.dart';
 import 'package:job_app/features/auth/screens/signup_form_screen.dart';
 import 'package:job_app/features/auth/screens/signup_profile_screen.dart';
 import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
+import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
+import 'package:job_app/features/profile/screens/candidate_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/edit_profile_screen.dart';
 import 'package:job_app/features/profile/screens/report_comment_screen.dart';
 
@@ -32,6 +34,8 @@ class App extends StatelessWidget {
     '/signup-form':       (_) => const SignupFormScreen(),
     '/signup-profile':    (_) => const SignupProfileScreen(),
     '/recruiter-profile': (_) => const RecruiterProfileScreen(),
+    '/recruiter-public-profile': (_) => const RecruiterPublicProfileScreen(),
+    '/candidate-public-profile': (_) => const CandidatePublicProfileScreen(),
     '/edit-profile':      (_) => const EditProfileScreen(),
     '/candidate-home':    (_) => const CandidateHomeScreen(),
     '/recruiter-home':    (_) => const JobsListScreen(),

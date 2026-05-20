@@ -107,8 +107,11 @@ class JobsController {
     final job = JobEntity(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // ID temporaire
       title: form.title,
-      companyName:
-          'Ma Super Entreprise', // TODO: Récupérer depuis le user profile
+      companyName: 'Le Petit Bistro', // TODO(API): injecter depuis /users/me
+      recruiterId: 'recruiter_1',
+      recruiterName: 'Ahmed Bensalem',
+      recruiterRole: 'Responsable RH',
+      recruiterAvatarAsset: 'assets/images/pdp_1.png',
       contractType: form.contractType, // Ajouté
       postedAt: DateTime.now(),
       status: JobStatus.draft,
@@ -125,6 +128,10 @@ class JobsController {
       id: draft.id,
       title: draft.title,
       companyName: draft.companyName,
+      recruiterId: draft.recruiterId,
+      recruiterName: draft.recruiterName,
+      recruiterRole: draft.recruiterRole,
+      recruiterAvatarAsset: draft.recruiterAvatarAsset,
       contractType: draft.contractType, // Ajouté
       postedAt: DateTime.now(),
       status: JobStatus.searching,
@@ -144,6 +151,10 @@ class JobsController {
       id: form.id,
       title: form.title.trim(),
       companyName: existing?.companyName ?? '',
+      recruiterId: existing?.recruiterId ?? 'recruiter_1',
+      recruiterName: existing?.recruiterName ?? 'Ahmed Bensalem',
+      recruiterRole: existing?.recruiterRole ?? 'Responsable RH',
+      recruiterAvatarAsset: existing?.recruiterAvatarAsset,
       department: existing?.department ?? 'IT',
       contractType: form.contractType, // Ajouté
       postedAt: existing?.postedAt ?? DateTime.now(),

@@ -11,6 +11,7 @@ import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
 import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
 import 'package:job_app/features/messaging/screens/private_message_screen.dart';
+import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/report_comment_screen.dart';
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -488,7 +489,7 @@ class _DescriptionTab extends StatelessWidget {
           // â”€â”€ Hiring Manager section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           _sectionHeader('Responsable du recrutement'),
           const SizedBox(height: 9),
-          _HiringManagerCard(),
+          _HiringManagerCard(job: job),
           const SizedBox(height: 12), // Gap 12px
           _MapPreview(),
         ],
@@ -522,8 +523,22 @@ class _DescriptionTab extends StatelessWidget {
 }
 
 class _HiringManagerCard extends ConsumerWidget {
+  final JobEntity job;
+  const _HiringManagerCard({required this.job});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    void openRecruiterPublicProfile() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RecruiterPublicProfileScreen(
+            recruiterId: job.recruiterId,
+          ),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -533,116 +548,127 @@ class _HiringManagerCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          // Avatar
-          SizedBox(
-            width: 56,
-            height: 56,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                ClipOval(
-                  child: Image.asset(
-                    'assets/images/pdp_1.png',
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: openRecruiterPublicProfile,
+              child: Row(
+                children: [
+                  // Avatar
+                  SizedBox(
                     width: 56,
                     height: 56,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 56,
-                      height: 56,
-                      color: const Color(0xFFE9E6EC),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.person,
-                        size: 30,
-                        color: AppColors.violet,
-                      ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ClipOval(
+                          child: Image.asset(
+                            job.recruiterAvatarAsset ?? 'assets/images/pdp_1.png',
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 56,
+                              height: 56,
+                              color: const Color(0xFFE9E6EC),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.person,
+                                size: 30,
+                                color: AppColors.violet,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: -4,
+                          bottom: -4,
+                          child: Container(
+                            width: 23,
+                            height: 22.5,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFC1AA62),
+                              borderRadius: BorderRadius.circular(9999),
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.workspace_premium,
+                              size: 11,
+                              color: Color(0xFF4E3E00),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                Positioned(
-                  right: -4,
-                  bottom: -4,
-                  child: Container(
-                    width: 23,
-                    height: 22.5,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFC1AA62),
-                      borderRadius: BorderRadius.circular(9999),
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.workspace_premium,
-                      size: 11,
-                      color: Color(0xFF4E3E00),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job.recruiterName,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            height: 24 / 16,
+                            color: const Color(0xFF1D1B1F),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          job.recruiterRole,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w400,
+                            fontSize: 12,
+                            height: 16 / 12,
+                            color: const Color(0xFF665976),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.star, size: 12, color: Color(0xFF6F5D1D)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '4.9',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                height: 20 / 14,
+                                color: const Color(0xFF1D1B1F),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '(42 reviews)',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w400,
+                                fontSize: 12,
+                                height: 16 / 12,
+                                color: const Color(0xFF7C7580),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Sarah Jenkins',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    height: 24 / 16,
-                    color: const Color(0xFF1D1B1F),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Head of Design',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w400,
-                    fontSize: 12,
-                    height: 16 / 12,
-                    color: const Color(0xFF665976),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 12, color: Color(0xFF6F5D1D)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '4.9',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        height: 20 / 14,
-                        color: const Color(0xFF1D1B1F),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '(42 reviews)',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w400,
-                        fontSize: 12,
-                        height: 16 / 12,
-                        color: const Color(0xFF7C7580),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(width: 12),
           // Message button
           GestureDetector(
             onTap: () async {
               final messagingController = ref.read(messagingControllerProvider.notifier);
               final conversation = await messagingController.getOrCreateConversation(
-                contactName: 'Sarah Jenkins',
-                contactRole: 'Head of Design',
-                contactAvatar: 'assets/images/pdp_1.png',
+                contactName: job.recruiterName,
+                contactRole: job.recruiterRole,
+                contactAvatar: job.recruiterAvatarAsset,
               );
-              
+
               if (context.mounted) {
                 Navigator.push(
                   context,

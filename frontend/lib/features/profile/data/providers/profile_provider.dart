@@ -86,6 +86,25 @@ final currentUserProvider = FutureProvider<UserEntity>((ref) async {
   return await controller.fetchCurrentUser();
 });
 
+final publicRecruiterProvider =
+    FutureProvider.family<UserEntity, String>((ref, recruiterId) async {
+  ref.keepAlive();
+  final controller = ref.watch(profileControllerProvider);
+  return await controller.fetchUserById(recruiterId);
+});
+
+final publicUserProvider = publicRecruiterProvider;
+
+final publicRecruiterReviewsProvider =
+    FutureProvider.family<List<EmployeeReviewEntity>, String>(
+        (ref, recruiterId) async {
+  ref.keepAlive();
+  final controller = ref.watch(profileControllerProvider);
+  return await controller.fetchEmployeeReviews(recruiterId);
+});
+
+final publicUserReviewsProvider = publicRecruiterReviewsProvider;
+
 // ─────────────────────────────────────────────
 // 3. Employee Reviews Provider
 // ─────────────────────────────────────────────

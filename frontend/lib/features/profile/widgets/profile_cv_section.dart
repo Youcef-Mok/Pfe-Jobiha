@@ -31,8 +31,9 @@ final _style14Slate700 = GoogleFonts.plusJakartaSans(fontSize: 14, color: AppCol
 
 class ProfileCvSection extends ConsumerStatefulWidget {
   final ProviderListenable<AsyncValue<CvEntity>>? cvProvider;
+  final bool readOnly;
 
-  const ProfileCvSection({super.key, this.cvProvider});
+  const ProfileCvSection({super.key, this.cvProvider, this.readOnly = false});
 
   @override
   ConsumerState<ProfileCvSection> createState() => _ProfileCvSectionState();
@@ -231,11 +232,14 @@ class _ProfileCvSectionState extends ConsumerState<ProfileCvSection>
                                 title: 'Experience',
                                 icon: Icons.description_outlined,
                                 onHeaderTap: () => _toggle(1),
-                                onAddPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => const AddExperienceOverlay(),
-                                  ),
-                                ),
+                                onAddPressed: widget.readOnly
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const AddExperienceOverlay(),
+                                          ),
+                                        ),
                                 child: NotificationListener<ScrollNotification>(
                                   onNotification: (n) {
                                     if (n is OverscrollNotification && n.overscroll < 0) {
@@ -282,11 +286,14 @@ class _ProfileCvSectionState extends ConsumerState<ProfileCvSection>
                                 onHeaderTap: () => _toggle(2),
                                 onHeaderDragUpdate: (details) => _handleDragUpdate(details, 2),
                                 onHeaderDragEnd: (details) => _handleDragEnd(details, 2),
-                                onAddPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => const AddFormationOverlay(),
-                                  ),
-                                ),
+                                onAddPressed: widget.readOnly
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const AddFormationOverlay(),
+                                          ),
+                                        ),
                                 child: NotificationListener<ScrollNotification>(
                                   onNotification: (n) => _onScrollNotification(n, 2),
                                   child: ListView.builder(
@@ -364,11 +371,14 @@ class _ProfileCvSectionState extends ConsumerState<ProfileCvSection>
                                 onHeaderTap: () => _toggle(3),
                                 onHeaderDragUpdate: (details) => _handleDragUpdate(details, 3),
                                 onHeaderDragEnd: (details) => _handleDragEnd(details, 3),
-                                onAddPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => const AddSkillsAndLanguagesOverlay(),
-                                  ),
-                                ),
+                                onAddPressed: widget.readOnly
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const AddSkillsAndLanguagesOverlay(),
+                                          ),
+                                        ),
                                 child: NotificationListener<ScrollNotification>(
                                   onNotification: (n) => _onScrollNotification(n, 3),
                                   child: ListView(
@@ -557,7 +567,7 @@ class _CvCardBase extends StatelessWidget {
   final IconData icon;
   final Widget child;
   final VoidCallback onHeaderTap;
-  final VoidCallback onAddPressed;
+  final VoidCallback? onAddPressed;
 
   const _CvCardBase({
     required this.index,
@@ -627,10 +637,11 @@ class _CvCardBase extends StatelessWidget {
                       style: textStyle,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: onAddPressed,
-                    child: const Icon(Icons.add, color: _kViolet, size: 20),
-                  ),
+                  if (onAddPressed != null)
+                    GestureDetector(
+                      onTap: onAddPressed,
+                      child: const Icon(Icons.add, color: _kViolet, size: 20),
+                    ),
                 ],
               ),
             ),

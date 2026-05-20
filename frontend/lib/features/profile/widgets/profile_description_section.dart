@@ -8,17 +8,31 @@ import 'package:job_app/core/utils/color_utils.dart';
 
 class ProfileDescriptionSection extends ConsumerWidget {
   final bool isRecruiterView;
+  final bool canReplyToReviews;
+  final ProviderListenable<AsyncValue<UserEntity>>? userProvider;
+  final ProviderListenable<AsyncValue<List<EmployeeReviewEntity>>>?
+      reviewsProvider;
 
-  const ProfileDescriptionSection({super.key, this.isRecruiterView = false});
+  const ProfileDescriptionSection({
+    super.key,
+    this.isRecruiterView = false,
+    this.canReplyToReviews = true,
+    this.userProvider,
+    this.reviewsProvider,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = isRecruiterView
-        ? ref.watch(currentUserProvider)
-        : ref.watch(candidateCurrentUserProvider);
-    final reviewsAsync = isRecruiterView
-        ? ref.watch(employeeReviewsProvider)
-        : ref.watch(candidateEmployeeReviewsProvider);
+    final userAsync = userProvider != null
+        ? ref.watch(userProvider!)
+        : isRecruiterView
+            ? ref.watch(currentUserProvider)
+            : ref.watch(candidateCurrentUserProvider);
+    final reviewsAsync = reviewsProvider != null
+        ? ref.watch(reviewsProvider!)
+        : isRecruiterView
+            ? ref.watch(employeeReviewsProvider)
+            : ref.watch(candidateEmployeeReviewsProvider);
     final jobsCount = ref.watch(jobsNotifierProvider).valueOrNull?.length ?? 0;
 
     return userAsync.when(
@@ -157,7 +171,10 @@ class ProfileDescriptionSection extends ConsumerWidget {
                       children: [
                         for (int i = 0; i < items.length; i++) ...[
                           if (i > 0) const SizedBox(height: 16),
-                          _ReviewCard(review: items[i]),
+                          _ReviewCard(
+                            review: items[i],
+                            canReply: canReplyToReviews,
+                          ),
                         ],
                       ],
                     ),
@@ -265,8 +282,9 @@ class _InfoChip extends StatelessWidget {
 
 class _ReviewCard extends StatefulWidget {
   final EmployeeReviewEntity review;
+  final bool canReply;
 
-  const _ReviewCard({required this.review});
+  const _ReviewCard({required this.review, this.canReply = true});
 
   @override
   State<_ReviewCard> createState() => _ReviewCardState();
@@ -517,7 +535,7 @@ class _ReviewCardState extends State<_ReviewCard> {
                 ),
               ),
             ),
-          ] else ...[
+          ] else if (widget.canReply) ...[
             // Reply input
             Container(
               decoration: const BoxDecoration(
