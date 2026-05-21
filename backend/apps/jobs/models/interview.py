@@ -21,6 +21,14 @@ class Interview(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="scheduled")
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # New field from DB-CHANGES.md section 7 (optional but recommended)
+    candidature = models.ForeignKey(
+        "applications.Candidature",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="interviews"
+    )
 
     class Meta:
         db_table = "interview"

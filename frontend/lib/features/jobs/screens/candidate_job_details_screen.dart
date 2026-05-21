@@ -533,7 +533,7 @@ class _HiringManagerCard extends ConsumerWidget {
         context,
         MaterialPageRoute(
           builder: (_) => RecruiterPublicProfileScreen(
-            recruiterId: job.recruiterId,
+            recruiterId: job.recruiterId ?? '',
           ),
         ),
       );
@@ -607,7 +607,7 @@ class _HiringManagerCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          job.recruiterName,
+                          job.recruiterName ?? '',
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
@@ -617,7 +617,7 @@ class _HiringManagerCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          job.recruiterRole,
+                          job.recruiterRole ?? '',
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w400,
                             fontSize: 12,
@@ -664,8 +664,8 @@ class _HiringManagerCard extends ConsumerWidget {
             onTap: () async {
               final messagingController = ref.read(messagingControllerProvider.notifier);
               final conversation = await messagingController.getOrCreateConversation(
-                contactName: job.recruiterName,
-                contactRole: job.recruiterRole,
+                contactName: job.recruiterName ?? '',
+                contactRole: job.recruiterRole ?? '',
                 contactAvatar: job.recruiterAvatarAsset,
               );
 

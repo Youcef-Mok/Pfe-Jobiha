@@ -29,8 +29,66 @@ class CandidateProfileHeader extends ConsumerWidget {
   Widget _buildProfileImage() {
     final avatarUrl = user.avatarUrl;
 
+    // Si l'avatar est null ou vide, afficher les initiales
+    if (avatarUrl == null || avatarUrl.isEmpty) {
+      final initials = _getInitials(user.name);
+      return Container(
+        width: 108,
+        height: 108,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.slate200,
+        ),
+        child: Center(
+          child: Text(
+            initials,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w600,
+              fontSize: 36,
+              color: Color(0xFF401E66),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Si c'est une URL réseau
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return ClipOval(
+        child: Image.network(
+          avatarUrl,
+          fit: BoxFit.cover,
+          width: 108,
+          height: 108,
+          errorBuilder: (context, error, stackTrace) {
+            final initials = _getInitials(user.name);
+            return Container(
+              width: 108,
+              height: 108,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.slate200,
+              ),
+              child: Center(
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 36,
+                    color: Color(0xFF401E66),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // Si c'est un fichier local (non-web)
     if (!kIsWeb &&
-        avatarUrl != null &&
         !avatarUrl.startsWith('assets/') &&
         File(avatarUrl).existsSync()) {
       return ClipOval(
@@ -43,22 +101,47 @@ class CandidateProfileHeader extends ConsumerWidget {
       );
     }
 
+    // Si c'est un asset
     return ClipOval(
       child: Image.asset(
-        avatarUrl ?? 'assets/images/imageannonc(3).jpg',
+        avatarUrl,
         fit: BoxFit.cover,
         width: 108,
         height: 108,
         errorBuilder: (context, error, stackTrace) {
+          final initials = _getInitials(user.name);
           return Container(
             width: 108,
             height: 108,
-            color: AppColors.background,
-            child: const Icon(Icons.person, size: 54, color: Colors.white),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.slate200,
+            ),
+            child: Center(
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 36,
+                  color: Color(0xFF401E66),
+                ),
+              ),
+            ),
           );
         },
       ),
     );
+  }
+
+  /// Extrait les initiales du nom (première lettre du prénom + première lettre du nom)
+  String _getInitials(String name) {
+    if (name.isEmpty) return 'U';
+    final parts = name.trim().split(' ');
+    if (parts.length == 1) {
+      return parts[0][0].toUpperCase();
+    }
+    return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
   }
 
   @override

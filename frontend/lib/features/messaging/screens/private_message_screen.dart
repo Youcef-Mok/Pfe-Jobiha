@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
 import 'package:job_app/features/messaging/domain/message_entity.dart';
@@ -33,6 +34,15 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
   @override
   void initState() {
     super.initState();
+    // Load conversation messages
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref
+            .read(messagingControllerProvider.notifier)
+            .loadConversationMessages(widget.conversation.id);
+      }
+    });
+    
     if (widget.conversation.isInvitation) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showInvitationSheet();
@@ -77,23 +87,44 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
     super.dispose();
   }
 
-  void _send() {
+  void _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    ref
-        .read(messagingControllerProvider.notifier)
-        .sendMessage(widget.conversation.id, text);
+    
+    print('[PrivateMessageScreen] _send appelé avec: $text');
     _controller.clear();
     setState(() => _replyingTo = null);
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+    
+    try {
+      await ref
+          .read(messagingControllerProvider.notifier)
+          .sendMessage(widget.conversation.id, text);
+      print('[PrivateMessageScreen] Message envoyé avec succès');
+      
+      // Scroll to bottom after message is sent
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e, stackTrace) {
+      print('[PrivateMessageScreen] ERREUR lors de l\'envoi du message: $e');
+      print('[PrivateMessageScreen] StackTrace: $stackTrace');
+      
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'envoi du message: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    });
+    }
   }
 
   void _showMoreOptions() {
@@ -191,6 +222,78 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
         ],
       ),
     );
+  }
+
+  String _formatDateSeparator(DateTime messageDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final messageDay = DateTime(messageDate.year, messageDate.month, messageDate.day);
+
+    if (messageDay == today) {
+      return "aujourd'hui";
+    } else if (messageDay == yesterday) {
+      return "hier";
+    } else {
+      // Format as "Lundi 13 janvier" (day name + day number + month name)
+      final formatter = DateFormat('EEEE d MMMM', 'fr_FR');
+      return formatter.format(messageDate);
+    }
+  }
+
+  List<Widget> _buildMessagesWithDateSeparators(ConversationEntity conv) {
+    final widgets = <Widget>[];
+    DateTime? lastDate;
+
+    for (final msg in conv.messages) {
+      final messageDay = DateTime(
+        msg.timestamp.year,
+        msg.timestamp.month,
+        msg.timestamp.day,
+      );
+
+      // Show date separator if this is a new day
+      if (lastDate == null || messageDay != lastDate) {
+        if (widgets.isNotEmpty) {
+          widgets.add(const SizedBox(height: 24));
+        }
+        
+        widgets.add(
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEDE6ED),
+                borderRadius: BorderRadius.circular(9999),
+              ),
+              child: Text(
+                _formatDateSeparator(msg.timestamp),
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  letterSpacing: 0.5,
+                  color: Color(0xFF4A454F),
+                ),
+              ),
+            ),
+          ),
+        );
+        widgets.add(const SizedBox(height: 24));
+        lastDate = messageDay;
+      }
+
+      widgets.add(_MessageBubble(
+        message: msg,
+        avatarAsset: conv.contactAvatar,
+        onReply: () {
+          setState(() => _replyingTo = msg);
+          _inputFocusNode.requestFocus();
+        },
+      ));
+    }
+
+    return widgets;
   }
 
   @override
@@ -318,37 +421,7 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
               controller: _scrollController,
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              children: [
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEDE6ED),
-                      borderRadius: BorderRadius.circular(9999),
-                    ),
-                    child: const Text(
-                      "aujourd'hui",
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                        color: Color(0xFF4A454F),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ...conv.messages.map((msg) => _messageBubble(
-                      message: msg,
-                      avatarAsset: conv.contactAvatar,
-                      onReply: () {
-                        setState(() => _replyingTo = msg);
-                        _inputFocusNode.requestFocus();
-                      },
-                    )),
-              ],
+              children: _buildMessagesWithDateSeparators(conv),
             ),
           ),
 
@@ -712,12 +785,12 @@ class _StatusBanner extends StatelessWidget {
 }
 
 // ─── Message bubble ──────────────────────────────────────────────────────────
-class _messageBubble extends StatelessWidget {
+class _MessageBubble extends StatelessWidget {
   final MessageEntity message;
   final String? avatarAsset;
   final VoidCallback? onReply;
 
-  const _messageBubble({
+  const _MessageBubble({
     required this.message,
     this.avatarAsset,
     this.onReply,
@@ -920,8 +993,13 @@ class _messageBubble extends StatelessWidget {
                   ),
                   if (isMine) ...[
                     const SizedBox(width: 4),
-                    const Icon(Icons.done_all,
-                        size: 12, color: Color(0xFF401E66)),
+                    Icon(
+                      message.isRead ? Icons.done_all : Icons.done,
+                      size: 12,
+                      color: message.isRead
+                          ? const Color(0xFF401E66) // Purple when read
+                          : const Color(0xFF7C7580), // Gray when not read
+                    ),
                   ],
                 ],
               ),

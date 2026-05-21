@@ -7,6 +7,12 @@ from django.db import models
 # ---------------------------------------------------------------------------
 
 class Message(models.Model):
+    TYPE_CHOICES = [
+        ('text',  'Text'),
+        ('image', 'Image'),
+        ('file',  'File'),
+    ]
+    
     contenu = models.TextField()
     date_envoi = models.DateTimeField(auto_now_add=True)
 
@@ -29,10 +35,13 @@ class Message(models.Model):
         "users.Utilisateur", on_delete=models.CASCADE, related_name="messages_recus",
         null=True, blank=True,
     )
+    
+    # New field from DB-CHANGES.md section 8
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='text')
 
     class Meta:
         db_table = "message"
-        ordering = ["date_envoi"]
+        ordering = ["date_envoi"]  # Ascending order: oldest first
         indexes = [
             models.Index(
                 fields=["conversation", "date_envoi"],
@@ -54,4 +63,4 @@ class Message(models.Model):
         """Legacy — kept for backward compat during migration."""
         if not self.est_lu:
             self.est_lu = True
-            self.save(update_fields=["est_lu"])
+            self.save(update_fields=["est_lu"])

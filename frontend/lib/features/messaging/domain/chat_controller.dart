@@ -42,29 +42,69 @@ class MessagingController extends StateNotifier<MessagingState> {
   final MessagingRepository _repo;
 
   MessagingController(this._repo) : super(const MessagingState()) {
+    print('[MessagingController] MessagingController initialisé');
     _load();
   }
 
   Future<void> _load() async {
+    print('[MessagingController] _load appelé');
     state = state.copyWith(isLoading: true);
-    final convs = await _repo.getConversations();
-    final invs = await _repo.getInvitations();
-    final blockedIds = await _repo.getBlockedIds();
-    final restrictedIds = await _repo.getRestrictedIds();
-    state = state.copyWith(
-      conversations: convs,
-      invitations: invs,
-      blockedIds: blockedIds,
-      restrictedIds: restrictedIds,
-      isLoading: false,
-    );
+    try {
+      final convs = await _repo.getConversations();
+      print("state mis à jour avec: ${convs.length} convs");
+      final invs = await _repo.getInvitations();
+      final blockedIds = await _repo.getBlockedIds();
+      final restrictedIds = await _repo.getRestrictedIds();
+      state = state.copyWith(
+        conversations: convs,
+        invitations: invs,
+        blockedIds: blockedIds,
+        restrictedIds: restrictedIds,
+        isLoading: false,
+      );
+      print('[MessagingController] _load terminé, isLoading: false');
+    } catch (e, stackTrace) {
+      print('[MessagingController] ERREUR dans _load: $e');
+      print('[MessagingController] StackTrace: $stackTrace');
+      state = state.copyWith(isLoading: false);
+    }
   }
 
   void setTab(String tab) => state = state.copyWith(activeTab: tab);
 
+  Future<void> loadConversationMessages(String conversationId) async {
+    print('[MessagingController] loadConversationMessages appelé: conversationId=$conversationId');
+    try {
+      final conversationWithMessages = await _repo.getConversationById(conversationId);
+      
+      // Update the conversation in the list with the loaded messages
+      final updatedConversations = state.conversations.map((conv) {
+        if (conv.id == conversationId) {
+          print('[MessagingController] Mise à jour de la conversation avec ${conversationWithMessages.messages.length} messages');
+          return conversationWithMessages;
+        }
+        return conv;
+      }).toList();
+      
+      state = state.copyWith(conversations: updatedConversations);
+      print('[MessagingController] loadConversationMessages terminé');
+    } catch (e, stackTrace) {
+      print('[MessagingController] Error loading conversation messages: $e');
+      print('[MessagingController] StackTrace: $stackTrace');
+    }
+  }
+
   Future<void> sendMessage(String conversationId, String content) async {
-    await _repo.sendMessage(conversationId, content);
-    await _load();
+    print('[MessagingController] sendMessage appelé: conversationId=$conversationId');
+    try {
+      await _repo.sendMessage(conversationId, content);
+      print('[MessagingController] sendMessage réussi, rechargement des conversations');
+      await loadConversationMessages(conversationId);
+    } catch (e, stackTrace) {
+      print('[MessagingController] ERREUR dans sendMessage: $e');
+      print('[MessagingController] StackTrace: $stackTrace');
+      rethrow;
+    }
   }
 
   Future<void> sendImageMessage(String conversationId, String imagePath) async {

@@ -2,6 +2,7 @@ import '../../domain/message_entity.dart';
 
 abstract class MessagingRepository {
   Future<List<ConversationEntity>> getConversations();
+  Future<ConversationEntity> getConversationById(String conversationId);
   Future<List<ConversationEntity>> getInvitations();
   Future<void> sendMessage(String conversationId, String content);
   Future<void> sendImageMessage(String conversationId, String imagePath);

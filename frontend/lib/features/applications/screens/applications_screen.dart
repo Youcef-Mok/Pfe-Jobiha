@@ -207,7 +207,11 @@ class ApplicationsScreen extends ConsumerWidget {
     return JobEntity(
       id: app.jobId,
       title: app.jobTitle,
+      description: null,
       companyName: app.companyName,
+      recruiterId: null,
+      recruiterName: null,
+      recruiterRole: null,
       contractType: app.contractType,
       postedAt: app.appliedAt,
       status: JobStatus.searching,

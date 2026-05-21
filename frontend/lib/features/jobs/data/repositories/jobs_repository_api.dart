@@ -18,8 +18,27 @@ class JobsRepositoryApi implements JobsRepository {
   final Dio _dio = ApiClient.instance;
 
   @override
-  Future<List<JobEntity>> getMyJobs() async {
-    final response = await _dio.get(ApiEndpoints.myOffres);
+  Future<List<JobEntity>> getMyJobs({
+    String? status,
+    String? postedWithin,
+    String? department,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (status != null) queryParams['status'] = status;
+    if (postedWithin != null) queryParams['posted_within'] = postedWithin;
+    if (department != null) queryParams['department'] = department;
+
+    // DEBUG
+    print("=" * 80);
+    print("query params envoyés: $queryParams");
+    print("URL complète envoyée: ${ApiEndpoints.myOffres}");
+    print("query params: $queryParams");
+    print("=" * 80);
+
+    final response = await _dio.get(
+      ApiEndpoints.myOffres,
+      queryParameters: queryParams,
+    );
     final List<dynamic> data = response.data is List
         ? response.data as List<dynamic>
         : (response.data['results'] as List<dynamic>?) ?? [];
@@ -41,6 +60,9 @@ class JobsRepositoryApi implements JobsRepository {
       final response = await _dio.post(ApiEndpoints.offres, data: json);
       return JobModel.fromJson(response.data as Map<String, dynamic>).toEntity();
     } else {
+      // For PATCH, remove null values to avoid validation errors
+      json.removeWhere((key, value) => value == null);
+      
       final id = int.tryParse(job.id) ?? 0;
       final response = await _dio.patch(ApiEndpoints.offreDetail(id), data: json);
       return JobModel.fromJson(response.data as Map<String, dynamic>).toEntity();
@@ -76,21 +98,40 @@ class JobsRepositoryApi implements JobsRepository {
         .toList();
   }
 
-  //added this to fix error
-
   @override
-  Future<MissionEntity> createMission(CreateMissionParams params) {
-    throw UnimplementedError('createMission not yet implemented');
+  Future<MissionEntity> createMission(CreateMissionParams params) async {
+    final response = await _dio.post(
+      ApiEndpoints.missions,
+      data: {
+        'job_id': params.jobId,
+        'candidate_name': params.candidateName,
+        'start_date': params.startDate.toIso8601String(),
+        'end_date': params.endDate.toIso8601String(),
+        'location': params.location,
+        if (params.imageUrl != null) 'image_url': params.imageUrl,
+      },
+    );
+    return MissionModel.fromJson(response.data as Map<String, dynamic>).toEntity();
   }
 
   @override
-  Future<MissionEntity> confirmMission(String missionId) {
-    throw UnimplementedError('confirmMission not yet implemented');
+  Future<MissionEntity> confirmMission(String missionId) async {
+    final id = int.tryParse(missionId) ?? 0;
+    final response = await _dio.patch(ApiEndpoints.missionConfirm(id));
+    return MissionModel.fromJson(response.data as Map<String, dynamic>).toEntity();
   }
 
   @override
-  Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback) {
-    throw UnimplementedError('updateMissionReview not yet implemented');
+  Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback) async {
+    final id = int.tryParse(missionId) ?? 0;
+    final response = await _dio.put(
+      ApiEndpoints.missionReview(id),
+      data: {
+        'rating': rating,
+        'feedback': feedback,
+      },
+    );
+    return MissionModel.fromJson(response.data as Map<String, dynamic>).toEntity();
   }
 
 }

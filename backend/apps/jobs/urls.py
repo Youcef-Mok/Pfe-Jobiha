@@ -13,6 +13,7 @@ urlpatterns = [
     # ── Missions ────────────────────────────────────────────────────────────
     path('missions', views.MissionListCreateView.as_view(), name='missions-list'),
     path('missions/<int:id>', views.MissionDetailView.as_view(), name='mission-detail'),
+    path('missions/<int:id>/confirm', views.MissionConfirmView.as_view(), name='mission-confirm'),
     path('missions/<int:id>/valider-debut', views.ValiderDebutView.as_view(), name='valider-debut'),
     path('missions/<int:id>/valider-fin', views.ValiderFinView.as_view(), name='valider-fin'),
     path('missions/<int:id>/attestation', views.AttestationView.as_view(), name='attestation'),

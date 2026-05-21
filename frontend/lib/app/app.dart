@@ -15,7 +15,6 @@ import 'package:job_app/features/profile/screens/candidate_public_profile_screen
 import 'package:job_app/features/profile/screens/edit_profile_screen.dart';
 import 'package:job_app/features/profile/screens/report_comment_screen.dart';
 import 'package:job_app/features/auth/screens/verify_email_screen.dart';
-import 'package:job_app/features/settings/screens/settings_screen.dart';
 import 'package:job_app/features/auth/screens/preferences_screen.dart';
 
 // ── AuthGate imports (Amani) ──────────────────────────────────────────────────

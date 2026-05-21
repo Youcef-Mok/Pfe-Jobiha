@@ -5,6 +5,7 @@ import 'package:job_app/features/jobs/domain/job_entity.dart';
 class JobModel {
   final String id;
   final String title;
+  final String? description;
   final String companyName;
   final String recruiterId;
   final String recruiterName;
@@ -24,11 +25,12 @@ class JobModel {
   const JobModel({
     required this.id,
     required this.title,
+    this.description,
     required this.companyName,
-    this.recruiterId = 'recruiter_1',
-    this.recruiterName = 'Ahmed Bensalem',
-    this.recruiterRole = 'Responsable RH',
-    this.recruiterAvatarAsset = 'assets/images/pdp_1.png',
+    required this.recruiterId,
+    required this.recruiterName,
+    required this.recruiterRole,
+    this.recruiterAvatarAsset,
     this.department = 'IT',
     required this.contractType,
     required this.postedAt,
@@ -45,10 +47,11 @@ class JobModel {
   factory JobModel.fromJson(Map<String, dynamic> json) => JobModel(
         id: json['id'] as String,
         title: json['title'] as String,
-        companyName: json['company_name'] as String,
-        recruiterId: json['recruiter_id'] as String? ?? 'recruiter_1',
-        recruiterName: json['recruiter_name'] as String? ?? 'Ahmed Bensalem',
-        recruiterRole: json['recruiter_role'] as String? ?? 'Responsable RH',
+        description: json['description'] as String?,
+        companyName: json['company_name'] as String? ?? '',
+        recruiterId: json['recruiter_id'] as String? ?? '',
+        recruiterName: json['recruiter_name'] as String? ?? '',
+        recruiterRole: json['recruiter_role'] as String? ?? '',
         recruiterAvatarAsset: json['recruiter_avatar_asset'] as String?,
         department: json['department'] as String? ?? 'IT',
         contractType: json['contract_type'] as String? ?? 'cdi',
@@ -71,30 +74,26 @@ class JobModel {
       );
 
   /// Sérialisation vers JSON
+  /// N'envoie QUE les champs que le backend attend pour la création/modification
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,
-        'company_name': companyName,
-        'recruiter_id': recruiterId,
-        'recruiter_name': recruiterName,
-        'recruiter_role': recruiterRole,
-        'recruiter_avatar_asset': recruiterAvatarAsset,
-        'department': department,
+        'description': description,
         'contract_type': contractType,
-        'posted_at': postedAt,
-        'status': status,
         'candidate_count': candidateCount,
-        'view_count': viewCount,
-        'logo_asset': logoAsset,
         'is_published': isPublished,
-        'candidates': candidates.map((e) => e.toJson()).toList(),
-        'comments': comments.map((e) => e.toJson()).toList(),
+        // Champs optionnels
+        if (department.isNotEmpty) 'department': department,
+        // NE PAS envoyer: company_name, recruiter_id, recruiter_name, recruiter_role,
+        // recruiter_avatar_asset, posted_at, status, view_count, candidates, comments
+        // Ces champs sont déduits par le backend depuis request.user
       };
 
   /// Conversion vers l'entité métier
   JobEntity toEntity() => JobEntity(
         id: id,
         title: title,
+        description: description,
         companyName: companyName,
         recruiterId: recruiterId,
         recruiterName: recruiterName,
@@ -116,10 +115,11 @@ class JobModel {
   factory JobModel.fromEntity(JobEntity entity) => JobModel(
         id: entity.id,
         title: entity.title,
+        description: entity.description,
         companyName: entity.companyName,
-        recruiterId: entity.recruiterId,
-        recruiterName: entity.recruiterName,
-        recruiterRole: entity.recruiterRole,
+        recruiterId: entity.recruiterId ?? '',
+        recruiterName: entity.recruiterName ?? '',
+        recruiterRole: entity.recruiterRole ?? '',
         recruiterAvatarAsset: entity.recruiterAvatarAsset,
         department: entity.department,
         contractType: entity.contractType.name,

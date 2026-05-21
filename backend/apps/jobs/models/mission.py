@@ -27,6 +27,8 @@ class Mission(models.Model):
     )
     location     = models.CharField(max_length=200, blank=True)
     image_url    = models.CharField(max_length=500, blank=True, null=True)
+    # New field from DB-CHANGES.md section 5
+    summary      = models.TextField(blank=True, null=True)
 
     class Meta:
         db_table = "mission"

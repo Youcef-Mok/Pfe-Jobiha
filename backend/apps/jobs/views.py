@@ -94,12 +94,38 @@ class OffreListCreateView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        serializer = CreateOffreSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        print("=" * 80)
+        print("DEBUG POST /api/v1/jobs - request.data:")
+        print(request.data)
+        print("=" * 80)
 
+        serializer = CreateOffreSerializer(data=request.data)
+        if not serializer.is_valid():
+            print("=" * 80)
+            print("DEBUG POST /api/v1/jobs - serializer.errors:")
+            print(serializer.errors)
+            print("=" * 80)
+        serializer.is_valid(raise_exception=True)
+        
+        # Map API field names to DB field names
+        data = serializer.validated_data
         offre = Offre.objects.create(
             recruteur=request.user.recruteur,
-            **serializer.validated_data
+            titre=data.get('title'),
+            type_contrat=data.get('contract_type'),
+            description=data.get('description'),
+            candidate_count=data.get('candidate_count', 1),
+            salaire=data.get('salary'),
+            is_published=data.get('is_published', False),
+            categorie=data.get('department', ''),
+            location=data.get('location', ''),
+            schedule_label=data.get('schedule_label'),
+            logo_url=data.get('logo_url'),
+            date_debut=data.get('date_debut'),
+            date_fin=data.get('date_fin'),
+            latitude=data.get('latitude'),
+            longitude=data.get('longitude'),
+            statut='draft' if not data.get('is_published', False) else 'searching',
         )
         return Response(
             OffreSerializer(offre, context={'request': request}).data,
@@ -125,6 +151,9 @@ class OffreDetailView(APIView):
         offre = self.get_offre(id)
         if not offre:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Mark this as a detail view so serializer includes candidates and comments
+        offre._detail_view = True
         return Response(OffreSerializer(offre, context={'request': request}).data)
 
     def put(self, request, id):
@@ -134,10 +163,47 @@ class OffreDetailView(APIView):
         if not hasattr(request.user, 'recruteur') or offre.recruteur != request.user.recruteur:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
+        print("=" * 80)
+        print(f"DEBUG PATCH /api/v1/jobs/{id} - request.data:")
+        print(request.data)
+        print("=" * 80)
+
         serializer = UpdateOffreSerializer(data=request.data, partial=True)
+        if not serializer.is_valid():
+            print("=" * 80)
+            print(f"DEBUG PATCH /api/v1/jobs/{id} - serializer.errors:")
+            print(serializer.errors)
+            print("=" * 80)
         serializer.is_valid(raise_exception=True)
-        for field, value in serializer.validated_data.items():
-            setattr(offre, field, value)
+        
+        # Map API field names to DB field names
+        data = serializer.validated_data
+        field_mapping = {
+            'title': 'titre',
+            'contract_type': 'type_contrat',
+            'department': 'categorie',
+            'salary': 'salaire',
+            'status': 'statut',
+        }
+        
+        for api_field, db_field in field_mapping.items():
+            if api_field in data:
+                setattr(offre, db_field, data[api_field])
+        
+        # Direct mappings (same name in API and DB)
+        for field in ['description', 'candidate_count', 'is_published', 'location',
+                      'schedule_label', 'logo_url', 'date_debut', 'date_fin',
+                      'latitude', 'longitude']:
+            if field in data:
+                setattr(offre, field, data[field])
+        
+        # Auto-update statut when is_published changes
+        if 'is_published' in data:
+            if data['is_published']:
+                offre.statut = 'searching'
+            else:
+                offre.statut = 'draft'
+        
         offre.save()
         return Response(OffreSerializer(offre, context={'request': request}).data)
 
@@ -177,7 +243,8 @@ class FermerOffreView(APIView):
 
 class MyOffresView(APIView):
     """
-    GET /recruteurs/me/offres → recruiter sees only their own jobs (with filters + pagination)
+    GET /jobs/mine → recruiter sees only their own jobs (with filters + pagination)
+    Query params: status, posted_within, department
     """
     permission_classes = [IsAuthenticated]
 
@@ -189,12 +256,49 @@ class MyOffresView(APIView):
             recruteur=request.user.recruteur
         ).annotate(
             nb_candidatures=Count('candidatures')
-        ).order_by('-id')
+        ).order_by('-created_at')
 
-        # Optional filter by statut
-        statut = request.query_params.get('statut')
-        if statut:
-            queryset = queryset.filter(statut=statut)
+        # DEBUG
+        print("=" * 80)
+        print(f"posted_within reçu: {request.query_params.get('posted_within')}")
+        print(f"created_at des offres: {list(queryset.values_list('created_at', flat=True))}")
+        print("=" * 80)
+
+        # Filter by status (API values: draft, searching, closed)
+        status_param = request.query_params.get('status')
+        if status_param:
+            # Map French UI labels to DB values if needed
+            status_map = {
+                'Brouillon': 'draft',
+                'Publié': 'searching',
+                'Terminé': 'closed',
+            }
+            db_status = status_map.get(status_param, status_param)
+            queryset = queryset.filter(statut=db_status)
+
+        # Filter by posted_within (3d, 7d, 30d, 90d, 180d)
+        posted_within = request.query_params.get('posted_within')
+        if posted_within:
+            from datetime import timedelta
+            days_map = {'3d': 3, '7d': 7, '30d': 30, '90d': 90, '180d': 180}
+            days = days_map.get(posted_within)
+            if days:
+                cutoff = timezone.now() - timedelta(days=days)
+                print("=" * 80)
+                print(f"date seuil calculée: {cutoff}")
+                print(f"après filtre: {queryset.filter(created_at__gte=cutoff).count()}")
+                print("=" * 80)
+                queryset = queryset.filter(created_at__gte=cutoff)
+
+        # Filter by department
+        department = request.query_params.get('department')
+        if department:
+            queryset = queryset.filter(categorie=department)
+
+        # DEBUG
+        print("=" * 80)
+        print(f"nombre de résultats: {queryset.count()}")
+        print("=" * 80)
 
         paginator = StandardPagination()
         page = paginator.paginate_queryset(queryset, request)
@@ -220,10 +324,17 @@ class JobCandidatesView(APIView):
 
         candidatures = offre.candidatures.select_related('candidat', 'offre__recruteur').all()
 
-        # Optional filter by status
+        # Optional filter by status (API values: nouveau, examine, archive)
         status_param = request.query_params.get('status')
         if status_param:
-            api_to_db = {'pending': 'en_attente', 'accepted': 'accepte', 'rejected': 'refuse'}
+            # Map API status to DB status
+            # Note: The API spec uses nouveau/examine/archive which don't directly map
+            # to candidature statut. This might need custom status field or logic.
+            api_to_db = {
+                'nouveau': 'en_attente',
+                'examine': 'acceptee',
+                'archive': 'refusee'
+            }
             db_val = api_to_db.get(status_param, status_param)
             candidatures = candidatures.filter(statut=db_val)
 
@@ -236,10 +347,20 @@ class JobCandidatesView(APIView):
         else:
             candidatures = candidatures.order_by('-date_postulation')
 
+        # Build response using CandidateListSerializer
+        from apps.users.serializers_candidate import CandidateListSerializer
+        
+        results = []
+        for candidature in candidatures:
+            serializer = CandidateListSerializer(
+                candidature.candidat,
+                context={'candidature': candidature}
+            )
+            results.append(serializer.data)
+
         paginator = StandardPagination()
-        page = paginator.paginate_queryset(candidatures, request)
-        serializer = ApplicationSerializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        page = paginator.paginate_queryset(results, request)
+        return paginator.get_paginated_response(page if page is not None else results)
 
     def post(self, request, id):
         if not hasattr(request.user, 'candidat'):
@@ -308,6 +429,10 @@ class MissionListCreateView(APIView):
     Returns missions scoped to the authenticated user:
     - candidat  → missions where candidature.candidat = me
     - recruteur → missions where candidature.offre.recruteur = me
+    Query params: status, job_id, max_duration, department
+    
+    POST /missions
+    Creates a new mission (from accepted candidature)
     """
     permission_classes = [IsAuthenticated]
 
@@ -323,9 +448,52 @@ class MissionListCreateView(APIView):
         else:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        statut = request.query_params.get('statut')
-        if statut:
-            queryset = queryset.filter(statut=statut)
+        # Filter by status (API values: unconfirmed, in_progress, completed)
+        status_param = request.query_params.get('status')
+        if status_param:
+            # Map API status to DB status
+            status_map = {
+                'unconfirmed': 'en_attente',
+                'in_progress': 'en_cours',
+                'completed': 'terminee',
+                'cancelled': 'annulee',
+                # Also support French UI labels
+                'Non confirmée': 'en_attente',
+                'En cours': 'en_cours',
+                'Terminé': 'terminee',
+            }
+            db_status = status_map.get(status_param, status_param)
+            queryset = queryset.filter(statut=db_status)
+
+        # Filter by job_id
+        job_id = request.query_params.get('job_id')
+        if job_id:
+            queryset = queryset.filter(candidature__offre_id=job_id)
+
+        # Filter by max_duration (7d, 14d, 30d, 90d, 180d)
+        max_duration = request.query_params.get('max_duration')
+        if max_duration:
+            from datetime import timedelta
+            days_map = {'7d': 7, '14d': 14, '30d': 30, '90d': 90, '180d': 180}
+            days = days_map.get(max_duration)
+            if days:
+                # Filter missions with duration <= days
+                from django.db.models import F, ExpressionWrapper, fields
+                from django.db.models.functions import Extract
+                queryset = queryset.filter(
+                    date_debut__isnull=False,
+                    date_fin__isnull=False
+                ).annotate(
+                    duration_days=ExpressionWrapper(
+                        Extract(F('date_fin') - F('date_debut'), 'epoch') / 86400,
+                        output_field=fields.FloatField()
+                    )
+                ).filter(duration_days__lte=days)
+
+        # Filter by department
+        department = request.query_params.get('department')
+        if department:
+            queryset = queryset.filter(candidature__offre__categorie=department)
 
         queryset = queryset.select_related(
             'candidature__candidat', 'candidature__offre__recruteur'
@@ -335,6 +503,73 @@ class MissionListCreateView(APIView):
         page = paginator.paginate_queryset(queryset, request)
         serializer = MissionSerializer(page, many=True, context={'request': request})
         return paginator.get_paginated_response(serializer.data)
+
+    def post(self, request):
+        """Create a mission from an accepted candidature."""
+        if not hasattr(request.user, 'recruteur'):
+            return Response(
+                {'detail': 'Only recruiters can create missions.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get required fields from request
+        job_id = request.data.get('job_id')
+        candidate_name = request.data.get('candidate_name')
+        start_date = request.data.get('start_date')
+        end_date = request.data.get('end_date')
+        location = request.data.get('location', '')
+        image_url = request.data.get('image_url')
+
+        if not all([job_id, start_date, end_date]):
+            return Response(
+                {'detail': 'job_id, start_date, and end_date are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Find the candidature
+        try:
+            offre = Offre.objects.get(pk=job_id, recruteur=request.user.recruteur)
+        except Offre.DoesNotExist:
+            return Response({'detail': 'Job not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Find accepted candidature for this job
+        candidature = Candidature.objects.filter(
+            offre=offre,
+            statut='acceptee'
+        ).first()
+
+        if not candidature:
+            return Response(
+                {'detail': 'No accepted candidature found for this job.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if mission already exists
+        if hasattr(candidature, 'mission'):
+            return Response(
+                {'detail': 'Mission already exists for this candidature.'},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        # Parse dates
+        from django.utils.dateparse import parse_datetime
+        parsed_start = parse_datetime(start_date)
+        parsed_end = parse_datetime(end_date)
+
+        # Create mission
+        mission = Mission.objects.create(
+            candidature=candidature,
+            date_debut=parsed_start,
+            date_fin=parsed_end,
+            location=location,
+            image_url=image_url,
+            statut='en_attente'  # unconfirmed
+        )
+
+        return Response(
+            MissionSerializer(mission, context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
 
 
 class MissionDetailView(APIView):
@@ -350,6 +585,34 @@ class MissionDetailView(APIView):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         if not _is_mission_participant(request.user, mission):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response(MissionSerializer(mission, context={'request': request}).data)
+
+
+class MissionConfirmView(APIView):
+    """PATCH /missions/{id}/confirm - Confirm unconfirmed mission"""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, id):
+        try:
+            mission = Mission.objects.select_related(
+                'candidature__candidat', 'candidature__offre__recruteur'
+            ).get(pk=id)
+        except Mission.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not _is_mission_participant(request.user, mission):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if mission.statut != 'en_attente':
+            return Response(
+                {'detail': 'Mission is not in unconfirmed status.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Transition to in_progress
+        mission.statut = 'en_cours'
+        mission.save(update_fields=['statut'])
+        
         return Response(MissionSerializer(mission, context={'request': request}).data)
 
 
@@ -724,6 +987,7 @@ class MissionReviewView(APIView):
 class InterviewListCreateView(APIView):
     """
     GET  /interviews → list interviews for the user
+    Query params: upcoming, status, scheduled_within, department
     POST /interviews → recruiter schedules an interview
     """
     permission_classes = [IsAuthenticated]
@@ -733,12 +997,67 @@ class InterviewListCreateView(APIView):
             Q(candidate=request.user) | Q(recruiter=request.user)
         ).select_related('candidate', 'recruiter', 'job').order_by('-scheduled_date')
 
+        # Filter by upcoming
         upcoming = request.query_params.get('upcoming')
         if upcoming and upcoming.lower() == 'true':
             queryset = queryset.filter(
                 scheduled_date__gte=timezone.now(),
                 status='scheduled',
             )
+
+        # Filter by status (API values: scheduled, completed, cancelled)
+        status_param = request.query_params.get('status')
+        if status_param:
+            # Map French UI labels to DB values if needed
+            status_map = {
+                'Planifié': 'scheduled',
+                'Terminé': 'completed',
+                'Annulé': 'cancelled',
+            }
+            db_status = status_map.get(status_param, status_param)
+            queryset = queryset.filter(status=db_status)
+
+        # Filter by scheduled_within (today, this_week, this_month, next_month)
+        scheduled_within = request.query_params.get('scheduled_within')
+        if scheduled_within:
+            from datetime import timedelta
+            now = timezone.now()
+            
+            if scheduled_within == 'today':
+                start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                end = start + timedelta(days=1)
+                queryset = queryset.filter(scheduled_date__gte=start, scheduled_date__lt=end)
+            elif scheduled_within == 'this_week':
+                # Current week (Monday to Sunday)
+                start = now - timedelta(days=now.weekday())
+                start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+                end = start + timedelta(days=7)
+                queryset = queryset.filter(scheduled_date__gte=start, scheduled_date__lt=end)
+            elif scheduled_within == 'this_month':
+                start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                # Next month
+                if now.month == 12:
+                    end = start.replace(year=now.year + 1, month=1)
+                else:
+                    end = start.replace(month=now.month + 1)
+                queryset = queryset.filter(scheduled_date__gte=start, scheduled_date__lt=end)
+            elif scheduled_within == 'next_month':
+                # Start of next month
+                if now.month == 12:
+                    start = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                    end = start.replace(month=2)
+                else:
+                    start = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                    if start.month == 12:
+                        end = start.replace(year=start.year + 1, month=1)
+                    else:
+                        end = start.replace(month=start.month + 1)
+                queryset = queryset.filter(scheduled_date__gte=start, scheduled_date__lt=end)
+
+        # Filter by department
+        department = request.query_params.get('department')
+        if department:
+            queryset = queryset.filter(job__categorie=department)
 
         serializer = InterviewSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -766,20 +1085,38 @@ class InterviewListCreateView(APIView):
             return Response({'detail': 'Candidate not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            job = Offre.objects.get(pk=job_id)
+            job = Offre.objects.get(pk=job_id, recruteur=request.user.recruteur)
         except Offre.DoesNotExist:
             return Response({'detail': 'Job not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Parse scheduled_date
+        from django.utils.dateparse import parse_datetime
+        parsed_date = parse_datetime(scheduled_date)
+        if not parsed_date:
+            return Response(
+                {'detail': 'Invalid scheduled_date format. Use ISO8601.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Find candidature to link interview
+        candidature = Candidature.objects.filter(
+            candidat=candidate.candidat if hasattr(candidate, 'candidat') else None,
+            offre=job
+        ).first()
 
         interview = Interview.objects.create(
             candidate=candidate,
             recruiter=request.user,
             job=job,
-            scheduled_date=scheduled_date,
+            candidature=candidature,
+            scheduled_date=parsed_date,
             notes=notes,
+            status='scheduled'
         )
+
         return Response(
             InterviewSerializer(interview).data,
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_201_CREATED
         )
 
 

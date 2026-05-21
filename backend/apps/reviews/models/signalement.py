@@ -28,6 +28,15 @@ class Signalement(models.Model):
     date_signalement = models.DateTimeField(auto_now_add=True)
     statut = models.CharField(max_length=50, default="ouvert")
     decision = models.TextField(blank=True, null=True)
+    # New fields from DB-CHANGES.md section 11 (Option A)
+    target_type = models.CharField(max_length=20, default='user')
+    message = models.ForeignKey(
+        'messaging.Message',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='signalements'
+    )
 
     class Meta:
         db_table = "signalement"

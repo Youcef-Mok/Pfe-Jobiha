@@ -17,6 +17,10 @@ class Utilisateur(models.Model):
     est_verifie = models.BooleanField(default=False)
     statut_compte = models.CharField(max_length=50, default="actif")
     push_notif_enabled = models.BooleanField(default=True)
+    # New fields from DB-CHANGES.md section 1
+    avatar_url = models.CharField(max_length=500, blank=True, null=True)
+    location = models.CharField(max_length=200, blank=True)
+    bio = models.TextField(blank=True)
 
     class Meta:
         db_table = "utilisateur"

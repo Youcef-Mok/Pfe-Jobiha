@@ -7,7 +7,14 @@ import 'package:job_app/features/jobs/domain/create_mission_params.dart';
 /// Permet de swapper facilement mock → vraie API sans toucher au reste.
 abstract class JobsRepository {
   /// Retourne tous les jobs de l'employeur authentifié
-  Future<List<JobEntity>> getMyJobs();
+  /// [status] : draft, searching, closed
+  /// [postedWithin] : 3d, 7d, 30d, 90d, 180d
+  /// [department] : nom du département
+  Future<List<JobEntity>> getMyJobs({
+    String? status,
+    String? postedWithin,
+    String? department,
+  });
 
   /// Sauvegarde (création ou mise à jour) d'un job
   Future<JobEntity> saveJob(JobEntity job);

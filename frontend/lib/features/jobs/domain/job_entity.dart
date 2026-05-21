@@ -8,10 +8,11 @@ enum ContractType { cdi, mission, freelance }
 class JobEntity {
   final String id;
   final String title;
+  final String? description;
   final String companyName;
-  final String recruiterId;
-  final String recruiterName;
-  final String recruiterRole;
+  final String? recruiterId;
+  final String? recruiterName;
+  final String? recruiterRole;
   final String? recruiterAvatarAsset;
   final ContractType contractType; // Ajouté
   final String department;
@@ -27,11 +28,12 @@ class JobEntity {
   const JobEntity({
     required this.id,
     required this.title,
+    this.description,
     required this.companyName,
-    this.recruiterId = 'recruiter_1',
-    this.recruiterName = 'Ahmed Bensalem',
-    this.recruiterRole = 'Responsable RH',
-    this.recruiterAvatarAsset = 'assets/images/pdp_1.png',
+    this.recruiterId,
+    this.recruiterName,
+    this.recruiterRole,
+    this.recruiterAvatarAsset,
     required this.contractType, // Ajouté
     this.department = 'IT',
     required this.postedAt,
@@ -174,7 +176,7 @@ class EditJobForm {
         id: entity.id,
         title: entity.title,
         contractType: entity.contractType, // Maintenant valide
-        description: '', // à enrichir quand le backend arrive
+        description: entity.description ?? '',
         candidateCount: entity.candidateCount,
         salary: null,
         imageAsset: entity.logoAsset,

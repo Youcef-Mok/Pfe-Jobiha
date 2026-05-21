@@ -15,7 +15,7 @@ class Offre(models.Model):
     titre        = models.CharField(max_length=200)
     description  = models.TextField()
     categorie    = models.CharField(max_length=100)
-    date_debut   = models.DateField()
+    date_debut   = models.DateField(null=True, blank=True)
     date_fin     = models.DateField(blank=True, null=True)
     salaire      = models.FloatField(blank=True, null=True)
     type_contrat = models.CharField(max_length=50)
@@ -30,6 +30,11 @@ class Offre(models.Model):
     recruteur    = models.ForeignKey(
         "users.Recruteur", on_delete=models.CASCADE, related_name="offres"
     )
+    # New fields from DB-CHANGES.md section 4
+    created_at     = models.DateTimeField(auto_now_add=True)
+    logo_url       = models.CharField(max_length=500, blank=True, null=True)
+    location       = models.CharField(max_length=200, blank=True)
+    schedule_label = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
         db_table = "offre"

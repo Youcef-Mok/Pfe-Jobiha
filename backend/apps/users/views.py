@@ -14,7 +14,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP, BlockedUser
+from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP, BlockedUser, RestrictedUser
 from apps.users.models.settings import UserSettings
 from apps.users.models.recent_search import RecentSearch
 from apps.uploads.models import Media
@@ -868,6 +868,69 @@ class BlockedUsersView(APIView):
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+# __ Restricted users ______________________________________________
+
+
+class RestrictedUsersView(APIView):
+    """GET /users/me/restricted  — list restricted users
+       POST /users/me/restricted  — restrict a user
+       DELETE /users/me/restricted/{id} — unrestrict a user
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        restricted = RestrictedUser.objects.filter(
+            restricteur=request.user
+        ).select_related('restreint')
+        data = {
+            'restricted_ids': [str(r.restreint.id) for r in restricted]
+        }
+        return Response(data)
+
+    def post(self, request):
+        contact_id = request.data.get('contact_id')
+        if not contact_id:
+            return Response(
+                {'detail': 'contact_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Convert string to int if needed
+        try:
+            restreint_id = int(contact_id)
+        except (ValueError, TypeError):
+            return Response(
+                {'detail': 'contact_id must be a valid integer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        if restreint_id == request.user.pk:
+            return Response(
+                {'detail': 'You cannot restrict yourself.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            restreint = Utilisateur.objects.get(pk=restreint_id)
+        except Utilisateur.DoesNotExist:
+            return Response(
+                {'detail': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        RestrictedUser.objects.get_or_create(restricteur=request.user, restreint=restreint)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def delete(self, request, id):
+        deleted, _ = RestrictedUser.objects.filter(
+            restricteur=request.user, restreint_id=id
+        ).delete()
+        if not deleted:
+            return Response(
+                {'detail': 'Not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 #__ Push notification _____________________________________________________________
 
 class PushNotifPrefView(APIView):
@@ -892,6 +955,31 @@ class PushNotifPrefView(APIView):
 # ===========================================================================
 # User Reviews
 # ===========================================================================
+
+class UserListView(APIView):
+    """GET /users — list all users with optional role filter"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = Utilisateur.objects.filter(
+            statut_compte='actif',
+            est_verifie=True
+        ).exclude(pk=request.user.pk).order_by('id')
+
+        # Optional role filter
+        role_filter = request.query_params.get('role')
+        if role_filter:
+            # Filter by checking child profile existence
+            if role_filter == 'candidat':
+                queryset = queryset.filter(candidat__isnull=False)
+            elif role_filter == 'recruteur':
+                queryset = queryset.filter(recruteur__isnull=False)
+
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = UtilisateurSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
 
 class UserReviewsView(APIView):
     """GET /users/<id>/reviews"""

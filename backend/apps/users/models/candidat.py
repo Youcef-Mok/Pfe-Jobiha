@@ -13,6 +13,9 @@ class Candidat(Utilisateur):
     disponibilites = models.ManyToManyField(
         Disponibilite, blank=True, related_name="candidats"
     )
+    # New fields from DB-CHANGES.md section 3
+    titre_poste = models.CharField(max_length=100, blank=True)
+    domain = models.CharField(max_length=100, blank=True)
     # Portfolio is managed via the Media.candidat FK (related_name='medias').
     # The duplicate M2M to Media has been removed to avoid two inconsistent
     # relations pointing at the same concept.

@@ -1,6 +1,7 @@
 """
 Views for the Applications module.
 """
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -19,6 +20,7 @@ from core.pagination import StandardPagination
 class ApplicationsView(APIView):
     """
     GET  /applications → list applications scoped to user role
+    Query params: status, applied_within, department
     POST /applications → candidate applies to a job
     """
     permission_classes = [IsAuthenticated]
@@ -39,13 +41,42 @@ class ApplicationsView(APIView):
         else:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Optional status filter
-        statut_param = request.query_params.get('status')
-        if statut_param:
+        # Filter by status (API values: pending, accepted, rejected)
+        status_param = request.query_params.get('status')
+        if status_param:
             # Map API status names back to DB values
-            api_to_db = {'pending': 'en_attente', 'accepted': 'accepte', 'rejected': 'refuse'}
-            db_val = api_to_db.get(statut_param, statut_param)
+            api_to_db = {
+                'pending': 'en_attente',
+                'accepted': 'acceptee',
+                'rejected': 'refusee',
+                # Also support French UI labels
+                'En attente': 'en_attente',
+                'Acceptée': 'acceptee',
+                'Refusée': 'refusee',
+            }
+            db_val = api_to_db.get(status_param, status_param)
             queryset = queryset.filter(statut=db_val)
+
+        # Filter by applied_within (today, 3d, 7d, 30d)
+        applied_within = request.query_params.get('applied_within')
+        if applied_within:
+            from datetime import timedelta
+            now = timezone.now()
+            
+            if applied_within == 'today':
+                start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                queryset = queryset.filter(date_postulation__gte=start)
+            else:
+                days_map = {'3d': 3, '7d': 7, '30d': 30}
+                days = days_map.get(applied_within)
+                if days:
+                    cutoff = now - timedelta(days=days)
+                    queryset = queryset.filter(date_postulation__gte=cutoff)
+
+        # Filter by department
+        department = request.query_params.get('department')
+        if department:
+            queryset = queryset.filter(offre__categorie=department)
 
         paginator = StandardPagination()
         page = paginator.paginate_queryset(queryset, request)
@@ -137,7 +168,7 @@ class AcceptApplicationView(APIView):
         if candidature.offre.recruteur != request.user.recruteur:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        candidature.statut = 'accepte'
+        candidature.statut = 'acceptee'  # Fixed: was 'accepte'
         candidature.save(update_fields=['statut'])
         return Response(ApplicationSerializer(candidature).data)
 
@@ -162,7 +193,7 @@ class RejectApplicationView(APIView):
         if candidature.offre.recruteur != request.user.recruteur:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        candidature.statut = 'refuse'
+        candidature.statut = 'refusee'  # Fixed: was 'refuse'
         candidature.save(update_fields=['statut'])
         return Response(ApplicationSerializer(candidature).data)
 

@@ -15,14 +15,14 @@ class CandidateModel extends CandidateEntity {
 
   factory CandidateModel.fromJson(Map<String, dynamic> json) {
     return CandidateModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      title: json['title'] as String,
-      photoUrl: json['photoUrl'] as String,
-      rating: (json['rating'] as num).toDouble(),
-      reviewsCount: json['reviewsCount'] as int,
-      isTopRated: json['isTopRated'] as bool? ?? false,
-      coverLetter: json['coverLetter'] as String,
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      photoUrl: json['photo_url'] as String? ?? '',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewsCount: json['reviews_count'] as int? ?? 0,
+      isTopRated: json['is_top_rated'] as bool? ?? false,
+      coverLetter: json['cover_letter'] as String? ?? '',
       status: CandidateStatus.values.firstWhere(
         (e) => e.name == json['status'],
         orElse: () => CandidateStatus.nouveau,
@@ -35,11 +35,11 @@ class CandidateModel extends CandidateEntity {
       'id': id,
       'name': name,
       'title': title,
-      'photoUrl': photoUrl,
+      'photo_url': photoUrl,
       'rating': rating,
-      'reviewsCount': reviewsCount,
-      'isTopRated': isTopRated,
-      'coverLetter': coverLetter,
+      'reviews_count': reviewsCount,
+      'is_top_rated': isTopRated,
+      'cover_letter': coverLetter,
       'status': status.name,
     };
   }

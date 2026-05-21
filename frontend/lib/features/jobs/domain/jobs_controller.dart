@@ -11,9 +11,36 @@ class JobsController {
 
   JobsController(this._repository);
 
-  /// Récupère tous les jobs de l'employeur courant
-  Future<List<JobEntity>> fetchMyJobs() async {
-    return _repository.getMyJobs();
+  /// Récupère tous les jobs de l'employeur courant avec filtres optionnels
+  Future<List<JobEntity>> fetchMyJobs({RecruiterFilters? filters}) async {
+    // Mapper les valeurs UI vers les valeurs API
+    String? apiStatus;
+    if (filters?.status != null) {
+      apiStatus = switch (filters!.status!) {
+        'Brouillon' => 'draft',
+        'Publié' => 'searching',
+        'Terminé' => 'closed',
+        _ => filters.status,
+      };
+    }
+
+    String? apiPostedWithin;
+    if (filters?.dateFilter != null) {
+      apiPostedWithin = switch (filters!.dateFilter!) {
+        '3 jours' => '3d',
+        '1 semaine' => '7d',
+        '1 mois' => '30d',
+        '3 mois' => '90d',
+        '6 mois' => '180d',
+        _ => null,
+      };
+    }
+
+    return _repository.getMyJobs(
+      status: apiStatus,
+      postedWithin: apiPostedWithin,
+      department: filters?.department,
+    );
   }
 
   /// Récupère toutes les missions de l'utilisateur courant (purge auto des non confirmées expirées).
@@ -36,22 +63,11 @@ class JobsController {
       jobs.where((j) => j.status == JobStatus.draft).toList();
 
   /// Filtre les annonces recruteur (statut, date de publication, département).
+  /// NOTE: Le filtrage est maintenant fait côté serveur via fetchMyJobs().
+  /// Cette méthode est conservée pour compatibilité mais ne fait plus de filtrage.
   List<JobEntity> filterJobs(List<JobEntity> jobs, RecruiterFilters filters) {
-    if (filters.isEmpty) return jobs;
-    return jobs.where((j) {
-      if (filters.department != null && j.department != filters.department) {
-        return false;
-      }
-      if (filters.status != null &&
-          _jobStatusLabel(j.status) != filters.status) {
-        return false;
-      }
-      if (!RecruiterFilterDates.matchesPostedWithin(
-          j.postedAt, filters.dateFilter)) {
-        return false;
-      }
-      return true;
-    }).toList();
+    // Le filtrage est maintenant fait côté serveur
+    return jobs;
   }
 
   /// Filtre les missions (statut, durée, département).
@@ -107,12 +123,14 @@ class JobsController {
     final job = JobEntity(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // ID temporaire
       title: form.title,
-      companyName: 'Le Petit Bistro', // TODO(API): injecter depuis /users/me
-      recruiterId: 'recruiter_1',
-      recruiterName: 'Ahmed Bensalem',
-      recruiterRole: 'Responsable RH',
-      recruiterAvatarAsset: 'assets/images/pdp_1.png',
-      contractType: form.contractType, // Ajouté
+      description: form.description,
+      // NE PAS envoyer ces champs — le backend les déduit depuis request.user
+      companyName: '', // Sera rempli par le backend
+      recruiterId: null, // Sera rempli par le backend
+      recruiterName: null, // Sera rempli par le backend
+      recruiterRole: null, // Sera rempli par le backend
+      recruiterAvatarAsset: null, // Sera rempli par le backend
+      contractType: form.contractType,
       postedAt: DateTime.now(),
       status: JobStatus.draft,
       candidateCount: 0,
@@ -127,6 +145,7 @@ class JobsController {
     final published = JobEntity(
       id: draft.id,
       title: draft.title,
+      description: draft.description,
       companyName: draft.companyName,
       recruiterId: draft.recruiterId,
       recruiterName: draft.recruiterName,
@@ -150,13 +169,15 @@ class JobsController {
     final updated = JobEntity(
       id: form.id,
       title: form.title.trim(),
+      description: form.description,
+      // Garder les valeurs existantes du backend (ne pas envoyer de nouvelles valeurs mockées)
       companyName: existing?.companyName ?? '',
-      recruiterId: existing?.recruiterId ?? 'recruiter_1',
-      recruiterName: existing?.recruiterName ?? 'Ahmed Bensalem',
-      recruiterRole: existing?.recruiterRole ?? 'Responsable RH',
+      recruiterId: existing?.recruiterId,
+      recruiterName: existing?.recruiterName,
+      recruiterRole: existing?.recruiterRole,
       recruiterAvatarAsset: existing?.recruiterAvatarAsset,
       department: existing?.department ?? 'IT',
-      contractType: form.contractType, // Ajouté
+      contractType: form.contractType,
       postedAt: existing?.postedAt ?? DateTime.now(),
       status: existing?.status ?? JobStatus.searching,
       candidateCount: form.candidateCount ?? existing?.candidateCount ?? 0,

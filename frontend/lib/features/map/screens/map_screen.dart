@@ -1697,7 +1697,11 @@ JobEntity _mapJobToEntity(MapJobEntity mapJob) {
   return JobEntity(
     id: mapJob.id,
     title: mapJob.title,
+    description: null,
     companyName: mapJob.company,
+    recruiterId: null,
+    recruiterName: null,
+    recruiterRole: null,
     contractType: ContractType.mission,
     postedAt: DateTime.now(),
     status: JobStatus.searching,

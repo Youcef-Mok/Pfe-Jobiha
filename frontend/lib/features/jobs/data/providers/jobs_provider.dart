@@ -29,15 +29,24 @@ final jobsControllerProvider = Provider<JobsController>(
 // ─────────────────────────────────────────────
 class JobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
   final JobsController _controller;
+  final Ref _ref;
 
-  JobsNotifier(this._controller) : super(const AsyncValue.loading()) {
+  JobsNotifier(this._controller, this._ref) : super(const AsyncValue.loading()) {
     Future.microtask(() => fetch());
   }
 
   Future<void> fetch() async {
     state = const AsyncValue.loading();
     try {
-      final jobs = await _controller.fetchMyJobs();
+      // Récupérer les filtres actuels
+      final filters = _ref.read(recruiterFiltersProvider);
+      
+      // DEBUG
+      print("=" * 80);
+      print("filtres passés à fetchMyJobs: $filters");
+      print("=" * 80);
+      
+      final jobs = await _controller.fetchMyJobs(filters: filters);
       state = AsyncValue.data(jobs);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -56,7 +65,22 @@ class JobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
 
 final jobsNotifierProvider =
     StateNotifierProvider<JobsNotifier, AsyncValue<List<JobEntity>>>(
-  (ref) => JobsNotifier(ref.watch(jobsControllerProvider)),
+  (ref) {
+    final notifier = JobsNotifier(ref.watch(jobsControllerProvider), ref);
+    
+    // Écouter les changements de filtres et recharger les jobs
+    ref.listen<RecruiterFilters>(
+      recruiterFiltersProvider,
+      (previous, next) {
+        // Recharger uniquement si les filtres ont changé
+        if (previous != next) {
+          notifier.fetch();
+        }
+      },
+    );
+    
+    return notifier;
+  },
 );
 
 class MissionsNotifier extends StateNotifier<AsyncValue<List<MissionEntity>>> {

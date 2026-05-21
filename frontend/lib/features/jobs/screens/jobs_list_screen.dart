@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/jobs/widgets/job_card.dart';
@@ -61,20 +62,59 @@ class JobsListScreen extends ConsumerWidget {
 class _Header extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(currentUserProvider);
+    
     return Container(
       color: AppColors.background,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           // Photo de profil
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              image: const DecorationImage(
-                image: AssetImage('assets/images/pdp_1.png'),
-                fit: BoxFit.cover,
+          userAsync.when(
+            data: (user) => Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                image: user.avatarUrl != null
+                    ? DecorationImage(
+                        image: user.avatarUrl!.startsWith('http')
+                            ? NetworkImage(user.avatarUrl!) as ImageProvider
+                            : AssetImage(user.avatarUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+                color: user.avatarUrl == null ? AppColors.slate200 : null,
+              ),
+              child: user.avatarUrl == null
+                  ? Center(
+                      child: Text(
+                        user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                        style: AppTextStyles.heading1.copyWith(
+                          fontSize: 16,
+                          color: AppColors.slate600,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            loading: () => Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.slate200,
+              ),
+            ),
+            error: (_, __) => Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                image: const DecorationImage(
+                  image: AssetImage('assets/images/pdp_1.png'),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
@@ -84,9 +124,19 @@ class _Header extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Bonjour Ahmed',
-                  style: AppTextStyles.heading1.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+                userAsync.when(
+                  data: (user) => Text(
+                    'Bonjour ${user.name}',
+                    style: AppTextStyles.heading1.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  loading: () => Text(
+                    'Bonjour',
+                    style: AppTextStyles.heading1.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  error: (_, __) => Text(
+                    'Bonjour',
+                    style: AppTextStyles.heading1.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(

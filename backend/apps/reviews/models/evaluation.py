@@ -28,6 +28,10 @@ class Evaluation(models.Model):
         related_name="evaluations_recues",
     )
     date_evaluation = models.DateField(auto_now_add=True)
+    # New fields from DB-CHANGES.md section 10
+    recruiter_reply = models.TextField(blank=True, null=True)
+    recruiter_name = models.CharField(max_length=200, blank=True, null=True)
+    recruiter_reply_date = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         db_table = "evaluation"

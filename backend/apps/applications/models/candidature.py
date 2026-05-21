@@ -6,15 +6,23 @@ from django.db import models
 # ---------------------------------------------------------------------------
 
 class Candidature(models.Model):
+    STATUT_CHOICES = [
+        ("en_attente", "Pending"),
+        ("acceptee",   "Accepted"),
+        ("refusee",    "Rejected"),
+    ]
+    
     candidat = models.ForeignKey(
         "users.Candidat", on_delete=models.CASCADE, related_name="candidatures"
     )
     offre = models.ForeignKey(
         "jobs.Offre", on_delete=models.CASCADE, related_name="candidatures"
     )
-    date_postulation = models.DateField(auto_now_add=True)
+    # Changed from DateField to DateTimeField (DB-CHANGES.md section 6)
+    date_postulation = models.DateTimeField(auto_now_add=True)
     message_personnalise = models.TextField(blank=True, null=True)
-    statut = models.CharField(max_length=50, default="en_attente")
+    # Added choices to statut field
+    statut = models.CharField(max_length=50, choices=STATUT_CHOICES, default="en_attente")
 
     class Meta:
         db_table = "candidature"

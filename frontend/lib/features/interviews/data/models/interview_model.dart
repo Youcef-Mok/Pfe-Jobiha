@@ -61,14 +61,14 @@ class InterviewModel {
   /// Crée un modèle depuis JSON
   factory InterviewModel.fromJson(Map<String, dynamic> json) {
     return InterviewModel(
-      id: json['id'] as String,
-      candidateId: json['candidateId'] as String,
-      candidateName: json['candidateName'] as String,
-      candidateAvatar: json['candidateAvatar'] as String?,
-      jobId: json['jobId'] as String,
-      jobTitle: json['jobTitle'] as String,
+      id: json['id']?.toString() ?? '',
+      candidateId: json['candidate_id']?.toString() ?? '',
+      candidateName: json['candidate_name'] as String? ?? '',
+      candidateAvatar: json['candidate_avatar'] as String?,
+      jobId: json['job_id']?.toString() ?? '',
+      jobTitle: json['job_title'] as String? ?? '',
       department: json['department'] as String? ?? 'IT',
-      scheduledDate: json['scheduledDate'] as String,
+      scheduledDate: json['scheduled_date'] as String? ?? DateTime.now().toIso8601String(),
       status: json['status'] as String? ?? 'scheduled',
       notes: json['notes'] as String?,
     );
@@ -78,13 +78,13 @@ class InterviewModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'candidateId': candidateId,
-      'candidateName': candidateName,
-      'candidateAvatar': candidateAvatar,
-      'jobId': jobId,
-      'jobTitle': jobTitle,
+      'candidate_id': candidateId,
+      'candidate_name': candidateName,
+      'candidate_avatar': candidateAvatar,
+      'job_id': jobId,
+      'job_title': jobTitle,
       'department': department,
-      'scheduledDate': scheduledDate,
+      'scheduled_date': scheduledDate,
       'status': status,
       'notes': notes,
     };

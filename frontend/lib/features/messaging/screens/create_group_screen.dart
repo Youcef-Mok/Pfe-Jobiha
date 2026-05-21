@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
+import 'package:job_app/features/messaging/data/providers/contacts_provider.dart';
 import 'package:job_app/features/messaging/widgets/contact_widgets.dart';
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
@@ -12,7 +13,6 @@ class CreateGroupScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
-  bool _isGroupedByAnnonce = false;
   String _groupName = '';
   bool _editingName = false;
   late final TextEditingController _nameController;
@@ -42,52 +42,19 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
     super.dispose();
   }
 
-  static const List<ContactItem> _suggestions = [
-    ContactItem(name: 'Yasmine Bensalem', role: 'Étudiante', avatar: 'assets/images/pdp_4.png', isOnline: false),
-    ContactItem(name: 'Karim Benali', role: 'Recruteur chez Coffee Corner', avatar: 'assets/images/pdp_1.png', isOnline: true, isRecruiter: true),
-    ContactItem(name: 'Sophie Laurent', role: 'Recruteur chez FoodGroup', avatar: 'assets/images/pdp_2.png', isOnline: false, isRecruiter: true),
-  ];
-
-  static const List<ContactItem> _recruitersFlat = [
-    ContactItem(name: 'Camille Martin', role: 'Recruteur chez Le Petit Bistro', avatar: 'assets/images/pdp_1.png', isOnline: true, isRecruiter: true),
-    ContactItem(name: 'Marc Dubois', role: 'Recruteur chez Le Petit Bistro', avatar: 'assets/images/pdp_2.png', isOnline: false, isRecruiter: true),
-    ContactItem(name: 'Leila Mansouri', role: 'Recruteur chez FoodGroup', avatar: 'assets/images/pdp_4.png', isOnline: true, isRecruiter: true),
-  ];
-
-  static const List<JobGroup> _recruitersGrouped = [
-    JobGroup(
-      jobTitle: 'Serveur de café',
-      company: 'Le Petit Bistro',
-      jobImage: 'assets/images/imageannonc(1).jpg',
-      recruiter: ContactItem(name: 'Camille Martin', role: 'Recruteur chez Le Petit Bistro', avatar: 'assets/images/pdp_1.png', isOnline: true, isRecruiter: true),
-    ),
-    JobGroup(
-      jobTitle: 'Barista',
-      company: 'Coffee Corner',
-      jobImage: 'assets/images/imageannonc(2).jpg',
-      recruiter: ContactItem(name: 'Marc Dubois', role: 'Recruteur chez Coffee Corner', avatar: 'assets/images/pdp_2.png', isOnline: false, isRecruiter: true),
-    ),
-  ];
-
   int get _totalSelected => _selectedSuggestions.length + _selectedRecruiters.length;
 
   // All selected contacts mapped to their ContactItem
-  List<_SelectedEntry> get _selectedEntries {
+  List<_SelectedEntry> _selectedEntries(ContactsData contactsData) {
     final result = <_SelectedEntry>[];
     for (final i in _selectedSuggestions) {
-      if (i < _suggestions.length) {
-        result.add(_SelectedEntry(contact: _suggestions[i], isSuggestion: true, index: i));
+      if (i < contactsData.suggestions.length) {
+        result.add(_SelectedEntry(contact: contactsData.suggestions[i], isSuggestion: true, index: i));
       }
     }
     for (final i in _selectedRecruiters) {
-      if (_isGroupedByAnnonce) {
-        if (i < _recruitersGrouped.length) {
-          result.add(_SelectedEntry(contact: _recruitersGrouped[i].recruiter, isSuggestion: false, index: i));
-        }
-      } else {
-        if (i < _recruitersFlat.length) {
-          result.add(_SelectedEntry(contact: _recruitersFlat[i], isSuggestion: false, index: i));
-        }
+      if (i < contactsData.recruiters.length) {
+        result.add(_SelectedEntry(contact: contactsData.recruiters[i], isSuggestion: false, index: i));
       }
     }
     return result;
@@ -103,9 +70,9 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
     });
   }
 
-  Future<void> _createGroup() async {
+  Future<void> _createGroup(ContactsData contactsData) async {
     if (_totalSelected < 1) return;
-    final entries = _selectedEntries;
+    final entries = _selectedEntries(contactsData);
     final names = entries.map((e) => e.contact.name).toList();
     final avatars = entries.map((e) => e.contact.avatar).toList();
     await ref
@@ -116,7 +83,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = _selectedEntries;
+    final contactsAsync = ref.watch(contactsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -149,31 +116,35 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: _createGroup,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _totalSelected > 0
-                            ? const Color(0xFF401E66)
-                            : const Color(0xFFEFEDF2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        _totalSelected > 0
-                            ? 'créer ($_totalSelected)'
-                            : 'créer',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                  contactsAsync.when(
+                    data: (contactsData) => GestureDetector(
+                      onTap: () => _createGroup(contactsData),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        decoration: BoxDecoration(
                           color: _totalSelected > 0
-                              ? Colors.white
-                              : const Color(0xFF94A3B8),
+                              ? const Color(0xFF401E66)
+                              : const Color(0xFFEFEDF2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          _totalSelected > 0
+                              ? 'créer ($_totalSelected)'
+                              : 'créer',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: _totalSelected > 0
+                                ? Colors.white
+                                : const Color(0xFF94A3B8),
+                          ),
                         ),
                       ),
                     ),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
                   ),
                 ],
               ),
@@ -181,157 +152,170 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
             // Body
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const MessageSearchBar(),
-                    const SizedBox(height: 12),
+              child: contactsAsync.when(
+                data: (contactsData) {
+                  final entries = _selectedEntries(contactsData);
+                  
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const MessageSearchBar(),
+                        const SizedBox(height: 12),
 
-                    // Group name (inline edit)
-                    Center(
-                      child: _editingName
-                          ? IntrinsicWidth(
-                              child: TextField(
-                                controller: _nameController,
-                                focusNode: _nameFocusNode,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                  color: Color(0xFF1D1B1F),
-                                ),
-                                decoration: const InputDecoration(
-                                  hintText: 'nom du groupe...',
-                                  hintStyle: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                    color: Color(0xFF401E66),
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                  isDense: true,
-                                ),
-                                onSubmitted: (val) {
-                                  setState(() {
-                                    _groupName = val.trim();
-                                    _editingName = false;
-                                  });
-                                },
-                              ),
-                            )
-                          : GestureDetector(
-                              onTap: () {
-                                _nameController.text = _groupName;
-                                setState(() => _editingName = true);
-                                Future.microtask(() => _nameFocusNode.requestFocus());
-                              },
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _groupName.isEmpty ? Icons.edit_outlined : Icons.edit,
-                                    size: 16,
-                                    color: const Color(0xFF401E66),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    _groupName.isEmpty ? 'choisir nom de groupe' : _groupName,
-                                    style: TextStyle(
+                        // Group name (inline edit)
+                        Center(
+                          child: _editingName
+                              ? IntrinsicWidth(
+                                  child: TextField(
+                                    controller: _nameController,
+                                    focusNode: _nameFocusNode,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
                                       fontFamily: 'Inter',
                                       fontWeight: FontWeight.w600,
                                       fontSize: 16,
-                                      color: _groupName.isEmpty
-                                          ? const Color(0xFF401E66)
-                                          : const Color(0xFF1D1B1F),
+                                      color: Color(0xFF1D1B1F),
                                     ),
+                                    decoration: const InputDecoration(
+                                      hintText: 'nom du groupe...',
+                                      hintStyle: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                        color: Color(0xFF401E66),
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                      isDense: true,
+                                    ),
+                                    onSubmitted: (val) {
+                                      setState(() {
+                                        _groupName = val.trim();
+                                        _editingName = false;
+                                      });
+                                    },
                                   ),
-                                ],
+                                )
+                              : GestureDetector(
+                                  onTap: () {
+                                    _nameController.text = _groupName;
+                                    setState(() => _editingName = true);
+                                    Future.microtask(() => _nameFocusNode.requestFocus());
+                                  },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _groupName.isEmpty ? Icons.edit_outlined : Icons.edit,
+                                        size: 16,
+                                        color: const Color(0xFF401E66),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _groupName.isEmpty ? 'choisir nom de groupe' : _groupName,
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          color: _groupName.isEmpty
+                                              ? const Color(0xFF401E66)
+                                              : const Color(0xFF1D1B1F),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Selected people bar
+                        if (entries.isNotEmpty) ...[
+                          SizedBox(
+                            height: 80,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              itemCount: entries.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 12),
+                              itemBuilder: (ctx, i) => _SelectedPersonChip(
+                                entry: entries[i],
+                                onRemove: () => _removeSelected(entries[i]),
                               ),
                             ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Selected people bar
-                    if (entries.isNotEmpty) ...[
-                      SizedBox(
-                        height: 80,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          itemCount: entries.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
-                          itemBuilder: (ctx, i) => _SelectedPersonChip(
-                            entry: entries[i],
-                            onRemove: () => _removeSelected(entries[i]),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+                          const SizedBox(height: 8),
+                        ],
 
-                    // suggestions
-                    const MessageSectionHeader(title: 'suggestions', action: 'voir tous'),
-                    const SizedBox(height: 7),
-                    ContactsCard(
-                      contacts: _suggestions,
-                      showChevron: false,
-                      selected: _selectedSuggestions,
-                      onToggle: (i) => setState(() {
-                        _selectedSuggestions.contains(i)
-                            ? _selectedSuggestions.remove(i)
-                            : _selectedSuggestions.add(i);
-                      }),
-                    ),
-                    const SizedBox(height: 10),
+                        // Suggestions
+                        if (contactsData.suggestions.isNotEmpty) ...[
+                          const MessageSectionHeader(title: 'suggestions', action: 'voir tous'),
+                          const SizedBox(height: 7),
+                          ContactsCard(
+                            contacts: contactsData.suggestions,
+                            showChevron: false,
+                            selected: _selectedSuggestions,
+                            onToggle: (i) => setState(() {
+                              _selectedSuggestions.contains(i)
+                                  ? _selectedSuggestions.remove(i)
+                                  : _selectedSuggestions.add(i);
+                            }),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
 
-                    // Recruiters
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const MessageSectionHeader(title: 'recruteurs'),
-                        SortByAnnonceButton(
-                          isActive: _isGroupedByAnnonce,
-                          onTap: () => setState(() => _isGroupedByAnnonce = !_isGroupedByAnnonce),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 7),
-
-                    if (_isGroupedByAnnonce)
-                      ..._recruitersGrouped.asMap().entries.map((e) {
-                        final i = e.key;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: JobGroupCard(
-                            group: e.value,
-                            hasCheckbox: true,
-                            isSelected: _selectedRecruiters.contains(i),
-                            onToggle: () => setState(() {
+                        // Recruiters
+                        if (contactsData.recruiters.isNotEmpty) ...[
+                          const MessageSectionHeader(title: 'recruteurs'),
+                          const SizedBox(height: 7),
+                          ContactsCard(
+                            contacts: contactsData.recruiters,
+                            showChevron: false,
+                            selected: _selectedRecruiters,
+                            onToggle: (i) => setState(() {
                               _selectedRecruiters.contains(i)
                                   ? _selectedRecruiters.remove(i)
                                   : _selectedRecruiters.add(i);
                             }),
                           ),
-                        );
-                      })
-                    else
-                      ContactsCard(
-                        contacts: _recruitersFlat,
-                        showChevron: false,
-                        selected: _selectedRecruiters,
-                        onToggle: (i) => setState(() {
-                          _selectedRecruiters.contains(i)
-                              ? _selectedRecruiters.remove(i)
-                              : _selectedRecruiters.add(i);
-                        }),
-                      ),
-
-                    const SizedBox(height: 16),
-                  ],
+                          const SizedBox(height: 16),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Erreur de chargement des contacts',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: Color(0xFF1D1B1F),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

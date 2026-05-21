@@ -12,7 +12,7 @@ class CandidatesRepositoryApi implements CandidatesRepository {
   @override
   Future<List<CandidateModel>> getCandidates(String jobId) async {
     final id = int.tryParse(jobId) ?? 0;
-    final response = await _dio.get(ApiEndpoints.offreCandidatures(id));
+    final response = await _dio.get(ApiEndpoints.jobCandidates(id));
     final List<dynamic> data = response.data is List
         ? response.data as List<dynamic>
         : (response.data['results'] as List<dynamic>?) ?? [];
@@ -24,18 +24,10 @@ class CandidatesRepositoryApi implements CandidatesRepository {
   @override
   Future<void> updateCandidateStatus(String candidateId, String status) async {
     final id = int.tryParse(candidateId) ?? 0;
-    // Use the appropriate accept/refuse endpoint based on the status
-    if (status == 'accepte' || status == 'accepted') {
-      await _dio.post(ApiEndpoints.accepterCandidature(id));
-    } else if (status == 'refuse' || status == 'rejected') {
-      await _dio.post(ApiEndpoints.refuserCandidature(id));
-    } else {
-      // For other status changes, use PATCH on the candidature detail
-      await _dio.patch(
-        ApiEndpoints.candidatureDetail(id),
-        data: {'status': status},
-      );
-    }
+    await _dio.put(
+      ApiEndpoints.candidateStatus(id),
+      data: {'status': status},
+    );
   }
 
   @override
@@ -44,12 +36,12 @@ class CandidatesRepositoryApi implements CandidatesRepository {
     DateTime date,
     String timeSlot,
   ) async {
-    final id = int.tryParse(candidateId) ?? 0;
-    await _dio.patch(
-      ApiEndpoints.candidatureDetail(id),
+    await _dio.post(
+      ApiEndpoints.interviews,
       data: {
-        'interview_date': date.toIso8601String(),
-        'interview_time_slot': timeSlot,
+        'candidate_id': candidateId,
+        'scheduled_date': date.toIso8601String(),
+        'time_slot': timeSlot,
       },
     );
   }

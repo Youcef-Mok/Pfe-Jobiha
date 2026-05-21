@@ -26,6 +26,7 @@ urlpatterns = [
     path('auth/password/reset',  views.ResetPasswordView.as_view(),  name='reset-password'),
 
     # --- Users ---
+    path('users', views.UserListView.as_view(), name='users-list'),
     path('users/me', views.UserMeView.as_view(), name='user-me'),
     path('users/<int:id>/reviews', views.UserReviewsView.as_view(), name='user-reviews'),
     path('users/<int:id>/cv', views.UserCvView.as_view(), name='user-cv'),
@@ -58,6 +59,11 @@ urlpatterns = [
     # --- Blocked users ---
     path('users/me/blocked', views.BlockedUsersView.as_view(), name='blocked-users'),
     path('users/me/blocked/<int:id>', views.BlockedUsersView.as_view(), name='blocked-users-delete'),
+    
+    # --- Restricted users ---
+    path('users/me/restricted', views.RestrictedUsersView.as_view(), name='restricted-users'),
+    path('users/me/restricted/<int:id>', views.RestrictedUsersView.as_view(), name='restricted-users-delete'),
+    
     path('users/me/deactivate', views.DeactivateAccountView.as_view(), name='deactivate-account'),
     path('users/me/preferences', views.PushNotifPrefView.as_view(), name='push-notif-pref'),
 

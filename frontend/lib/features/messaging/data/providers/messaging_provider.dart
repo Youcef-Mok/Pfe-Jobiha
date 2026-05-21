@@ -1,15 +1,16 @@
 ﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/messaging_repository.dart';
-import '../repositories/messaging_repository_mock.dart';
+import '../repositories/messaging_repository_api.dart';
+import '../datasources/messaging_remote_datasource.dart';
 import '../../domain/chat_controller.dart';
 
-// TODO(API): Remplacer MessagingRepositoryMock par MessagingRepositoryHttp ici.
 final messagingRepositoryProvider = Provider<MessagingRepository>((ref) {
-  return MessagingRepositoryMock();
+  print('[messagingRepositoryProvider] Création de MessagingRepositoryApi');
+  return MessagingRepositoryApi(MessagingRemoteDataSource());
 });
 
 final messagingControllerProvider =
     StateNotifierProvider<MessagingController, MessagingState>((ref) {
+  print('[messagingControllerProvider] Création de MessagingController');
   return MessagingController(ref.watch(messagingRepositoryProvider));
 });
-

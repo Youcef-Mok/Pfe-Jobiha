@@ -1,213 +1,181 @@
+import 'package:dio/dio.dart';
+import 'package:job_app/core/api/api_client.dart';
+import 'package:job_app/core/api/api_endpoints.dart';
 import '../../domain/notification_entity.dart';
 import 'notifications_repository.dart';
 
-// TODO(API): Remplacer par NotificationsRepositoryHttp dans notifications_provider.dart.
-// ─── Recruiter mock ───────────────────────────────────────────────────────────
+/// Implémentation API réelle du repository.
+/// Appelle le backend Django REST via Dio.
+// ─── Recruiter implementation ─────────────────────────────────────────────────
 class NotificationsRepositoryMock implements NotificationsRepository {
-  final List<NotificationEntity> _notifications = [
-    NotificationEntity(
-      id: '1',
-      title: '3 nouveaux candidats\npour le poste de "serveur en salle"',
-      type: NotificationType.newApplicants,
-      timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-      isRead: false,
-      count: 3,
-      jobTitle: 'serveur en salle',
-    ),
-    NotificationEntity(
-      id: '2',
-      title: 'Lucas Bernard vous a\nenvoyé un message',
-      type: NotificationType.newMessage,
-      timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-      isRead: false,
-      senderName: 'Lucas Bernard',
-      avatarUrl: 'assets/images/pdp_1.png',
-    ),
-    NotificationEntity(
-      id: '3',
-      title: 'Lucas Bernard vous a envoyé un message\nconcernant "serveur en salle"',
-      type: NotificationType.newMessage,
-      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-      isRead: false,
-      senderName: 'Lucas Bernard',
-      avatarUrl: 'assets/images/pdp_1.png',
-      contextImageUrl: 'assets/images/imageannonc(1).jpg',
-    ),
-    NotificationEntity(
-      id: '4',
-      title: 'Nouvelle question sur\nvotre annonce "serveur en salle"',
-      type: NotificationType.jobQuestion,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-      isRead: false,
-      jobTitle: 'serveur en salle',
-    ),
-    NotificationEntity(
-      id: '5',
-      title: 'Mission "Senior UX Designer"\nTerminee',
-      type: NotificationType.missionCompleted,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 4)),
-      isRead: false,
-      jobTitle: 'Senior UX Designer',
-    ),
-    NotificationEntity(
-      id: '6',
-      title: 'Mission "Senior UX Designer"\nexspire bientot',
-      type: NotificationType.missionExpiring,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 6)),
-      isRead: false,
-      jobTitle: 'Senior UX Designer',
-    ),
-    NotificationEntity(
-      id: '7',
-      title: 'Annonce "commis de cuisine"\nexspire bientot',
-      type: NotificationType.announcementCreated,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 8)),
-      isRead: false,
-      jobTitle: 'commis de cuisine',
-    ),
-    NotificationEntity(
-      id: '8',
-      title: 'Marie Durand a validé sa candidature\npour le poste de "serveur en salle"',
-      type: NotificationType.interviewAccepted,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 10)),
-      isRead: false,
-      senderName: 'Marie Durand',
-      avatarUrl: 'assets/images/pdp_2.png',
-      jobTitle: 'serveur en salle',
-    ),
-  ];
+  final Dio _dio = ApiClient.instance;
 
   @override
   Future<List<NotificationEntity>> getNotifications() async {
-    // TODO(API): GET /api/v1/notifications
-    await Future.delayed(const Duration(milliseconds: 400));
-    return _notifications;
+    final response = await _dio.get(ApiEndpoints.notifications);
+    final List<dynamic> data = response.data is List
+        ? response.data as List<dynamic>
+        : (response.data['results'] as List<dynamic>?) ?? [];
+    return data
+        .map((json) => _notificationFromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<void> markAsRead(String id) async {
-    // TODO(API): PATCH /api/v1/notifications/:id/read
-    final index = _notifications.indexWhere((n) => n.id == id);
-    if (index != -1) {
-      _notifications[index] = _notifications[index].copyWith(isRead: true);
-    }
+    final intId = int.tryParse(id) ?? 0;
+    await _dio.put(ApiEndpoints.notificationRead(intId));
   }
 
   @override
   Future<void> deleteNotification(String id) async {
-    // TODO(API): DELETE /api/v1/notifications/:id
-    _notifications.removeWhere((n) => n.id == id);
+    final intId = int.tryParse(id) ?? 0;
+    await _dio.delete(ApiEndpoints.notificationDelete(intId));
+  }
+
+  /// Helper pour convertir JSON en NotificationEntity
+  NotificationEntity _notificationFromJson(Map<String, dynamic> json) {
+    return NotificationEntity(
+      id: json['id']?.toString() ?? '',
+      title: json['title'] as String? ?? '',
+      message: json['message'] as String?,
+      type: _parseNotificationType(json['type'] as String?),
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'] as String)
+          : DateTime.now(),
+      isRead: json['is_read'] as bool? ?? false,
+      jobTitle: json['job_title'] as String?,
+      senderName: json['sender_name'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      contextImageUrl: json['context_image_url'] as String?,
+      count: json['count'] as int?,
+    );
+  }
+
+  /// Helper pour parser le type de notification
+  NotificationType _parseNotificationType(String? type) {
+    switch (type) {
+      case 'new_applicants':
+        return NotificationType.newApplicants;
+      case 'new_message':
+        return NotificationType.newMessage;
+      case 'job_question':
+        return NotificationType.jobQuestion;
+      case 'mission_expiring':
+        return NotificationType.missionExpiring;
+      case 'interview_accepted':
+        return NotificationType.interviewAccepted;
+      case 'mission_completed':
+        return NotificationType.missionCompleted;
+      case 'announcement_created':
+        return NotificationType.announcementCreated;
+      case 'application_accepted':
+        return NotificationType.applicationAccepted;
+      case 'application_rejected':
+        return NotificationType.applicationRejected;
+      case 'application_viewed':
+        return NotificationType.applicationViewed;
+      case 'new_nearby_offer':
+        return NotificationType.newNearbyOffer;
+      case 'job_matching_preferences':
+        return NotificationType.jobMatchingPreferences;
+      case 'saved_job_expiring':
+        return NotificationType.savedJobExpiring;
+      case 'new_job_in_category':
+        return NotificationType.newJobInCategory;
+      case 'profile_viewed':
+        return NotificationType.profileViewed;
+      case 'profile_incomplete':
+        return NotificationType.profileIncomplete;
+      default:
+        return NotificationType.system;
+    }
   }
 }
 
-// ─── Candidate mock — mêmes TODO(API) que NotificationsRepositoryMock ────────
+// ─── Candidate implementation ─────────────────────────────────────────────────
 class CandidateNotificationsRepositoryMock implements NotificationsRepository {
-  final List<NotificationEntity> _notifications = [
-    // Today — Candidatures
-    NotificationEntity(
-      id: 'c1',
-      title: 'Votre candidature pour\n"Serveur en salle" a été acceptée',
-      type: NotificationType.applicationAccepted,
-      timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-      isRead: false,
-      jobTitle: 'Serveur en salle',
-    ),
-    NotificationEntity(
-      id: 'c2',
-      title: 'Lucas Bernard a consulté\nvotre candidature pour "Barista"',
-      type: NotificationType.applicationViewed,
-      timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-      isRead: false,
-      senderName: 'Lucas Bernard',
-      avatarUrl: 'assets/images/pdp_1.png',
-      jobTitle: 'Barista',
-    ),
-    // Today — Messagerie
-    NotificationEntity(
-      id: 'c3',
-      title: 'Lucas Bernard vous a\nenvoyé un message',
-      type: NotificationType.newMessage,
-      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-      isRead: false,
-      senderName: 'Lucas Bernard',
-      avatarUrl: 'assets/images/pdp_1.png',
-    ),
-    // Hier — Candidatures
-    NotificationEntity(
-      id: 'c4',
-      title: 'Votre candidature pour\n"Commis de cuisine" a été refusée',
-      type: NotificationType.applicationRejected,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 1)),
-      isRead: false,
-      jobTitle: 'Commis de cuisine',
-    ),
-    // Hier — Jobs
-    NotificationEntity(
-      id: 'c5',
-      title: 'Nouvelle offre proche\nde chez vous: Barman',
-      type: NotificationType.newNearbyOffer,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-      isRead: false,
-      jobTitle: 'Barman',
-    ),
-    NotificationEntity(
-      id: 'c6',
-      title: 'Une offre correspond\nà vos préférences: Serveur',
-      type: NotificationType.jobMatchingPreferences,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 5)),
-      isRead: true,
-      jobTitle: 'Serveur',
-    ),
-    NotificationEntity(
-      id: 'c7',
-      title: "L'offre sauvegardée\n\"Cuisinier\" expire bientôt",
-      type: NotificationType.savedJobExpiring,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 7)),
-      isRead: false,
-      jobTitle: 'Cuisinier',
-    ),
-    NotificationEntity(
-      id: 'c8',
-      title: 'Nouvelle offre dans\nla catégorie Restauration',
-      type: NotificationType.newJobInCategory,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 9)),
-      isRead: true,
-      jobTitle: 'Restauration',
-    ),
-    // Système (shown only in "Toutes" tab, below other sections)
-    NotificationEntity(
-      id: 'c9',
-      title: 'Quelqu\'un a consulté votre profil',
-      type: NotificationType.profileViewed,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 11)),
-      isRead: false,
-    ),
-    NotificationEntity(
-      id: 'c10',
-      title: 'Votre profil est incomplet',
-      message: 'Ajoutez une photo et vos disponibilités pour attirer plus de recruteurs.',
-      type: NotificationType.profileIncomplete,
-      timestamp: DateTime.now().subtract(const Duration(days: 2)),
-      isRead: false,
-    ),
-  ];
+  final Dio _dio = ApiClient.instance;
 
   @override
   Future<List<NotificationEntity>> getNotifications() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return _notifications;
+    final response = await _dio.get(ApiEndpoints.notifications);
+    final List<dynamic> data = response.data is List
+        ? response.data as List<dynamic>
+        : (response.data['results'] as List<dynamic>?) ?? [];
+    return data
+        .map((json) => _notificationFromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<void> markAsRead(String id) async {
-    final index = _notifications.indexWhere((n) => n.id == id);
-    if (index != -1) {
-      _notifications[index] = _notifications[index].copyWith(isRead: true);
-    }
+    final intId = int.tryParse(id) ?? 0;
+    await _dio.put(ApiEndpoints.notificationRead(intId));
   }
 
   @override
   Future<void> deleteNotification(String id) async {
-    _notifications.removeWhere((n) => n.id == id);
+    final intId = int.tryParse(id) ?? 0;
+    await _dio.delete(ApiEndpoints.notificationDelete(intId));
+  }
+
+  /// Helper pour convertir JSON en NotificationEntity
+  NotificationEntity _notificationFromJson(Map<String, dynamic> json) {
+    return NotificationEntity(
+      id: json['id']?.toString() ?? '',
+      title: json['title'] as String? ?? '',
+      message: json['message'] as String?,
+      type: _parseNotificationType(json['type'] as String?),
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'] as String)
+          : DateTime.now(),
+      isRead: json['is_read'] as bool? ?? false,
+      jobTitle: json['job_title'] as String?,
+      senderName: json['sender_name'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      contextImageUrl: json['context_image_url'] as String?,
+      count: json['count'] as int?,
+    );
+  }
+
+  /// Helper pour parser le type de notification
+  NotificationType _parseNotificationType(String? type) {
+    switch (type) {
+      case 'new_applicants':
+        return NotificationType.newApplicants;
+      case 'new_message':
+        return NotificationType.newMessage;
+      case 'job_question':
+        return NotificationType.jobQuestion;
+      case 'mission_expiring':
+        return NotificationType.missionExpiring;
+      case 'interview_accepted':
+        return NotificationType.interviewAccepted;
+      case 'mission_completed':
+        return NotificationType.missionCompleted;
+      case 'announcement_created':
+        return NotificationType.announcementCreated;
+      case 'application_accepted':
+        return NotificationType.applicationAccepted;
+      case 'application_rejected':
+        return NotificationType.applicationRejected;
+      case 'application_viewed':
+        return NotificationType.applicationViewed;
+      case 'new_nearby_offer':
+        return NotificationType.newNearbyOffer;
+      case 'job_matching_preferences':
+        return NotificationType.jobMatchingPreferences;
+      case 'saved_job_expiring':
+        return NotificationType.savedJobExpiring;
+      case 'new_job_in_category':
+        return NotificationType.newJobInCategory;
+      case 'profile_viewed':
+        return NotificationType.profileViewed;
+      case 'profile_incomplete':
+        return NotificationType.profileIncomplete;
+      default:
+        return NotificationType.system;
+    }
   }
 }

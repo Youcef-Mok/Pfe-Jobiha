@@ -1,56 +1,24 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
-import 'package:job_app/features/messaging/domain/message_entity.dart';
 import 'package:job_app/features/messaging/screens/create_group_screen.dart';
 import 'package:job_app/features/messaging/screens/private_message_screen.dart';
 import 'package:job_app/features/messaging/widgets/contact_widgets.dart';
+import 'package:job_app/features/messaging/data/providers/contacts_provider.dart';
+import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
 
-class NewMessageScreen extends StatefulWidget {
+class NewMessageScreen extends ConsumerStatefulWidget {
   final bool initialSearchMode;
   const NewMessageScreen({super.key, this.initialSearchMode = false});
 
   @override
-  State<NewMessageScreen> createState() => _NewMessageScreenState();
+  ConsumerState<NewMessageScreen> createState() => _NewMessageScreenState();
 }
 
-class _NewMessageScreenState extends State<NewMessageScreen> {
+class _NewMessageScreenState extends ConsumerState<NewMessageScreen> {
   bool _searchMode = false;
-  bool _isGroupedByAnnonce = false;
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
-
-  static const _recents = [
-    ContactItem(name: 'Camille Martin', role: 'Pizzaiolo', avatar: 'assets/images/pdp_1.png', isOnline: true),
-    ContactItem(name: 'Marc Dubois', role: 'Recruteur chez Le Petit Bistro', avatar: 'assets/images/pdp_2.png', isOnline: false, isRecruiter: true),
-    ContactItem(name: 'Leila Mansouri', role: 'Recruteur chez FoodGroup', avatar: 'assets/images/pdp_3.png', isOnline: true, isRecruiter: true),
-  ];
-
-  static const _suggestions = [
-    ContactItem(name: 'Yasmine Bensalem', role: 'Étudiante', avatar: 'assets/images/pdp_4.png', isOnline: false),
-    ContactItem(name: 'Karim Benali', role: 'Recruteur chez Coffee Corner', avatar: 'assets/images/pdp_1.png', isOnline: true, isRecruiter: true),
-    ContactItem(name: 'Sophie Laurent', role: 'Recruteur chez FoodGroup', avatar: 'assets/images/pdp_2.png', isOnline: false, isRecruiter: true),
-  ];
-
-  static const _recruitersFlat = [
-    ContactItem(name: 'Camille Martin', role: 'Recruteur chez Le Petit Bistro', avatar: 'assets/images/pdp_1.png', isOnline: true, isRecruiter: true),
-    ContactItem(name: 'Marc Dubois', role: 'Recruteur chez Le Petit Bistro', avatar: 'assets/images/pdp_2.png', isOnline: false, isRecruiter: true),
-    ContactItem(name: 'Leila Mansouri', role: 'Recruteur chez FoodGroup', avatar: 'assets/images/pdp_4.png', isOnline: true, isRecruiter: true),
-  ];
-
-  static const _recruitersGrouped = [
-    JobGroup(
-      jobTitle: 'Serveur de café',
-      company: 'Le Petit Bistro',
-      jobImage: 'assets/images/imageannonc(1).jpg',
-      recruiter: ContactItem(name: 'Camille Martin', role: 'Recruteur chez Le Petit Bistro', avatar: 'assets/images/pdp_1.png', isOnline: true, isRecruiter: true),
-    ),
-    JobGroup(
-      jobTitle: 'Barista',
-      company: 'Coffee Corner',
-      jobImage: 'assets/images/imageannonc(2).jpg',
-      recruiter: ContactItem(name: 'Marc Dubois', role: 'Recruteur chez Coffee Corner', avatar: 'assets/images/pdp_2.png', isOnline: false, isRecruiter: true),
-    ),
-  ];
 
   @override
   void initState() {
@@ -81,23 +49,29 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
     });
   }
 
-  void _openConversation(ContactItem contact) {
-    final conv = ConversationEntity(
-      id: 'new_${contact.name.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}',
-      contactName: contact.name,
-      contactRole: contact.role,
-      contactAvatar: contact.avatar,
-      isOnline: contact.isOnline,
-      lastMessage: '',
-      lastMessageTime: DateTime.now(),
-      isUnread: false,
-    );
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => PrivateMessageScreen(conversation: conv)),
-    );
+  void _openConversation(ContactItem contact) async {
+    try {
+      // Use the real API to get or create a conversation with this contact
+      final conv = await ref.read(messagingControllerProvider.notifier).getOrCreateConversation(
+        contactName: contact.name,
+        contactRole: contact.role,
+        contactAvatar: contact.avatar,
+      );
+      
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => PrivateMessageScreen(conversation: conv)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors de l\'ouverture de la conversation: $e')),
+        );
+      }
+    }
   }
-
 
   List<ContactItem> _filterContacts(List<ContactItem> source) {
     final q = _searchController.text.trim().toLowerCase();
@@ -110,12 +84,14 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final contactsAsync = ref.watch(contactsProvider);
+    
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Header â€” changes based on search mode
+            // Header — changes based on search mode
             Container(
               height: 64,
               decoration: const BoxDecoration(
@@ -196,11 +172,47 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
 
             // Body
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _searchMode ? _buildSearchBody() : _buildNormalBody(),
+              child: contactsAsync.when(
+                data: (contactsData) => SingleChildScrollView(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _searchMode 
+                      ? _buildSearchBody(contactsData) 
+                      : _buildNormalBody(contactsData),
+                  ),
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Erreur de chargement des contacts',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: Color(0xFF1D1B1F),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -210,7 +222,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
     );
   }
 
-  List<Widget> _buildNormalBody() {
+  List<Widget> _buildNormalBody(ContactsData contactsData) {
     return [
       // Tappable search bar
       GestureDetector(
@@ -228,41 +240,36 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
       ),
       const SizedBox(height: 16),
 
-      // suggestions
-      const MessageSectionHeader(title: 'suggestions', action: 'voir tous'),
-      const SizedBox(height: 7),
-      ContactsCard(contacts: _suggestions, onContactTap: _openConversation),
-      const SizedBox(height: 16),
+      // Recents (from conversations)
+      if (contactsData.recents.isNotEmpty) ...[
+        const MessageSectionHeader(title: 'recents', action: 'voir tous'),
+        const SizedBox(height: 7),
+        ContactsCard(contacts: contactsData.recents, onContactTap: _openConversation),
+        const SizedBox(height: 16),
+      ],
 
-      // Recruiters
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const MessageSectionHeader(title: 'recruteurs'),
-          SortByAnnonceButton(
-            isActive: _isGroupedByAnnonce,
-            onTap: () => setState(() => _isGroupedByAnnonce = !_isGroupedByAnnonce),
-          ),
-        ],
-      ),
-      const SizedBox(height: 7),
+      // Suggestions (empty for now - no backend support)
+      if (contactsData.suggestions.isNotEmpty) ...[
+        const MessageSectionHeader(title: 'suggestions', action: 'voir tous'),
+        const SizedBox(height: 7),
+        ContactsCard(contacts: contactsData.suggestions, onContactTap: _openConversation),
+        const SizedBox(height: 16),
+      ],
 
-      if (_isGroupedByAnnonce)
-        ..._recruitersGrouped.map((g) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: JobGroupCard(group: g, onContactTap: _openConversation),
-            ))
-      else
-        ContactsCard(contacts: _recruitersFlat, onContactTap: _openConversation),
-
-      const SizedBox(height: 16),
+      // Recruiters (from published jobs)
+      if (contactsData.recruiters.isNotEmpty) ...[
+        const MessageSectionHeader(title: 'recruteurs'),
+        const SizedBox(height: 7),
+        ContactsCard(contacts: contactsData.recruiters, onContactTap: _openConversation),
+        const SizedBox(height: 16),
+      ],
     ];
   }
 
-  List<Widget> _buildSearchBody() {
-    final recents = _filterContacts(_recents);
-    final suggestions = _filterContacts(_suggestions);
-    final recruiters = _filterContacts(_recruitersFlat);
+  List<Widget> _buildSearchBody(ContactsData contactsData) {
+    final recents = _filterContacts(contactsData.recents);
+    final suggestions = _filterContacts(contactsData.suggestions);
+    final recruiters = _filterContacts(contactsData.recruiters);
     final allCount = recents.length + suggestions.length + recruiters.length;
 
     if (allCount == 0) {

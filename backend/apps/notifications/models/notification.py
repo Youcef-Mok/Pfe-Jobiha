@@ -17,7 +17,10 @@ class Notification(models.Model):
     job_title = models.CharField(max_length=200, blank=True, null=True)
     sender_name = models.CharField(max_length=200, blank=True, null=True)
     avatar_url = models.CharField(max_length=500, blank=True, null=True)
-    count = models.IntegerField(default=1)
+    # Changed from default=1 to nullable (DB-CHANGES.md section 9)
+    count = models.IntegerField(blank=True, null=True)
+    # New field from DB-CHANGES.md section 9
+    context_image_url = models.CharField(max_length=500, blank=True, null=True)
 
     class Meta:
         db_table = "notification"

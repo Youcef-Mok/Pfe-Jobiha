@@ -30,10 +30,12 @@ class MessageSerializer(serializers.ModelSerializer):
     """Read serializer — used everywhere messages are returned."""
     expediteur = serializers.SerializerMethodField()
     conversation_id = serializers.IntegerField(source='conversation.id', read_only=True)
+    is_mine = serializers.SerializerMethodField()
+    is_read = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
-        fields = ['id', 'contenu', 'date_envoi', 'conversation_id', 'expediteur']
+        fields = ['id', 'contenu', 'date_envoi', 'conversation_id', 'expediteur', 'is_mine', 'is_read']
 
     @staticmethod
     def _user_brief(user):
@@ -41,6 +43,43 @@ class MessageSerializer(serializers.ModelSerializer):
 
     def get_expediteur(self, obj):
         return self._user_brief(obj.expediteur)
+
+    def get_is_mine(self, obj):
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user'):
+            return False
+        return obj.expediteur_id == request.user.id
+
+    def get_is_read(self, obj):
+        """
+        Compute read status using ReadCursor.
+        A message is read if the requesting user's ReadCursor.last_read_message_id >= message.id
+        Only compute for messages NOT sent by requesting user (sender always sees their own as sent).
+        """
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user'):
+            return False
+        
+        # Sender's own messages are always considered "sent" (not read by receiver)
+        if obj.expediteur_id == request.user.id:
+            # Check if the OTHER user has read this message
+            cursor = ReadCursor.objects.filter(
+                conversation=obj.conversation
+            ).exclude(user=request.user).first()
+            
+            if not cursor or not cursor.last_read_message:
+                return False
+            return cursor.last_read_message_id >= obj.id
+        
+        # For received messages, check if current user has read it
+        cursor = ReadCursor.objects.filter(
+            conversation=obj.conversation,
+            user=request.user
+        ).first()
+        
+        if not cursor or not cursor.last_read_message:
+            return False
+        return cursor.last_read_message_id >= obj.id
 
 
 class PaginatedMessagesSerializer(serializers.Serializer):
@@ -69,6 +108,10 @@ class ConversationSerializer(serializers.ModelSerializer):
     last_message_time = serializers.SerializerMethodField()
     is_unread = serializers.SerializerMethodField()
     is_invitation = serializers.SerializerMethodField()
+    is_group = serializers.SerializerMethodField()
+    group_name = serializers.SerializerMethodField()
+    member_avatars = serializers.SerializerMethodField()
+    member_names = serializers.SerializerMethodField()
     messages = MessageSerializer(many=True, read_only=True, source='messages.none')
 
     class Meta:
@@ -76,7 +119,8 @@ class ConversationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'contact_name', 'contact_role', 'contact_avatar',
             'is_online', 'last_message', 'last_message_time',
-            'is_unread', 'is_invitation', 'messages',
+            'is_unread', 'is_invitation', 'is_group', 'group_name',
+            'member_avatars', 'member_names', 'messages',
         ]
 
     def _get_other_member(self, obj):
@@ -135,6 +179,27 @@ class ConversationSerializer(serializers.ModelSerializer):
         membership = obj.memberships.filter(user=request.user).first()
         return membership.is_invitation if membership else False
 
+    def get_is_group(self, obj):
+        return obj.type == Conversation.TYPE_GROUP
+
+    def get_group_name(self, obj):
+        if obj.type == Conversation.TYPE_GROUP:
+            return obj.nom
+        return None
+
+    def get_member_avatars(self, obj):
+        if obj.type == Conversation.TYPE_GROUP:
+            members = obj.memberships.select_related('user').filter(left_at__isnull=True)
+            # Return avatar URLs for all members (placeholder for now)
+            return [getattr(m.user, 'avatar_url', None) or '' for m in members]
+        return []
+
+    def get_member_names(self, obj):
+        if obj.type == Conversation.TYPE_GROUP:
+            members = obj.memberships.select_related('user').filter(left_at__isnull=True)
+            return [f"{m.user.prenom} {m.user.nom}" for m in members]
+        return []
+
 
 # ---------------------------------------------------------------------------
 # Legacy conversation summary (kept for backward-compat)
@@ -148,31 +213,70 @@ class MemberBriefSerializer(serializers.Serializer):
 
 
 class ConversationSummarySerializer(serializers.Serializer):
-    conversation_id = serializers.IntegerField(source='conversation.id')
-    type            = serializers.CharField(source='conversation.type')
-    nom             = serializers.CharField(source='conversation.nom', allow_null=True)
-    interlocuteur   = serializers.SerializerMethodField()
-    members         = serializers.SerializerMethodField()
-    dernier_message = MessageSerializer()
-    nb_non_lus      = serializers.IntegerField()
+    id                = serializers.IntegerField(source='conversation.id')
+    contact_name      = serializers.SerializerMethodField()
+    contact_role      = serializers.SerializerMethodField()
+    contact_avatar    = serializers.SerializerMethodField()
+    is_online         = serializers.SerializerMethodField()
+    last_message      = serializers.SerializerMethodField()
+    last_message_time = serializers.SerializerMethodField()
+    is_unread         = serializers.SerializerMethodField()
+    is_invitation     = serializers.SerializerMethodField()
+    is_group          = serializers.SerializerMethodField()
+    group_name        = serializers.SerializerMethodField()
+    member_avatars    = serializers.SerializerMethodField()
+    member_names      = serializers.SerializerMethodField()
 
-    def get_interlocuteur(self, obj):
+    def get_contact_name(self, obj):
         partner = obj.get('interlocuteur')
         if partner is None:
             return None
-        return {
-            'id': partner.id, 'nom': partner.nom,
-            'prenom': partner.prenom, 'role': getattr(partner, 'role', None),
-        }
+        return f"{partner.prenom} {partner.nom}"
 
-    def get_members(self, obj):
-        members = obj.get('members')
-        if members is None:
+    def get_contact_role(self, obj):
+        partner = obj.get('interlocuteur')
+        if partner is None:
             return None
-        return [
-            {'id': m.user.id, 'nom': m.user.nom, 'prenom': m.user.prenom, 'role': m.role}
-            for m in members
-        ]
+        return getattr(partner, 'role', None)
+
+    def get_contact_avatar(self, obj):
+        partner = obj.get('interlocuteur')
+        if partner is None:
+            return None
+        return getattr(partner, 'avatar_url', None)
+
+    def get_is_online(self, obj):
+        return False
+
+    def get_last_message(self, obj):
+        msg = obj.get('dernier_message')
+        if msg is None:
+            return None
+        return msg.contenu
+
+    def get_last_message_time(self, obj):
+        msg = obj.get('dernier_message')
+        if msg is None:
+            return None
+        return msg.date_envoi.isoformat() if hasattr(msg.date_envoi, 'isoformat') else str(msg.date_envoi)
+
+    def get_is_unread(self, obj):
+        return obj.get('nb_non_lus', 0) > 0
+
+    def get_is_invitation(self, obj):
+        return False
+
+    def get_is_group(self, obj):
+        return False
+
+    def get_group_name(self, obj):
+        return None
+
+    def get_member_avatars(self, obj):
+        return []
+
+    def get_member_names(self, obj):
+        return []
 
 
 # ---------------------------------------------------------------------------

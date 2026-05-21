@@ -70,7 +70,8 @@ class ConversationListView(APIView):
         ]
         print(f'[ConversationListView] returning {len(data)} conversations')
         serializer = ConversationSummarySerializer(data, many=True)
-        print(f'[ConversationListView] sample: {serializer.data[:1]}')
+        print(f'[ConversationListView] FULL serializer.data:')
+        print(serializer.data)
         return Response(serializer.data)
 
 
@@ -96,6 +97,12 @@ class ConversationDetailView(ListAPIView):
         except ConversationMember.DoesNotExist:
             return Message.objects.none()
 
+    def get_serializer_context(self):
+        """Pass request to serializer context for is_mine calculation."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
 
@@ -114,6 +121,9 @@ class ConversationDetailView(ListAPIView):
                 if c.last_read_message_id is not None
             }
 
+        print(f'[ConversationDetailView] conv_id={self.kwargs["conv_id"]} response.data:')
+        print(response.data)
+        print(f"messages retournés: {response.data.get('results', [])}")
         return response
 
 
@@ -430,29 +440,46 @@ class ConvSendMessageView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, id):
-        # Flutter sends 'contenu' — accept both for safety.
-        content = request.data.get('contenu') or request.data.get('content', '')
+        print(f'[ConvSendMessageView] POST /conversations/{id}/messages')
+        print(f'[ConvSendMessageView] request.data: {request.data}')
+        print(f'[ConvSendMessageView] request.user: {request.user}')
+        
+        # Accept 'contenu' (current frontend implementation)
+        content = request.data.get('contenu', '')
         if not content:
+            print('[ConvSendMessageView] ERROR: contenu is empty')
             return Response({'detail': 'contenu is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not ConversationMember.objects.filter(
             conversation_id=id, user=request.user, left_at__isnull=True,
         ).exists():
+            print('[ConvSendMessageView] ERROR: User is not a member of this conversation')
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        message = Message.objects.create(
-            conversation_id=id, expediteur=request.user, contenu=content,
-        )
-        message = Message.objects.select_related('expediteur', 'conversation').get(pk=message.pk)
-
-        out = MessageSerializer(message)
-        channel_layer = get_channel_layer()
-        if channel_layer:
-            async_to_sync(channel_layer.group_send)(
-                f'conv_{id}',
-                {'type': 'chat.message', 'message': out.data, 'sender_id': request.user.pk},
+        try:
+            message = Message.objects.create(
+                conversation_id=id, expediteur=request.user, contenu=content,
             )
-        return Response(out.data, status=status.HTTP_201_CREATED)
+            message = Message.objects.select_related('expediteur', 'conversation').get(pk=message.pk)
+            print(f'[ConvSendMessageView] Message created: id={message.id}, expediteur={message.expediteur_id}')
+
+            out = MessageSerializer(message, context={'request': request})
+            print(f'[ConvSendMessageView] Serialized message: {out.data}')
+            
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f'conv_{id}',
+                    {'type': 'chat.message', 'message': out.data, 'sender_id': request.user.pk},
+                )
+            
+            print(f'[ConvSendMessageView] SUCCESS: Returning 201')
+            return Response(out.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f'[ConvSendMessageView] EXCEPTION: {e}')
+            import traceback
+            traceback.print_exc()
+            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class SendImageMessageView(APIView):
@@ -649,4 +676,4 @@ class StubView(APIView):
     def handle(self, request, *args, **kwargs):
         return Response({'detail': 'not implemented'}, status=501)
 
-    get = post = put = patch = delete = handle
+    get = post = put = patch = delete = handle
