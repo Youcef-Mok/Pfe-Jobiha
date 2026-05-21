@@ -30,6 +30,7 @@ final contactsProvider = FutureProvider<ContactsData>((ref) async {
   for (final conv in conversations) {
     if (!conv.isGroup && !conv.isInvitation) {
       recents.add(ContactItem(
+        id: null, // Conversation entity doesn't store contact user ID
         name: conv.contactName,
         role: conv.contactRole,
         avatar: conv.contactAvatar,
@@ -46,6 +47,7 @@ final contactsProvider = FutureProvider<ContactsData>((ref) async {
       if (currentUserId != null && user.id == currentUserId) continue;
       
       suggestions.add(ContactItem(
+        id: user.id,
         name: '${user.prenom} ${user.nom}',
         role: user.role ?? '',
         avatar: user.avatarUrl,
@@ -64,6 +66,7 @@ final contactsProvider = FutureProvider<ContactsData>((ref) async {
       if (currentUserId != null && user.id == currentUserId) continue;
       
       recruiters.add(ContactItem(
+        id: user.id,
         name: '${user.prenom} ${user.nom}',
         role: user.role ?? 'Recruteur',
         avatar: user.avatarUrl,

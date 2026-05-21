@@ -72,13 +72,28 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
   Future<void> _createGroup(ContactsData contactsData) async {
     if (_totalSelected < 1) return;
+    
+    // Get the latest value from the text controller
+    final groupName = _nameController.text.trim();
+    
     final entries = _selectedEntries(contactsData);
-    final names = entries.map((e) => e.contact.name).toList();
-    final avatars = entries.map((e) => e.contact.avatar).toList();
-    await ref
-        .read(messagingControllerProvider.notifier)
-        .createGroup(_groupName, names, avatars);
-    if (mounted) Navigator.pop(context);
+    final ids = entries.map((e) => e.contact.id).whereType<int>().toList();
+    
+    try {
+      // createGroup already calls _load() internally to refresh the list
+      await ref
+          .read(messagingControllerProvider.notifier)
+          .createGroup(groupName, ids);
+      
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      print('[CreateGroupScreen] Error creating group: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors de la création du groupe: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -257,9 +272,15 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                             showChevron: false,
                             selected: _selectedSuggestions,
                             onToggle: (i) => setState(() {
-                              _selectedSuggestions.contains(i)
-                                  ? _selectedSuggestions.remove(i)
-                                  : _selectedSuggestions.add(i);
+                              if (_selectedSuggestions.contains(i)) {
+                                _selectedSuggestions.remove(i);
+                              } else {
+                                final contactId = contactsData.suggestions[i].id;
+                                final alreadySelected = _selectedEntries(contactsData).any((e) => e.contact.id == contactId);
+                                if (!alreadySelected) {
+                                  _selectedSuggestions.add(i);
+                                }
+                              }
                             }),
                           ),
                           const SizedBox(height: 10),
@@ -274,9 +295,15 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                             showChevron: false,
                             selected: _selectedRecruiters,
                             onToggle: (i) => setState(() {
-                              _selectedRecruiters.contains(i)
-                                  ? _selectedRecruiters.remove(i)
-                                  : _selectedRecruiters.add(i);
+                              if (_selectedRecruiters.contains(i)) {
+                                _selectedRecruiters.remove(i);
+                              } else {
+                                final contactId = contactsData.recruiters[i].id;
+                                final alreadySelected = _selectedEntries(contactsData).any((e) => e.contact.id == contactId);
+                                if (!alreadySelected) {
+                                  _selectedRecruiters.add(i);
+                                }
+                              }
                             }),
                           ),
                           const SizedBox(height: 16),

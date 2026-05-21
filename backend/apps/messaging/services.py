@@ -44,14 +44,15 @@ def get_conversation_list(user):
             .order_by('-date_envoi')
             .first()
         )
-        if dernier is None:
-            continue
+        # Don't skip conversations with no messages - they should still appear in the list
+        # if dernier is None:
+        #     continue
 
         # Unread count via ReadCursor
         cursor = ReadCursor.objects.filter(
             conversation=conv, user=user,
         ).first()
-        if cursor and cursor.last_read_message_id:
+        if dernier and cursor and cursor.last_read_message_id:
             nb_non_lus = (
                 Message.objects
                 .filter(conversation=conv, id__gt=cursor.last_read_message_id)
@@ -95,7 +96,8 @@ def get_conversation_list(user):
 
         results.append(entry)
 
-    results.sort(key=lambda c: c['dernier_message'].date_envoi, reverse=True)
+    # Sort by last message date, or conversation creation date if no messages yet
+    results.sort(key=lambda c: c['dernier_message'].date_envoi if c['dernier_message'] else c['conversation'].created_at, reverse=True)
     return results
 
 

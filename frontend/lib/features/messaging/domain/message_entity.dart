@@ -3,7 +3,7 @@ enum MessageType { text, invitation, image, file }
 class MessageEntity {
   final String id;
   final String senderId;
-  final String content;
+  final String? content;
   final DateTime timestamp;
   final bool isRead;
   final bool isMine;
@@ -12,7 +12,7 @@ class MessageEntity {
   const MessageEntity({
     required this.id,
     required this.senderId,
-    required this.content,
+    this.content,
     required this.timestamp,
     required this.isRead,
     required this.isMine,
@@ -29,6 +29,7 @@ class ConversationEntity {
   final String lastMessage;
   final DateTime lastMessageTime;
   final bool isUnread;
+  final int unreadCount;
   final bool isInvitation;
   final List<MessageEntity> messages;
   // Group support
@@ -46,6 +47,7 @@ class ConversationEntity {
     required this.lastMessage,
     required this.lastMessageTime,
     required this.isUnread,
+    this.unreadCount = 0,
     this.isInvitation = false,
     this.messages = const [],
     this.isGroup = false,

@@ -3,32 +3,35 @@
 /// Data Transfer Object matching the backend MessageSerializer JSON shape.
 class MessageDto {
   final int id;
-  final String contenu;
+  final String? contenu;
   final String dateEnvoi;
   final int conversationId;
   final ExpediteurDto expediteur;
   final bool isMine;
   final bool isRead;
+  final String type; // 'text', 'image', or 'file'
 
   const MessageDto({
     required this.id,
-    required this.contenu,
+    this.contenu,
     required this.dateEnvoi,
     required this.conversationId,
     required this.expediteur,
     required this.isMine,
     required this.isRead,
+    this.type = 'text',
   });
 
   factory MessageDto.fromJson(Map<String, dynamic> json) {
     return MessageDto(
       id: json['id'] as int,
-      contenu: json['contenu'] as String,
+      contenu: json['contenu'] as String?,
       dateEnvoi: json['date_envoi'] as String,
       conversationId: json['conversation_id'] as int,
       expediteur: ExpediteurDto.fromJson(json['expediteur'] as Map<String, dynamic>),
       isMine: json['is_mine'] as bool? ?? false,
       isRead: json['is_read'] as bool? ?? false,
+      type: json['type'] as String? ?? 'text',
     );
   }
 
@@ -39,6 +42,7 @@ class MessageDto {
         'conversation_id': conversationId,
         'expediteur': expediteur.toJson(),
         'is_read': isRead,
+        'type': type,
       };
 }
 
@@ -111,6 +115,7 @@ class ConversationDto {
   final String? lastMessage;
   final String? lastMessageTime;
   final bool isUnread;
+  final int unreadCount;
   final bool isInvitation;
   final bool isGroup;
   final String? groupName;
@@ -126,6 +131,7 @@ class ConversationDto {
     this.lastMessage,
     this.lastMessageTime,
     required this.isUnread,
+    this.unreadCount = 0,
     required this.isInvitation,
     this.isGroup = false,
     this.groupName,
@@ -143,6 +149,7 @@ class ConversationDto {
       lastMessage: json['last_message'] as String?,
       lastMessageTime: json['last_message_time'] as String?,
       isUnread: json['is_unread'] as bool? ?? false,
+      unreadCount: json['unread_count'] as int? ?? 0,
       isInvitation: json['is_invitation'] as bool? ?? false,
       isGroup: json['is_group'] as bool? ?? false,
       groupName: json['group_name'] as String?,

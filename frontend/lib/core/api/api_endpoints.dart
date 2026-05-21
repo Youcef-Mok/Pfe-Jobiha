@@ -13,6 +13,9 @@ class ApiEndpoints {
   static const String _wsBase = 'ws://192.168.100.9:8000';        // physical device
   // static const String _wsBase = 'wss://api.petitsjobs.dz';     // production
 
+  /// Public getter for WebSocket base URL
+  static String get wsBase => _wsBase;
+
   /// WebSocket URL for a chat session with [conversationId].
   /// Token is passed as a query parameter for the JWT middleware.
   static String chatWebSocket(int conversationId, String token) =>

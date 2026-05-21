@@ -16,6 +16,13 @@ void main() async {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]),
   ]);
 
+  // Debug: Catch widget errors
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    debugPrint('WIDGET ERROR: ${details.exception}');
+    debugPrint('STACK: ${details.stack}');
+    return const SizedBox.shrink();
+  };
+
   runApp(
     const ProviderScope(
       child: App(),

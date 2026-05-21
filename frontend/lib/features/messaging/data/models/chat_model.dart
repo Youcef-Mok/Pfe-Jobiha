@@ -3,7 +3,7 @@ import 'package:job_app/features/messaging/domain/message_entity.dart';
 class MessageModel {
   final String id;
   final String senderId;
-  final String content;
+  final String? content;
   final DateTime timestamp;
   final bool isRead;
   final bool isMine;
@@ -12,7 +12,7 @@ class MessageModel {
   const MessageModel({
     required this.id,
     required this.senderId,
-    required this.content,
+    this.content,
     required this.timestamp,
     required this.isRead,
     required this.isMine,
@@ -49,6 +49,7 @@ class ConversationModel {
   final String lastMessage;
   final DateTime lastMessageTime;
   final bool isUnread;
+  final int unreadCount;
   final bool isInvitation;
   final List<MessageModel> messages;
   final bool isGroup;
@@ -65,6 +66,7 @@ class ConversationModel {
     required this.lastMessage,
     required this.lastMessageTime,
     required this.isUnread,
+    this.unreadCount = 0,
     this.isInvitation = false,
     this.messages = const [],
     this.isGroup = false,
@@ -82,6 +84,7 @@ class ConversationModel {
         lastMessage: lastMessage,
         lastMessageTime: lastMessageTime,
         isUnread: isUnread,
+        unreadCount: unreadCount,
         isInvitation: isInvitation,
         messages: messages.map((m) => m.toEntity()).toList(),
         isGroup: isGroup,
@@ -100,6 +103,7 @@ class ConversationModel {
         lastMessage: entity.lastMessage,
         lastMessageTime: entity.lastMessageTime,
         isUnread: entity.isUnread,
+        unreadCount: entity.unreadCount,
         isInvitation: entity.isInvitation,
         messages: entity.messages.map(MessageModel.fromEntity).toList(),
         isGroup: entity.isGroup,

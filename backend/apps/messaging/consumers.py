@@ -5,6 +5,37 @@ from apps.messaging.models.conversation import ConversationMember, ReadCursor
 from apps.messaging.serializers import MessageSerializer
 
 
+class NotificationConsumer(AsyncJsonWebsocketConsumer):
+    """
+    WebSocket consumer for global notifications (new messages across all conversations).
+    Used by the conversation list screen to receive real-time updates.
+    """
+
+    async def connect(self):
+        self.user = self.scope.get("user")
+
+        # Reject unauthenticated connections
+        if not self.user or not self.user.is_authenticated:
+            await self.close(code=4001)
+            return
+
+        # Subscribe to user's personal notification channel
+        self.group_name = f"notifications_{self.user.id}"
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, code):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def new_message_notification(self, event):
+        """Broadcast new message notification to the user."""
+        await self.send_json({
+            "type": "new_message",
+            "conversation_id": event["conversation_id"],
+        })
+
+
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     """
     WebSocket consumer for real-time chat (DM + group).
@@ -79,6 +110,17 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
+        # Notify all conversation members via their notification channels
+        member_ids = await self._get_conversation_member_ids()
+        for member_id in member_ids:
+            await self.channel_layer.group_send(
+                f"notifications_{member_id}",
+                {
+                    "type": "new_message_notification",
+                    "conversation_id": self.conversation_id,
+                },
+            )
+
     async def _handle_mark_read(self):
         """Update the user's ReadCursor to the latest message."""
         last_read_id = await self._update_read_cursor()
@@ -107,11 +149,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     # ── Group event handlers ─────────────────────────────────────────────────
 
     async def chat_message(self, event):
-        """Broadcast a new message (skip sender)."""
-        if event.get("sender_channel") == self.channel_name:
-            return
-        if event.get("sender_id") == self.user.pk:
-            return
+        """Broadcast a new message to ALL members (including sender for consistency)."""
         await self.send_json({
             "type": "new_message",
             "message": event["message"],
@@ -182,3 +220,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 defaults={'last_read_message_id': last_msg_id},
             )
         return last_msg_id
+
+    @database_sync_to_async
+    def _get_conversation_member_ids(self):
+        """Get all active member IDs for this conversation."""
+        return list(
+            ConversationMember.objects
+            .filter(conversation_id=self.conversation_id, left_at__isnull=True)
+            .values_list('user_id', flat=True)
+        )

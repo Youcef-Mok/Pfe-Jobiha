@@ -1,13 +1,18 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 import 'package:job_app/core/widgets/candidate_nav_bar.dart';
+import 'package:job_app/core/api/api_endpoints.dart';
+import 'package:job_app/core/storage/token_storage.dart';
 import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
 import 'package:job_app/features/messaging/domain/message_entity.dart';
 import 'package:job_app/features/messaging/screens/new_message_screen.dart';
 import 'package:job_app/features/messaging/screens/private_message_screen.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class MessagingScreen extends ConsumerStatefulWidget {
   final bool isRecruiterView;
@@ -21,6 +26,69 @@ class MessagingScreen extends ConsumerStatefulWidget {
 class _MessagingScreenState extends ConsumerState<MessagingScreen> {
   bool _deleteMode = false;
   final Set<String> _selectedIds = {};
+  WebSocketChannel? _listenerChannel;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectGlobalListener();
+  }
+
+  void _connectGlobalListener() async {
+    try {
+      final token = await TokenStorage.getAccessToken();
+      if (token == null) {
+        print('[MessagingScreen] No token available for WebSocket connection');
+        return;
+      }
+
+      final wsUrl = '${ApiEndpoints.wsBase}/ws/notifications/?token=$token';
+      print('[MessagingScreen] Connecting to notifications WebSocket: $wsUrl');
+      
+      _listenerChannel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      
+      _listenerChannel!.stream.listen(
+        (data) {
+          try {
+            final decoded = jsonDecode(data);
+            print('[MessagingScreen] Notification received: $decoded');
+            
+            if (decoded['type'] == 'new_message') {
+              // Refresh conversation list when a new message arrives
+              if (mounted) {
+                ref.read(messagingControllerProvider.notifier).refreshConversations();
+              }
+            }
+          } catch (e) {
+            print('[MessagingScreen] Error parsing notification: $e');
+          }
+        },
+        onError: (error) {
+          print('[MessagingScreen] WebSocket error: $error');
+        },
+        onDone: () {
+          print('[MessagingScreen] WebSocket connection closed');
+        },
+      );
+    } catch (e) {
+      print('[MessagingScreen] Failed to connect to notifications WebSocket: $e');
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh conversations when screen comes back into focus
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(messagingControllerProvider.notifier).refreshConversations();
+    });
+  }
+
+  @override
+  void dispose() {
+    _listenerChannel?.sink.close();
+    super.dispose();
+  }
 
   void _toggleDeleteMode() {
     if (_deleteMode && _selectedIds.isNotEmpty) {
@@ -64,11 +132,22 @@ class _MessagingScreenState extends ConsumerState<MessagingScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(messagingControllerProvider);
     final ctrl = ref.read(messagingControllerProvider.notifier);
+    
+    print('[MessagingScreen] Building with ${state.conversations.length} conversations');
+    for (final c in state.conversations) {
+      print('[MessagingScreen] Conv: id=${c.id} isGroup=${c.isGroup} name="${c.contactName}" groupName="${c.groupName}"');
+    }
+    
     final list = (state.activeTab == 'messages'
             ? state.conversations
             : state.invitations)
         .where((c) => !state.blockedIds.contains(c.id))
         .toList();
+    
+    print('[MessagingScreen] After filter: ${list.length} conversations to display');
+    for (final c in list) {
+      print('[MessagingScreen] Display: id=${c.id} isGroup=${c.isGroup} name="${c.contactName}"');
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -255,26 +334,32 @@ class _MessagingScreenState extends ConsumerState<MessagingScreen> {
                       ),
                       child: Column(
                         children: List.generate(list.length, (i) {
-                          final conv = list[i];
-                          return _ConversationItem(
-                            conversation: conv,
-                            isInvitationTab: state.activeTab == 'invitations',
-                            deleteMode: _deleteMode,
-                            isSelected: _selectedIds.contains(conv.id),
-                            showTopBorder: i != 0,
-                            onToggleSelect: () => _toggleSelect(conv.id),
-                            onTap: _deleteMode
-                                ? () => _toggleSelect(conv.id)
-                                : () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => PrivateMessageScreen(
-                                          conversation: conv,
+                          try {
+                            final conv = list[i];
+                            return _ConversationItem(
+                              conversation: conv,
+                              isInvitationTab: state.activeTab == 'invitations',
+                              deleteMode: _deleteMode,
+                              isSelected: _selectedIds.contains(conv.id),
+                              showTopBorder: i != 0,
+                              onToggleSelect: () => _toggleSelect(conv.id),
+                              onTap: _deleteMode
+                                  ? () => _toggleSelect(conv.id)
+                                  : () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => PrivateMessageScreen(
+                                            conversation: conv,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                            onAccept: () => ctrl.acceptInvitation(conv.id),
-                          );
+                              onAccept: () => ctrl.acceptInvitation(conv.id),
+                            );
+                          } catch (e, stack) {
+                            debugPrint('CONV ITEM CRASH: $e');
+                            debugPrint(stack.toString());
+                            return const SizedBox.shrink();
+                          }
                         }),
                       ),
                     ),
@@ -366,6 +451,24 @@ class _ConversationItem extends StatelessWidget {
       return '$h:$m';
     }
     return DateFormat('d MMM', 'fr_FR').format(dt);
+  }
+
+  String _formatLastMessage(String? msg) {
+    if (msg == null || msg.isEmpty) return '';
+    try {
+      if (msg.startsWith('http') || msg.startsWith('https')) {
+        final lower = msg.toLowerCase().split('?').first; // strip query params
+        if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || 
+            lower.endsWith('.png') || lower.endsWith('.webp') || 
+            lower.endsWith('.gif')) {
+          return '📷 Image';
+        }
+        return '📎 Fichier';
+      }
+      return msg;
+    } catch (_) {
+      return '';
+    }
   }
 
   @override
@@ -483,7 +586,7 @@ class _ConversationItem extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          c.lastMessage,
+                          _formatLastMessage(c.lastMessage),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -498,8 +601,7 @@ class _ConversationItem extends StatelessWidget {
                       if (!deleteMode) ...[
                         const SizedBox(width: 8),
                         if (isInvitationTab)
-                          Container(
-                            alignment: Alignment.center,
+                          Flexible(
                             child: GestureDetector(
                               onTap: onAccept,
                               child: const Text(
@@ -510,10 +612,11 @@ class _ConversationItem extends StatelessWidget {
                                   fontSize: 13,
                                   color: Color(0xFF401E66),
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           )
-                        else if (c.isUnread)
+                        else if (c.unreadCount > 0 || c.isUnread)
                           Container(
                             width: 18,
                             height: 18,
@@ -522,21 +625,17 @@ class _ConversationItem extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                             alignment: Alignment.center,
-                            child: const Text(
-                              '1',
-                              style: TextStyle(
+                            child: Text(
+                              c.unreadCount > 0
+                                  ? (c.unreadCount > 99 ? '99+' : '${c.unreadCount}')
+                                  : '1',
+                              style: const TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
                                 fontWeight: FontWeight.w600,
                                 fontSize: 11,
                                 color: Colors.white,
                               ),
                             ),
-                          )
-                        else
-                          const Icon(
-                            Icons.done,
-                            size: 16,
-                            color: Color(0xFF64748B),
                           ),
                       ],
                     ],

@@ -35,7 +35,7 @@ class messageActionsSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  message.content,
+                  message.content ?? '',
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -88,7 +88,7 @@ class messageActionsSheet extends StatelessWidget {
               label: 'copy',
               icon: Icons.copy_outlined,
               onTap: () {
-                Clipboard.setData(ClipboardData(text: message.content));
+                Clipboard.setData(ClipboardData(text: message.content ?? ''));
                 Navigator.pop(context);
               },
             ),

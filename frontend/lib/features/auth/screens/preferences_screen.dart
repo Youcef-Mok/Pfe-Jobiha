@@ -65,7 +65,7 @@ class _PreferencesScreenState extends ConsumerState<PreferencesScreen> {
     // TODO: persist preferences before navigating
 
     final role = ref.read(authProvider).role;
-    final route = role == 'recruteur' ? '/home-recruteur' : '/home-candidat';
+    final route = role == 'recruteur' ? '/recruiter-home' : '/candidate-home';
     Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
   }
 

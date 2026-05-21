@@ -236,7 +236,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     try {
       print('[ActiveChatNotifier] sendMessage appelé avec: "$content"');
-      final msg = await _repository.sendMessage(conversationId, content);
+      final msg = await _repository.sendMessage(conversationId.toString(), content);
       print('[ActiveChatNotifier] Message reçu du repository: id=${msg.id}, isMine=${msg.isMine}');
       
       // Mark as mine

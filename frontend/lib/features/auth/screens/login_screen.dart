@@ -51,17 +51,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (previous, next) {
+      print('👂 Auth state changed: ${previous?.status} → ${next.status}');
       if (next.status == AuthStatus.authenticated) {
+        print('✅ Authenticated! Role: ${next.role}');
         // Only navigate to dashboard if this screen is the active route.
         // During Google signup, the signup-form screen is on top and should
         // handle navigation to the profile/onboarding screens instead.
         final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+        print('🔍 Is current route: $isCurrent');
         if (!isCurrent) return;
-        final route = next.role == 'candidat' ? '/home-candidat' : '/home-recruteur';
+        final route = next.role == 'candidat' ? '/candidate-home' : '/recruiter-home';
+        print('🚀 Navigating to: $route');
         Navigator.pushReplacementNamed(context, route);
       } else if (next.status == AuthStatus.pendingRoleSelection) {
         Navigator.pushNamed(context, '/signup', arguments: 'google');
       } else if (next.status == AuthStatus.error) {
+        print('🔴 Auth error: ${next.errorMessage}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.errorMessage ?? 'Identifiants invalides')),
         );

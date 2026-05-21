@@ -129,15 +129,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // ── Login ──────────────────────────────────────────────────────────────────
   Future<void> login(String email, String password) async {
+    print('🚀 Login started for: $email');
     state = state.copyWith(status: AuthStatus.loading);
     try {
       final auth = await _repo.login(email, password);
+      print('✅ Auth received - role: ${auth.role}, userId: ${auth.userId}');
       state = state.copyWith(
         status: AuthStatus.authenticated,
         role:   auth.role,
         userId: auth.userId,
       );
+      print('✅ State updated to authenticated');
     } catch (e) {
+      print('🔴 Login failed: $e');
       state = state.copyWith(
         status:       AuthStatus.error,
         errorMessage: e.toString(),

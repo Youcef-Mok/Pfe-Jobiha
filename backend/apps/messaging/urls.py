@@ -14,6 +14,7 @@ urlpatterns = [
     # ── Messages in a conversation ─────────────────────────────────────────
     path('conversations/<int:id>/messages', views.ConvSendMessageView.as_view(), name='send-message'),
     path('conversations/<int:id>/messages/image', views.SendImageMessageView.as_view(), name='send-image-message'),
+    path('conversations/<int:id>/messages/file', views.SendFileMessageView.as_view(), name='send-file-message'),
 
     # ── Invitation accept/decline ──────────────────────────────────────────
     path('conversations/<int:id>/accept', views.AcceptInvitationView.as_view(), name='conversation-accept'),

@@ -6,6 +6,7 @@ import '../datasources/messaging_remote_datasource.dart';
 import '../models/message_dto.dart';
 import '../models/chat_model.dart';
 import 'messaging_repository.dart';
+import '../../../auth/data/users_repository.dart';
 
 /// API implementation of the messaging repository.
 /// Wraps remote data source with error handling and entity conversion.
@@ -22,14 +23,19 @@ class MessagingRepositoryApi implements MessagingRepository {
     print('[MessagingRepositoryApi] getConversations appelé');
     try {
       final response = await _dataSource.getConversations();
-      print("réponse brute: ${response.data}");
+      print("[MessagingRepositoryApi] réponse brute: ${response.data}");
       final list = response.data as List;
       final result = list
-          .map((json) => _conversationDtoToEntity(
-                ConversationDto.fromJson(json as Map<String, dynamic>),
-              ))
+          .map((json) {
+            final dto = ConversationDto.fromJson(json as Map<String, dynamic>);
+            print('[MessagingRepositoryApi] Parsed DTO: id=${dto.id} isGroup=${dto.isGroup} isUnread=${dto.isUnread} groupName="${dto.groupName}" contactName="${dto.contactName}"');
+            return _conversationDtoToEntity(dto);
+          })
           .toList();
-      print("conversations parsées: ${result.length}");
+      print("[DEBUG] _load() got ${result.length} conversations");
+      for (final c in result) {
+        print('[DEBUG]  -> id=${c.id} isGroup=${c.isGroup} isUnread=${c.isUnread} name="${c.contactName}" groupName="${c.groupName}"');
+      }
       return result;
     } on DioException catch (e) {
       print('[MessagingRepositoryApi] DioException dans getConversations: ${e.message}');
@@ -62,6 +68,7 @@ class MessagingRepositoryApi implements MessagingRepository {
           lastMessage: '',
           lastMessageTime: DateTime.now(),
           isUnread: false,
+          unreadCount: 0,
           isInvitation: false,
           messages: const [],
         ),
@@ -80,6 +87,7 @@ class MessagingRepositoryApi implements MessagingRepository {
         lastMessage: conv.lastMessage,
         lastMessageTime: conv.lastMessageTime,
         isUnread: conv.isUnread,
+        unreadCount: conv.unreadCount,
         isInvitation: conv.isInvitation,
         messages: result.messages,
       );
@@ -151,8 +159,11 @@ class MessagingRepositoryApi implements MessagingRepository {
   Future<ConversationEntity> _createGroupInternal(String groupName, List<int> memberIds) async {
     try {
       final response = await _dataSource.createGroup(groupName, memberIds);
+      print('[DEBUG] createGroup API response: ${response.data}');
       final dto = ConversationDto.fromJson(response.data as Map<String, dynamic>);
-      return _conversationDtoToEntity(dto);
+      final conversation = _conversationDtoToEntity(dto);
+      print('[DEBUG] createGroup parsed entity: id=${conversation.id} isGroup=${conversation.isGroup} name="${conversation.contactName}" groupName="${conversation.groupName}"');
+      return conversation;
     } on DioException catch (e) {
       throw Exception(_friendlyError(e));
     }
@@ -186,12 +197,13 @@ class MessagingRepositoryApi implements MessagingRepository {
   }
 
   @override
-  Future<void> sendMessage(String conversationId, String content) async {
+  Future<MessageEntity> sendMessage(String conversationId, String content) async {
     print('[MessagingRepositoryApi] sendMessage appelé: conversationId=$conversationId, content=$content');
     try {
       final convId = int.parse(conversationId);
       final message = await _sendMessageInternal(convId, content);
       print('[MessagingRepositoryApi] sendMessage réussi: message id=${message.id}');
+      return message;
     } catch (e, stackTrace) {
       print('[MessagingRepositoryApi] ERREUR dans sendMessage: $e');
       print('[MessagingRepositoryApi] StackTrace: $stackTrace');
@@ -264,14 +276,23 @@ class MessagingRepositoryApi implements MessagingRepository {
   }
 
   @override
+  Future<void> markAsRead(String conversationId) async {
+    print('[MessagingRepositoryApi] markAsRead appelé: conversationId=$conversationId');
+    try {
+      final convId = int.parse(conversationId);
+      await markConversationRead(convId);
+      print('[MessagingRepositoryApi] markAsRead réussi');
+    } on DioException catch (e) {
+      print('[MessagingRepositoryApi] markAsRead error: ${_friendlyError(e)}');
+      throw Exception(_friendlyError(e));
+    }
+  }
+
+  @override
   Future<ConversationEntity> createGroup(
     String groupName,
-    List<String> memberNames,
-    List<String?> memberAvatars,
+    List<int> memberIds,
   ) async {
-    // Convert member names to IDs (this is a simplified implementation)
-    // In a real implementation, you'd need to resolve names to IDs first
-    final memberIds = <int>[];
     return await _createGroupInternal(groupName, memberIds);
   }
 
@@ -360,22 +381,43 @@ class MessagingRepositoryApi implements MessagingRepository {
     required String contactRole,
     String? contactAvatar,
   }) async {
-    // This is a simplified implementation
-    // In a real implementation, you'd need to resolve the contact name to an ID first
-    throw UnimplementedError('getOrCreateConversation with named parameters not yet implemented');
+    // Look up user by name to get their ID
+    final users = await UsersRepository().getUsers();
+    final user = users.firstWhere(
+      (u) => '${u.prenom} ${u.nom}' == contactName,
+      orElse: () => throw Exception('User not found: $contactName'),
+    );
+    return await _getOrCreateConversationInternal(user.id);
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
   MessageEntity _messageDtoToEntity(MessageDto dto) {
+    // Parse message type from backend with null safety
+    final typeStr = (dto.type ?? 'text').toLowerCase();
+    MessageType messageType;
+    switch (typeStr) {
+      case 'image':
+        messageType = MessageType.image;
+        break;
+      case 'file':
+        messageType = MessageType.file;
+        break;
+      case 'invitation':
+        messageType = MessageType.invitation;
+        break;
+      default:
+        messageType = MessageType.text;
+    }
+    
     return MessageEntity(
       id: dto.id.toString(),
       senderId: dto.expediteur.id.toString(),
-      content: dto.contenu,
+      content: dto.contenu ?? '',
       timestamp: DateTime.parse(dto.dateEnvoi),
-      isRead: dto.isRead, // Use real backend value
+      isRead: dto.isRead,
       isMine: dto.isMine,
-      type: MessageType.text,
+      type: messageType,
     );
   }
 
@@ -391,6 +433,7 @@ class MessagingRepositoryApi implements MessagingRepository {
           ? DateTime.parse(dto.lastMessageTime!)
           : DateTime.now(),
       isUnread: dto.isUnread,
+      unreadCount: dto.unreadCount,
       isInvitation: dto.isInvitation,
       messages: const [],
       isGroup: dto.isGroup,

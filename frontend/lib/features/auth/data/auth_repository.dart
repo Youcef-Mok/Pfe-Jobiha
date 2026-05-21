@@ -70,8 +70,17 @@ class AuthRepository {
         ApiEndpoints.login,
         data: {'email': email, 'mot_de_passe': password},
       );
-      return _saveAndReturn(response.data);
+      print('🔵 Login response status: ${response.statusCode}');
+      print('🔵 Login response body: ${response.data}');
+      
+      final auth = await _saveAndReturn(response.data);
+      print('🔵 Parsed token (access): ${auth.access.substring(0, 20)}...');
+      print('🔵 Parsed role: ${auth.role}');
+      print('🔵 Parsed userId: ${auth.userId}');
+      
+      return auth;
     } on DioException catch (e) {
+      print('🔴 Login error: ${e.response?.statusCode} - ${e.response?.data}');
       throw Exception(_friendlyError(e));
     }
   }

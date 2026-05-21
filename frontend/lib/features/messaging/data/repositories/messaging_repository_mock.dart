@@ -54,11 +54,21 @@ class MessagingRepositoryMock implements MessagingRepository {
   }
 
   @override
-  Future<void> sendMessage(String conversationId, String content) async {
+  Future<MessageEntity> sendMessage(String conversationId, String content) async {
     final id = int.tryParse(conversationId) ?? 0;
     await _dio.post(
       ApiEndpoints.sendMessage(id),
       data: {'content': content, 'type': 'text'},
+    );
+    // Return a mock message entity
+    return MessageEntity(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      senderId: 'me',
+      content: content,
+      timestamp: DateTime.now(),
+      isRead: false,
+      isMine: true,
+      type: MessageType.text,
     );
   }
 
@@ -174,18 +184,29 @@ class MessagingRepositoryMock implements MessagingRepository {
   }
 
   @override
-  Future<void> createGroup(
+  @override
+  Future<ConversationEntity> createGroup(
     String groupName,
-    List<String> memberNames,
-    List<String?> memberAvatars,
+    List<int> memberIds,
   ) async {
     await _dio.post(
       ApiEndpoints.createGroup,
       data: {
         'group_name': groupName,
-        'member_names': memberNames,
-        'member_avatars': memberAvatars.whereType<String>().toList(),
+        'member_ids': memberIds,
       },
+    );
+    // Return a mock conversation entity
+    return ConversationEntity(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      contactName: groupName,
+      contactRole: '',
+      isOnline: false,
+      lastMessage: '',
+      lastMessageTime: DateTime.now(),
+      isUnread: false,
+      isGroup: true,
+      groupName: groupName,
     );
   }
 

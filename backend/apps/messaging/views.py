@@ -49,6 +49,7 @@ from core.pagination import StandardPagination
 class ConversationListView(APIView):
     """
     GET /conversations — active conversations (not invitations).
+    POST /conversations — get or create DM conversation with contact_id.
     Returns the shape the Flutter frontend expects via ConversationSummarySerializer:
       conversation_id, type, nom, interlocuteur, members, dernier_message, nb_non_lus
     """
@@ -69,10 +70,72 @@ class ConversationListView(APIView):
             ).exists()
         ]
         print(f'[ConversationListView] returning {len(data)} conversations')
-        serializer = ConversationSummarySerializer(data, many=True)
+        serializer = ConversationSummarySerializer(data, many=True, context={'request': request})
         print(f'[ConversationListView] FULL serializer.data:')
         print(serializer.data)
         return Response(serializer.data)
+
+    def post(self, request):
+        """Get or create a DM conversation with the given contact_id."""
+        contact_id = request.data.get('contact_id')
+        if not contact_id:
+            return Response({'detail': 'contact_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if int(contact_id) == request.user.pk:
+            return Response({'detail': 'Cannot create conversation with yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            partner = Utilisateur.objects.get(pk=contact_id)
+        except Utilisateur.DoesNotExist:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Find existing DM
+        my_convs = set(ConversationMember.objects.filter(
+            user=request.user, left_at__isnull=True,
+        ).values_list('conversation_id', flat=True))
+        partner_convs = set(ConversationMember.objects.filter(
+            user=partner, left_at__isnull=True,
+        ).values_list('conversation_id', flat=True))
+        shared = my_convs & partner_convs
+        existing = Conversation.objects.filter(
+            id__in=shared, type=Conversation.TYPE_DIRECT
+        ).first()
+
+        if existing:
+            serializer = ConversationSerializer(existing, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Create new DM
+        conv = Conversation.objects.create(type=Conversation.TYPE_DIRECT, created_by=request.user)
+        ConversationMember.objects.create(
+            conversation=conv, user=request.user, role=ConversationMember.ROLE_MEMBER,
+        )
+        ConversationMember.objects.create(
+            conversation=conv, user=partner, role=ConversationMember.ROLE_MEMBER,
+            is_invitation=True,
+        )
+        serializer = ConversationSerializer(conv, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        """Bulk delete conversations - marks user as left."""
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({'detail': 'ids is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Convert string IDs to integers
+        try:
+            int_ids = [int(id_str) for id_str in ids]
+        except (ValueError, TypeError):
+            return Response({'detail': 'Invalid ID format.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mark user as left from these conversations
+        ConversationMember.objects.filter(
+            conversation_id__in=int_ids, 
+            user=request.user, 
+            left_at__isnull=True,
+        ).update(left_at=timezone.now())
+        
+        print(f'[ConversationListView] Deleted {len(int_ids)} conversations for user {request.user.id}')
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ---------------------------------------------------------------------------
@@ -431,7 +494,7 @@ class ConversationInvitationsView(APIView):
                 left_at__isnull=True,
             ).exists()
         ]
-        serializer = ConversationSummarySerializer(data, many=True)
+        serializer = ConversationSummarySerializer(data, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -503,10 +566,50 @@ class SendImageMessageView(APIView):
         url = request.build_absolute_uri(django_settings.MEDIA_URL + path)
 
         message = Message.objects.create(
-            conversation_id=id, expediteur=request.user, contenu=url,
+            conversation_id=id, 
+            expediteur=request.user, 
+            contenu=url,
+            type='image',  # Set the message type
         )
         message = Message.objects.select_related('expediteur', 'conversation').get(pk=message.pk)
-        out = MessageSerializer(message)
+        out = MessageSerializer(message, context={'request': request})
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                f'conv_{id}',
+                {'type': 'chat.message', 'message': out.data, 'sender_id': request.user.pk},
+            )
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class SendFileMessageView(APIView):
+    """POST /conversations/<id>/messages/file"""
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, id):
+        if not ConversationMember.objects.filter(
+            conversation_id=id, user=request.user, left_at__isnull=True,
+        ).exists():
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'detail': 'file is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.core.files.storage import default_storage
+        from django.conf import settings as django_settings
+        path = default_storage.save(f'chat_files/{file.name}', file)
+        url = request.build_absolute_uri(django_settings.MEDIA_URL + path)
+
+        message = Message.objects.create(
+            conversation_id=id, 
+            expediteur=request.user, 
+            contenu=url,
+            type='file',  # Set the message type
+        )
+        message = Message.objects.select_related('expediteur', 'conversation').get(pk=message.pk)
+        out = MessageSerializer(message, context={'request': request})
         channel_layer = get_channel_layer()
         if channel_layer:
             async_to_sync(channel_layer.group_send)(
@@ -641,28 +744,41 @@ class CreateGroupConversationView(APIView):
     def post(self, request):
         group_name = request.data.get('group_name', '')
         member_ids = request.data.get('member_ids', [])
+        print(f"[CreateGroup] Received request.data: {request.data}")
+        print(f"[CreateGroup] group_name='{group_name}' member_ids={member_ids}")
         if not member_ids:
             return Response({'detail': 'member_ids is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Create group conversation with TYPE_GROUP
         conv = Conversation.objects.create(
-            type=Conversation.TYPE_GROUP, nom=group_name, created_by=request.user,
+            type=Conversation.TYPE_GROUP, 
+            nom=group_name, 
+            created_by=request.user,
         )
+        
         # Creator is admin
         ConversationMember.objects.create(
             conversation=conv, user=request.user, role=ConversationMember.ROLE_ADMIN,
         )
-        # Add members
+        
+        # Add all selected members (not invitations for group chats)
         for uid in member_ids:
+            # Skip if the user is the creator (already added above)
+            if uid == request.user.pk:
+                continue
             try:
                 user = Utilisateur.objects.get(pk=uid)
                 ConversationMember.objects.get_or_create(
                     conversation=conv, user=user,
-                    defaults={'role': ConversationMember.ROLE_MEMBER},
+                    defaults={'role': ConversationMember.ROLE_MEMBER, 'is_invitation': False},
                 )
             except Utilisateur.DoesNotExist:
                 continue
 
-        serializer = ConversationDetailSerializer(conv)
+        # Use ConversationSerializer to return the full shape expected by Flutter
+        serializer = ConversationSerializer(conv, context={'request': request})
+        print(f"[CreateGroup] returning: id={conv.id} type={conv.type} nom={conv.nom}")
+        print(f"[CreateGroup] serialized data: {serializer.data}")
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

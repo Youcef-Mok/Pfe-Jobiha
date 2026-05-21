@@ -56,8 +56,10 @@ class ChatWebSocketService {
     if (_disposed) return;
 
     try {
+      print('[ChatWebSocketService] Connecting to: $wsUrl');
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
       _isConnected = true;
+      print('[ChatWebSocketService] WebSocket connected successfully');
 
       _channel!.stream.listen(
         _handleMessage,
@@ -66,6 +68,7 @@ class ChatWebSocketService {
         cancelOnError: false,
       );
     } catch (e) {
+      print('[ChatWebSocketService] Connection failed: $e');
       _isConnected = false;
       _scheduleReconnect();
     }
@@ -116,6 +119,7 @@ class ChatWebSocketService {
   }
 
   void _handleError(dynamic error) {
+    print('[ChatWebSocketService] WebSocket error: $error');
     _isConnected = false;
     if (!_disposed) {
       _scheduleReconnect();
@@ -123,6 +127,7 @@ class ChatWebSocketService {
   }
 
   void _handleDone() {
+    print('[ChatWebSocketService] WebSocket connection closed');
     _isConnected = false;
     if (!_disposed) {
       _scheduleReconnect();
@@ -131,8 +136,10 @@ class ChatWebSocketService {
 
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
+    print('[ChatWebSocketService] Scheduling reconnect in 3 seconds...');
     _reconnectTimer = Timer(const Duration(seconds: 3), () {
       if (!_disposed) {
+        print('[ChatWebSocketService] Attempting to reconnect...');
         _connectInternal();
       }
     });

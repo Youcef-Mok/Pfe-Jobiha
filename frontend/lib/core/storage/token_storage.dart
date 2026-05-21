@@ -20,6 +20,7 @@ class TokenStorage {
     required int userId,
     bool isGoogleUser = false,
   }) async {
+    print('💾 Saving session - role: $role, userId: $userId');
     await Future.wait([
       _storage.write(key: _accessKey,  value: access),
       _storage.write(key: _refreshKey, value: refresh),
@@ -27,6 +28,11 @@ class TokenStorage {
       _storage.write(key: _userIdKey,  value: userId.toString()),
       _storage.write(key: 'is_google_user', value: isGoogleUser.toString()),
     ]);
+    print('✅ Session saved successfully');
+    
+    // Verify it was actually saved
+    final savedToken = await _storage.read(key: _accessKey);
+    print('🔍 Verification - token exists: ${savedToken != null}');
   }
 
   static Future<void> updateAccessToken(String access) =>
