@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:job_app/core/theme/app_theme.dart';
 
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
-import 'package:job_app/features/profile/widgets/profile_header.dart';
-import 'package:job_app/features/profile/widgets/profile_stats.dart';
+import 'package:job_app/features/profile/widgets/candidate_profile_header.dart';
 import 'package:job_app/features/profile/widgets/profile_tabs.dart';
 import 'package:job_app/features/profile/widgets/profile_annonces_section.dart';
 import 'package:job_app/features/profile/widgets/profile_missions_section.dart';
-import 'package:job_app/features/profile/widgets/profile_cv_section.dart';
-import 'package:job_app/features/profile/widgets/profile_reviews_section.dart';
+import 'package:job_app/features/profile/widgets/profile_description_section.dart';
+import 'package:job_app/features/jobs/widgets/recruiter_filter_bar.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 
 /// Page profil du recruteur
@@ -22,7 +22,7 @@ class ProfileScreen extends ConsumerWidget {
     final selectedTab = ref.watch(profileTabProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F6F8), // Fond explicite F7F6F8
+      backgroundColor: const Color(0xFFFBFBFB),
       body: SafeArea(
         bottom: false,
         child: userAsync.when(
@@ -34,10 +34,8 @@ class ProfileScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ProfileHeader(user: user),
-                    const SizedBox(height: 12),
-                    ProfileStats(user: user),
-                    const SizedBox(height: 16),
+                    CandidateProfileHeader(user: user, isRecruiterView: true),
+                    const SizedBox(height: 2),
                   ],
                 ),
               ),
@@ -52,7 +50,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const AppBottomNavBar(currentIndex: 4),
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
     );
   }
 }
@@ -64,22 +62,28 @@ class _TabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (selectedTab) {
-      ProfileTab.annonces  => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileAnnoncesSection()),
-      ProfileTab.missions  => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileMissionsSection()),
-      ProfileTab.competences  => const _CvBodyWrapper(),
-      ProfileTab.reviews   => const SingleChildScrollView(physics: AlwaysScrollableScrollPhysics(), child: ProfileReviewsSection()),
+      ProfileTab.description => const SingleChildScrollView(
+          physics: AlwaysScrollableScrollPhysics(),
+          child: ProfileDescriptionSection(isRecruiterView: true),
+        ),
+      ProfileTab.annonces => const CustomScrollView(
+          physics: AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: RecruiterFilterBar(forcedTab: JobsTab.myJobs),
+            ),
+            ProfileAnnoncesSection(),
+          ],
+        ),
+      ProfileTab.missions => const CustomScrollView(
+          physics: AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: RecruiterFilterBar(forcedTab: JobsTab.missions),
+            ),
+            ProfileMissionsSection(),
+          ],
+        ),
     };
-  }
-}
-
-class _CvBodyWrapper extends StatelessWidget {
-  const _CvBodyWrapper();
-
-  @override
-  Widget build(BuildContext context) {
-    // On laisse ProfileCvSection occuper tout l'espace restant du NestedScrollView body.
-    // Cela permet au LayoutBuilder de ProfileCvSection de calculer précisément
-    // la hauteur disponible pour caler les cartes en bas de l'écran.
-    return const ProfileCvSection();
   }
 }

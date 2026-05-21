@@ -67,7 +67,7 @@ class _StatSegment extends StatelessWidget {
             fontWeight: FontWeight.w700,
             fontSize: 8,
             letterSpacing: 0.55,
-            color: Colors.white.withValues(alpha: 0.7),
+            color: Colors.white.withOpacity(0.7),
           ),
         ),
       ],

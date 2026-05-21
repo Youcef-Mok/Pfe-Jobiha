@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:job_app/features/jobs/domain/recruiter_filters.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 
-/// Tabs de navigation du profil : Annonces | Missions | CV | Reviews
+final _annoncesFiltersStateProvider =
+    StateProvider<RecruiterFilters?>((ref) => null);
+final _missionsFiltersStateProvider =
+    StateProvider<RecruiterFilters?>((ref) => null);
+
+/// Tabs de navigation du profil recruteur : Description | Annonces | Missions
 class ProfileTabs extends ConsumerWidget {
   const ProfileTabs({super.key});
 
@@ -12,50 +18,77 @@ class ProfileTabs extends ConsumerWidget {
     final selectedTab = ref.watch(profileTabProvider);
 
     const tabs = [
+      (ProfileTab.description, 'Description'),
       (ProfileTab.annonces, 'Annonces'),
       (ProfileTab.missions, 'Missions'),
-      (ProfileTab.competences, 'Compétences'),
-      (ProfileTab.reviews, 'Reviews'),
     ];
 
     return Container(
-      width: double.infinity,
-      height: 52.5,
       decoration: const BoxDecoration(
-        color: Color(0xFFF7F6F8),
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE1E1E1)),
-        ),
+        color: Color(0xFFFCFBFB),
       ),
       child: Row(
-        children: tabs.map((tab) {
-          final (value, label) = tab;
-          final isSelected = selectedTab == value;
-          return Expanded(
-            child: _TabButton(
-              label: label,
-              isSelected: isSelected,
-              onTap: () =>
-                  ref.read(profileTabProvider.notifier).state = value,
+        children: [
+          for (int i = 0; i < tabs.length; i++) ...[
+            if (i > 0)
+              Container(
+                width: 1,
+                height: 18,
+                color: const Color(0xFFEFF1F5),
+              ),
+            Expanded(
+              child: _TabButton(
+                label: tabs[i].$2,
+                isSelected: selectedTab == tabs[i].$1,
+                onTap: () {
+                  final nextTab = tabs[i].$1;
+                  final currentTab = ref.read(profileTabProvider);
+                  final currentFilters = ref.read(recruiterFiltersProvider);
+
+                  // Sauvegarde les filtres de l'onglet courant.
+                  if (currentTab == ProfileTab.annonces) {
+                    ref.read(_annoncesFiltersStateProvider.notifier).state =
+                        currentFilters;
+                  } else if (currentTab == ProfileTab.missions) {
+                    ref.read(_missionsFiltersStateProvider.notifier).state =
+                        currentFilters;
+                  }
+
+                  // Bascule d'onglet profil.
+                  ref.read(profileTabProvider.notifier).state = nextTab;
+
+                  // Restaure les filtres propres à l'onglet cible.
+                  if (nextTab == ProfileTab.annonces) {
+                    final saved =
+                        ref.read(_annoncesFiltersStateProvider) ??
+                            const RecruiterFilters();
+                    ref.read(recruiterFiltersProvider.notifier).apply(saved);
+                  } else if (nextTab == ProfileTab.missions) {
+                    final saved =
+                        ref.read(_missionsFiltersStateProvider) ??
+                            const RecruiterFilters();
+                    ref.read(recruiterFiltersProvider.notifier).apply(saved);
+                  }
+                },
+              ),
             ),
-          );
-        }).toList(),
+          ],
+        ],
       ),
     );
   }
 }
 
-/// Delegate pour rendre les onglets collants (sticky) dans un CustomScrollView/NestedScrollView
 class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
 
   ProfileTabsDelegate({required this.child});
 
   @override
-  double get minExtent => 52.5; // Hauteur fixe specifiee dans ProfileTabs
+  double get minExtent => 48;
 
   @override
-  double get maxExtent => 52.5;
+  double get maxExtent => 48;
 
   @override
   Widget build(
@@ -64,9 +97,7 @@ class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(covariant ProfileTabsDelegate oldDelegate) {
-    return false;
-  }
+  bool shouldRebuild(covariant ProfileTabsDelegate oldDelegate) => false;
 }
 
 class _TabButton extends StatelessWidget {
@@ -87,22 +118,15 @@ class _TabButton extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Container(
         alignment: Alignment.center,
-        height: 51,
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isSelected ? const Color(0xFF401E66) : Colors.transparent,
-              width: 3,
-            ),
-          ),
-        ),
+        height: 48,
         child: Text(
           label,
-          style: GoogleFonts.plusJakartaSans(
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 13, // Slightly reduced to fit 'Compétences' perfectly
-            height: 1.43,
-            color: isSelected ? const Color(0xFF401E66) : const Color(0xFF64748B),
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            color:
+                isSelected ? const Color(0xFF401E66) : const Color(0xFF94A3B8),
           ),
         ),
       ),

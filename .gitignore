@@ -22,9 +22,6 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
 #.vscode/
 
 # Flutter/Dart/Pub related
@@ -48,6 +45,15 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# OS related
+Thumbs.db
+Desktop.ini
+
+frontend/build/
+frontend/build - Copy/
+**/build/
+*.apk
+
 # =========================
 # DJANGO / PYTHON (AUTH PHASE)
 # =========================
@@ -56,16 +62,16 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Django database 
+# Django database
 db.sqlite3
 
-# Environment variables 
+# Environment variables
 .env
 
-# Virtual environment 
+# Virtual environment
 venv/
 env/
 backend/venv/
 
-# Django logs 
+# Django logs
 *.log

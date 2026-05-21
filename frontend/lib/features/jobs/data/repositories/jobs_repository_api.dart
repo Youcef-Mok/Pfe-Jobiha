@@ -7,6 +7,11 @@ import 'package:job_app/features/jobs/data/models/job_model.dart';
 import 'package:job_app/features/jobs/data/models/mission_model.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 
+//added this
+import 'package:job_app/features/jobs/domain/create_mission_params.dart';
+
+
+
 /// Real API implementation of [JobsRepository].
 /// Calls the Django REST backend via Dio.
 class JobsRepositoryApi implements JobsRepository {
@@ -70,4 +75,22 @@ class JobsRepositoryApi implements JobsRepository {
         .map((json) => MissionModel.fromJson(json as Map<String, dynamic>).toEntity())
         .toList();
   }
+
+  //added this to fix error
+
+  @override
+  Future<MissionEntity> createMission(CreateMissionParams params) {
+    throw UnimplementedError('createMission not yet implemented');
+  }
+
+  @override
+  Future<MissionEntity> confirmMission(String missionId) {
+    throw UnimplementedError('confirmMission not yet implemented');
+  }
+
+  @override
+  Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback) {
+    throw UnimplementedError('updateMissionReview not yet implemented');
+  }
+
 }

@@ -97,10 +97,8 @@ class _EndMissionScreenState extends ConsumerState<EndMissionScreen> {
         backgroundColor: AppColors.violet,
         behavior: SnackBarBehavior.floating,
       ));
-      // Pop jusqu'à la liste
-      Navigator.of(context)
-        ..pop()   // ferme end_mission_screen
-        ..pop();  // ferme le mission_detail_sheet
+      // Ferme uniquement l'ecran courant pour eviter un double-pop instable.
+      Navigator.of(context).pop();
     }
   }
 }

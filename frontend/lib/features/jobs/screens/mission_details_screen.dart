@@ -7,7 +7,14 @@ import 'package:job_app/features/jobs/screens/end_mission_screen.dart';
 
 class MissionDetailsScreen extends StatelessWidget {
   final MissionEntity mission;
-  const MissionDetailsScreen({super.key, required this.mission});
+  /// Libellés type « Employés » vs vocabulaire candidat.
+  final bool isRecruiterMissionDetail;
+
+  const MissionDetailsScreen({
+    super.key,
+    required this.mission,
+    this.isRecruiterMissionDetail = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +30,10 @@ class MissionDetailsScreen extends StatelessWidget {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(top: 8, bottom: 24),
-                child: _CompletedMissionView(mission: mission),
+                child: _CompletedMissionView(
+                  mission: mission,
+                  isRecruiterMissionDetail: isRecruiterMissionDetail,
+                ),
               ),
             ),
           ],
@@ -127,7 +137,12 @@ class _TopAppBar extends StatelessWidget {
 /// Vue pour les missions terminées (design premium)
 class _CompletedMissionView extends StatelessWidget {
   final MissionEntity mission;
-  const _CompletedMissionView({required this.mission});
+  final bool isRecruiterMissionDetail;
+
+  const _CompletedMissionView({
+    required this.mission,
+    this.isRecruiterMissionDetail = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -138,10 +153,17 @@ class _CompletedMissionView extends StatelessWidget {
         _MissionHeader(mission: mission),
         
         // Section Équipe
-        _MissionBody(mission: mission, isCompleted: true),
+        _MissionBody(
+          mission: mission,
+          isCompleted: true,
+          isRecruiterMissionDetail: isRecruiterMissionDetail,
+        ),
 
         // Section Évaluations préliminaires
-        _PreliminaryEvaluations(mission: mission),
+        _PreliminaryEvaluations(
+          mission: mission,
+          isRecruiterMissionDetail: isRecruiterMissionDetail,
+        ),
 
         const SizedBox(height: 24),
       ],
@@ -340,7 +362,13 @@ class _StatusBadge extends StatelessWidget {
 class _MissionBody extends StatelessWidget {
   final MissionEntity mission;
   final bool isCompleted;
-  const _MissionBody({required this.mission, this.isCompleted = false});
+  final bool isRecruiterMissionDetail;
+
+  const _MissionBody({
+    required this.mission,
+    this.isCompleted = false,
+    this.isRecruiterMissionDetail = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -349,9 +377,9 @@ class _MissionBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Équipe sur place',
-            style: TextStyle(
+          Text(
+            isRecruiterMissionDetail ? 'Employés' : 'Équipe sur place',
+            style: const TextStyle(
               fontFamily: 'Inter',
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -518,7 +546,12 @@ class _EmployeeCard extends StatelessWidget {
 // ─────────────────────────────────────────────
 class _PreliminaryEvaluations extends StatelessWidget {
   final MissionEntity mission;
-  const _PreliminaryEvaluations({required this.mission});
+  final bool isRecruiterMissionDetail;
+
+  const _PreliminaryEvaluations({
+    required this.mission,
+    this.isRecruiterMissionDetail = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -549,7 +582,9 @@ class _PreliminaryEvaluations extends StatelessWidget {
           const SizedBox(height: 12),
           
           _EvaluationCard(
-            title: 'Évaluation du Recruteur',
+            title: isRecruiterMissionDetail
+                ? 'Évaluation de l\'employeur'
+                : 'Évaluation du Recruteur',
             subtitle: 'Feedback en cours',
             rating: mission.recruiterRating,
             feedback: mission.recruiterFeedback,

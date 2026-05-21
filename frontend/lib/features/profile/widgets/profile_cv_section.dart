@@ -1,672 +1,654 @@
-import 'dart:math' as math;
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/domain/cv_entity.dart';
 import 'package:job_app/features/profile/widgets/profile_add_overlays.dart';
+import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/features/jobs/widgets/completed_mission_card.dart';
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
-import 'package:job_app/features/jobs/screens/mission_details_screen.dart';
+import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
 
-const double _kPeekHeight = 49.0; // Exact Figma spacing between stacked cards
+const double _kPeekHeight = 52.0;
 const Color _kViolet = Color(0xFF401E66);
 const Color _kLightBg = Color(0xFFF5F2F9);
+const Color _kBlack = Color(0xFF000000);
+const Color _kJobCardGray = Color(0xFFEFEDF2);
 
-/// Section CV : 3 cartes qui s'empilent.
+final _titleStyleBlack = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 16, color: _kBlack);
+final _titleStyleViolet = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 16, color: _kViolet);
+final _titleStyleDark = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 16, color: const Color(0xFF0F172A));
+final _styleW70012Slate700LS11 = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.slate700, letterSpacing: 1.1);
+final _styleW70012Slate600LS11 = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.slate600, letterSpacing: 1.1);
+final _styleW70014Slate900 = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.slate900);
+final _style12Slate700 = GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.slate700);
+final _styleW60014Slate900 = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.slate900);
+final _styleW70010Violet = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 10, color: _kViolet);
+final _styleW50012Slate700 = GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.slate700);
+final _styleW70016Slate900 = GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.slate900);
+final _styleW50014Slate700 = GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.slate700);
+final _style14Slate700 = GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.slate700);
+
 class ProfileCvSection extends ConsumerStatefulWidget {
-  const ProfileCvSection({super.key});
+  final ProviderListenable<AsyncValue<CvEntity>>? cvProvider;
+  final bool readOnly;
 
-  // Helper pour accéder au state depuis les sous-widgets
-  static ProfileCvSectionState? of(BuildContext context) =>
-      context.findAncestorStateOfType<ProfileCvSectionState>();
-      
+  const ProfileCvSection({super.key, this.cvProvider, this.readOnly = false});
+
   @override
-  ConsumerState<ProfileCvSection> createState() => ProfileCvSectionState();
+  ConsumerState<ProfileCvSection> createState() => _ProfileCvSectionState();
 }
 
-class ProfileCvSectionState extends ConsumerState<ProfileCvSection>
+class _ProfileCvSectionState extends ConsumerState<ProfileCvSection>
     with TickerProviderStateMixin {
-  
   late AnimationController _card2Controller;
   late AnimationController _card3Controller;
+
+  // ScrollControllers pour lier le scroll du contenu au mouvement des cartes
+  final ScrollController _card1ScrollController = ScrollController();
+  final ScrollController _card2ScrollController = ScrollController();
+  final ScrollController _card3ScrollController = ScrollController();
+
+  // Pixels supplémentaires au-delà de l'openedTop (extension de la montée)
+  double _card2ExtraOffset = 0.0;
+  double _card3ExtraOffset = 0.0;
+
+  // Index de la carte ouverte : 1 (Exp), 2 (Form), 3 (Compétences)
+  int _openIndex = 1;
 
   @override
   void initState() {
     super.initState();
     _card2Controller = AnimationController(
-        vsync: this, 
-        duration: const Duration(milliseconds: 400)
-    );
+        vsync: this, duration: const Duration(milliseconds: 350));
     _card3Controller = AnimationController(
-        vsync: this, 
-        duration: const Duration(milliseconds: 400)
-    );
+        vsync: this, duration: const Duration(milliseconds: 350));
+
+    // Par défaut, cv card 1 (Experience) est ouverte
+    _openIndex = 1;
+    _card2Controller.value = 0.0;
+    _card3Controller.value = 0.0;
   }
 
   @override
   void dispose() {
+    _card1ScrollController.dispose();
+    _card2ScrollController.dispose();
+    _card3ScrollController.dispose();
     _card2Controller.dispose();
     _card3Controller.dispose();
     super.dispose();
   }
 
-  void _handleDragUpdate2(DragUpdateDetails d, double maxTravel) {
-    if (maxTravel <= 0) return;
-    final delta = d.delta.dy / maxTravel;
-    _card2Controller.value = (_card2Controller.value - delta).clamp(0.0, 1.0);
-    // Carte 3 ne peut pas être AU-DESSUS de carte 2
-    if (_card3Controller.value > _card2Controller.value) {
-      _card3Controller.value = _card2Controller.value;
-    }
-  }
-
-  void _handleDragEnd2(DragEndDetails d) {
-    if (_card2Controller.isAnimating) return;
-    final velocity = d.primaryVelocity ?? 0;
-    if (velocity < -300) {
-      _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-    } else if (velocity > 300) {
-      // Pour fermer, il faut un geste vers le bas assez convaincu
-      _card2Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-      _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-    } else {
-      // Persistance : si on est déjà en haut, on y reste sauf si on est redescendu sous les 20%
-      if (_card2Controller.value > 0.8) {
-        _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-      } else if (_card2Controller.value < 0.2) {
-        _card2Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-        _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-      } else {
-        // Au milieu, on revient à l'état le plus proche
-        _card2Controller.animateTo(_card2Controller.value > 0.5 ? 1.0 : 0.0, curve: Curves.easeOutQuart);
+  /// Appelé par NotificationListener quand le contenu d'une carte scrolle.
+  /// - Fait monter la carte active d'un coup lors de l'overscroll
+  /// - Scrolle simultanément le NestedScrollView pour pousser le header vers le haut.
+  bool _onScrollNotification(ScrollNotification n, int cardIndex) {
+    // Overscroll au bord supérieur → fait monter la carte d'un coup
+    if (n is OverscrollNotification && n.overscroll < 0) {
+      _pushOuterScroll(n.overscroll.abs());
+      
+      // Déclenche l'animation complète de la carte lors de l'overscroll
+      if (cardIndex == 2 && _card2Controller.value < 1.0) {
+        _toggle(2);
+        return true;
+      } else if (cardIndex == 3 && _card3Controller.value < 1.0) {
+        _toggle(3);
+        return true;
       }
+      return false;
     }
+
+    if (n is! ScrollUpdateNotification) return false;
+    final double rawDelta = n.scrollDelta ?? 0;
+    if (rawDelta <= 0) return false; // scroll vers le bas : ne pas interférer
+
+    // Tout scroll vers le haut pousse simultanément le header de la page
+    _pushOuterScroll(rawDelta);
+
+    return false;
   }
 
-  void _handleDragUpdate3(DragUpdateDetails d, double maxTravel) {
-    if (maxTravel <= 0) return;
-    final delta = d.delta.dy / maxTravel;
-    _card3Controller.value = (_card3Controller.value - delta).clamp(0.0, 1.0);
-    // Carte 2 doit être au moins aussi haute que carte 3
-    if (_card2Controller.value < _card3Controller.value) {
-      _card2Controller.value = _card3Controller.value;
+  /// Fait défiler le header de la page vers le haut (collapse le SliverAppBar)
+  void _pushOuterScroll(double amount) {
+    final outerCtrl = context.findAncestorStateOfType<NestedScrollViewState>()?.outerController;
+    if (outerCtrl == null || !outerCtrl.hasClients) return;
+    if (!outerCtrl.position.hasContentDimensions) return;
+    final newOffset = (outerCtrl.offset + amount).clamp(0.0, outerCtrl.position.maxScrollExtent);
+    outerCtrl.jumpTo(newOffset);
+  }
+
+  void _toggle(int index) {
+    _openIndex = index;
+
+    // Réinitialise les offsets supplémentaires
+    if (_card2ExtraOffset != 0.0 || _card3ExtraOffset != 0.0) {
+      setState(() {
+        _card2ExtraOffset = 0.0;
+        _card3ExtraOffset = 0.0;
+      });
     }
-  }
 
-  void _handleDragEnd3(DragEndDetails d) {
-    if (_card3Controller.isAnimating) return;
-    final velocity = d.primaryVelocity ?? 0;
-    if (velocity < -300) {
-      _card3Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-    } else if (velocity > 300) {
-      _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-    } else {
-      // Persistance pour la carte 3
-      if (_card3Controller.value > 0.8) {
-        _card3Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-      } else if (_card3Controller.value < 0.2) {
-        _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-      } else {
-        _card3Controller.animateTo(_card3Controller.value > 0.5 ? 1.0 : 0.0, curve: Curves.easeOutQuart);
-      }
-    }
-  }
-
-  void _toggleCard2() {
-    if (_card2Controller.value > 0.5) {
-      _card2Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-      _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-    } else {
-      _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-    }
-  }
-
-  void _toggleCard3() {
-    if (_card3Controller.value > 0.5) {
-      _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-    } else {
-      _card3Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-      _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-    }
-  }
-
-  void _closeAll() {
-    _card2Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-    _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cvAsync = ref.watch(cvDataProvider);
-
-    return cvAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.wifi_off_outlined, size: 48, color: Color(0xFF94A3B8)),
-              const SizedBox(height: 12),
-              Text(
-                'Impossible de charger le CV',
-                style: GoogleFonts.splineSans(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '$e',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.splineSans(fontSize: 12, color: const Color(0xFF94A3B8)),
-              ),
-            ],
-          ),
-        ),
-      ),
-      data: (cv) => LayoutBuilder(builder: (context, constraints) {
-        // Pour que les headers soient "sticky" au bas de l'écran même lors du scroll du header profil,
-        // on calcule une hauteur disponible basée sur la vue réelle (viewport).
-        final viewH = MediaQuery.of(context).size.height;
-        final bottomSafe = MediaQuery.of(context).padding.bottom;
-        
-        // On estime la hauteur occupée par les éléments persistants sous le CV (NavBar ~80-90)
-        // et au-dessus (Tabs ~48). On veut que les peeks soient au-dessus de la nav bar.
-        const double navBarHeight = 90.0;
-        const double tabsHeight = 48.0;
-        
-        // La hauteur "visible" sur l'écran pour le contenu du body
-        final screenAvailH = viewH - bottomSafe - navBarHeight - tabsHeight - 10; // -10 de marge
-        
-        // On prend le min entre la contrainte réelle et ce qu'on peut voir à l'écran
-        // pour s'assurer que les cartes ne "fuient" pas vers le bas si le body est très long.
-        final availH = math.min(constraints.maxHeight, screenAvailH);
-        
-        const double topMargin = 5.0;
-        final maxTravel = math.max(0.0, availH - topMargin - 3 * _kPeekHeight);
-
-        return AnimatedBuilder(
-          animation: Listenable.merge([_card2Controller, _card3Controller]),
-          builder: (context, _) {
-            final val2 = _card2Controller.value;
-            final val3 = _card3Controller.value;
-
-            // Positions top de chaque carte
-            final card1Top = topMargin;
-            final card2Top = topMargin + _kPeekHeight + maxTravel * (1 - val2);
-            final card3Top = topMargin + 2 * _kPeekHeight + maxTravel * (1 - val3);
-
-            // Hauteurs: la carte "active" prend toute la hauteur restante.
-            // Les cartes "cachées" n'ont que la hauteur de leur peek header.
-            final card1Height = card2Top - card1Top; // = _kPeekHeight quand card2 est ouverte
-            final card2Height = card3Top - card2Top; // = _kPeekHeight quand card3 est ouverte  
-            final card3Height = availH - card3Top;
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // ── Carte 1 (Experience) ──
-                  Positioned(
-                    top: card1Top,
-                    left: 0, right: 0,
-                    height: math.max(card1Height, _kPeekHeight),
-                    child: RepaintBoundary(
-                      child: _ExperienceCard(
-                        experiences: cv.experiences,
-                        onHeaderDragUpdate: (d) => _handleDragUpdate2(d, maxTravel),
-                        onHeaderDragEnd: _handleDragEnd2,
-                        onHeaderTap: _closeAll,
-                        onScrolledToTop: () {
-                          _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-                        },
-                      ),
-                    ),
-                  ),
-
-                  // ── Carte 2 (Formations) ──
-                  Positioned(
-                    top: card2Top,
-                    left: 0, right: 0,
-                    height: math.max(card2Height, _kPeekHeight),
-                    child: RepaintBoundary(
-                      child: _FormationsCard(
-                        formations: cv.formations,
-                        onHeaderDragUpdate: (d) => _handleDragUpdate2(d, maxTravel),
-                        onHeaderDragEnd: _handleDragEnd2,
-                        onHeaderTap: _toggleCard2,
-                        onScrolledToTop: () {
-                          if (_card2Controller.value >= 0.99) {
-                            _card3Controller.animateTo(1.0, curve: Curves.easeOutQuart);
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-
-                  // ── Carte 3 (Skills) ──
-                  Positioned(
-                    top: card3Top,
-                    left: 0, right: 0,
-                    height: math.max(card3Height, _kPeekHeight),
-                    child: RepaintBoundary(
-                      child: _SkillsCard(
-                        languages: cv.languages,
-                        skills: cv.skills,
-                        onHeaderDragUpdate: (d) => _handleDragUpdate3(d, maxTravel),
-                        onHeaderDragEnd: _handleDragEnd3,
-                        onHeaderTap: _toggleCard3,
-                        onAddLanguage: () => showModal(context, const AddLanguageOverlay()),
-                        onAddSkill: () => showModal(context, const AddSkillOverlay()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      }),
-    );
-  }
-
-
-  // Aide à la navigation
-  // TODO: Fetch the actual mission from the API instead of constructing a stub.
-  void navigateToMission(BuildContext context, String title, String company) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MissionDetailsScreen(
-          mission: MissionEntity(
-            id: '0',
-            jobTitle: title,
-            companyName: company,
-            startDate: DateTime.now().subtract(const Duration(days: 30)),
-            endDate: DateTime.now().subtract(const Duration(days: 5)),
-            location: '',
-            status: 'completed',
-            recruiterName: '',
-            candidateName: '',
-            summary: '',
-          ),
-        ),
-      ),
-    );
-  }
-
-  void showModal(BuildContext context, Widget overlay) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (context) => Center(
-        child: Material(
-          color: Colors.transparent,
-          child: SizedBox(
-            width: 358,
-            child: overlay,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════
-// Sous-Cartes Configs
-// ══════════════════════════════════════════════════════════════════
-
-class _FormationsCard extends StatelessWidget {
-  final List<CvFormationEntity> formations;
-  final GestureDragUpdateCallback? onHeaderDragUpdate;
-  final GestureDragEndCallback? onHeaderDragEnd;
-  final VoidCallback? onHeaderTap;
-  final VoidCallback? onScrolledToTop;
-
-  const _FormationsCard({
-    required this.formations,
-    this.onHeaderDragUpdate,
-    this.onHeaderDragEnd,
-    this.onHeaderTap,
-    this.onScrolledToTop,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _CvCardBase(
-      icon: Icons.school_outlined,
-      title: 'Formations',
-      titleColor: const Color(0xFF401E66),
-      onHeaderDragUpdate: onHeaderDragUpdate,
-      onHeaderDragEnd: onHeaderDragEnd,
-      onHeaderTap: onHeaderTap,
-      onScrolledToTop: onScrolledToTop,
-      child: ListView.builder(
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-        itemCount: formations.length,
-        itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _TimelineContent(
-            title: formations[index].title,
-            subtitle: '${formations[index].institution} • ${formations[index].location}',
-            date: formations[index].year.toString(),
-            icon: Icons.school_outlined,
-            badgeText: 'VALIDE',
-            onTap: () => ProfileCvSection.of(context)?.showModal(context, CertificateViewerOverlay(
-              title: formations[index].title,
-              institution: formations[index].institution,
-            )),
-          ),
-        ),
-      ),
-      onAddPressed: () => ProfileCvSection.of(context)?.showModal(context, const AddFormationOverlay()),
-    );
-  }
-}
-
-class _ExperienceCard extends StatelessWidget {
-  final List<CvExperienceEntity> experiences;
-  final GestureDragUpdateCallback? onHeaderDragUpdate;
-  final GestureDragEndCallback? onHeaderDragEnd;
-  final VoidCallback? onHeaderTap;
-  final VoidCallback? onScrolledToTop;
-
-  const _ExperienceCard({
-    required this.experiences,
-    this.onHeaderDragUpdate,
-    this.onHeaderDragEnd,
-    this.onHeaderTap,
-    this.onScrolledToTop,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _CvCardBase(
-      icon: Icons.work_outline,
-      title: 'Experience',
-      titleColor: Colors.black, // #000000 dans la spec CSS
-      onHeaderDragUpdate: onHeaderDragUpdate,
-      onHeaderDragEnd: onHeaderDragEnd,
-      onHeaderTap: onHeaderTap,
-      onScrolledToTop: onScrolledToTop,
-      child: ListView.builder(
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-        itemCount: experiences.length,
-        itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _TimelineContent(
-            title: experiences[index].title,
-            subtitle: '${experiences[index].company} • ${experiences[index].location}',
-            date: experiences[index].endDate ?? '',
-            secondaryDate: experiences[index].period,
-            isAppMission: experiences[index].isAppMission,
-            onTap: experiences[index].isAppMission 
-                ? () {
-                    // Accès au buildContext via le parent (ProfileCvSection) est via callbacks
-                    // Mais ici on est dans _ExperienceCard qui est dans ProfileCvSection
-                    // On va passer une fonction de navigation
-                    ProfileCvSection.of(context)?.navigateToMission(
-                      context, 
-                      experiences[index].title, 
-                      experiences[index].company
-                    );
-                  }
-                : null,
-          ),
-        ),
-      ),
-      onAddPressed: () => ProfileCvSection.of(context)?.showModal(context, const AddExperienceOverlay()),
-    );
-  }
-}
-
-class _SkillsCard extends StatelessWidget {
-  final List<CvLanguageEntity> languages;
-  final List<CvSkillEntity> skills;
-  final GestureDragUpdateCallback? onHeaderDragUpdate;
-  final GestureDragEndCallback? onHeaderDragEnd;
-  final VoidCallback? onHeaderTap;
-  final VoidCallback? onAddLanguage;
-  final VoidCallback? onAddSkill;
-
-  const _SkillsCard({
-    required this.languages,
-    required this.skills,
-    this.onHeaderDragUpdate,
-    this.onHeaderDragEnd,
-    this.onHeaderTap,
-    this.onAddLanguage,
-    this.onAddSkill,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _CvCardBase(
-      icon: Icons.view_column_outlined,
-      title: 'Skills et langues',
-      titleColor: const Color(0xFF0F172A),
-      onHeaderDragUpdate: onHeaderDragUpdate,
-      onHeaderDragEnd: onHeaderDragEnd,
-      onHeaderTap: onHeaderTap,
-      onAddPressed: onAddSkill, // Par défaut le "+" du haut ouvre l'ajout de skill
-      child: ListView(
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          _sectionHeader('LANGUES', onAddLanguage),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 2.5,
-            ),
-            itemCount: languages.length,
-            itemBuilder: (context, index) {
-              final lang = languages[index];
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7F6F8),
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lang.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.splineSans(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      lang.level,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.splineSans(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                        color: _kViolet,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          _sectionHeader('SKILLS', onAddSkill),
-          const SizedBox(height: 12),
-          ...skills.map((s) => _skillRow(s)),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionHeader(String label, VoidCallback? onTap) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: GoogleFonts.splineSans(fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 0.6, color: const Color(0xFF94A3B8))),
-          GestureDetector(
-            onTap: onTap,
-            child: const Icon(Icons.add, size: 18, color: _kViolet),
-          ),
-        ],
+    // Collapse le header quand on ouvre une carte, expand quand on revient à la carte 1
+    final nestedState = context.findAncestorStateOfType<NestedScrollViewState>();
+    final outerCtrl = nestedState?.outerController;
+    if (outerCtrl != null && outerCtrl.hasClients && outerCtrl.position.hasContentDimensions) {
+      outerCtrl.animateTo(
+        index == 1 ? 0.0 : outerCtrl.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
       );
+    }
 
-  Widget _skillRow(CvSkillEntity s) => Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    const duration = Duration(milliseconds: 500);
+    const curve = Curves.easeOutCubic;
+
+    if (index == 1) {
+      _card2Controller.animateTo(0.0, duration: duration, curve: curve);
+      _card3Controller.animateTo(0.0, duration: duration, curve: curve);
+    } else if (index == 2) {
+      _card2Controller.animateTo(1.0, duration: duration, curve: curve);
+      _card3Controller.animateTo(0.0, duration: duration, curve: curve);
+    } else if (index == 3) {
+      _card2Controller.animateTo(1.0, duration: duration, curve: curve);
+      _card3Controller.animateTo(1.0, duration: duration, curve: curve);
+    }
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details, int index) {
+    // Height minus peek height
+    final double maxScroll = MediaQuery.of(context).size.height - (2 * _kPeekHeight);
+    final double delta = -(details.primaryDelta ?? 0) / (maxScroll > 0 ? maxScroll : 300.0);
+
+    if (index == 2) {
+      _card2Controller.value = (_card2Controller.value + delta).clamp(0.0, 1.0);
+      if (_card3Controller.value > _card2Controller.value) {
+        _card3Controller.value = _card2Controller.value;
+      }
+    } else if (index == 3) {
+      _card3Controller.value = (_card3Controller.value + delta).clamp(0.0, 1.0);
+      if (_card2Controller.value < _card3Controller.value) {
+        _card2Controller.value = _card3Controller.value;
+      }
+    }
+  }
+
+  void _handleDragEnd(DragEndDetails details, int index) {
+    final double maxScroll = MediaQuery.of(context).size.height - (2 * _kPeekHeight);
+    final double velocity = -details.primaryVelocity! / (maxScroll > 0 ? maxScroll : 300.0);
+    final double projection = 0.2 * velocity;
+
+    int targetIndex = _openIndex;
+
+    if (index == 2) {
+      double future = _card2Controller.value + projection;
+      bool wasOpen = _openIndex >= 2;
+      bool stayOpen = wasOpen ? (future > 0.8) : (future > 0.2);
+      
+      if (!stayOpen && wasOpen) targetIndex = 1;
+      if (stayOpen && !wasOpen) targetIndex = 2;
+    } else if (index == 3) {
+      double future = _card3Controller.value + projection;
+      bool wasOpen = _openIndex == 3;
+      bool stayOpen = wasOpen ? (future > 0.8) : (future > 0.2);
+
+      if (!stayOpen && wasOpen) targetIndex = 2;
+      if (stayOpen && !wasOpen) targetIndex = 3;
+    }
+
+    _toggle(targetIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = widget.cvProvider ?? cvNotifierProvider;
+    final cvAsync = ref.watch(provider);
+
+    return Container(
+      color: const Color(0xFFFBFBFB),
+      child: cvAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Erreur: $e')),
+        data: (cv) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28.5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: Text(s.name, style: GoogleFonts.splineSans(fontWeight: FontWeight.w500, fontSize: 14, color: const Color(0xFF334155)))),
-                const SizedBox(width: 8),
-                if (s.levelLabel != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: const Color(0x1A7F0DF2), borderRadius: BorderRadius.circular(9999)),
-                    child: Text(s.levelLabel!, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFF6E14C7))),
-                  ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final h = constraints.maxHeight;
+                      return Stack(
+                        children: [
+                          // 1. CARTE EXPERIENCE (Base)
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: RepaintBoundary(
+                              child: _CvCardBase(
+                                index: 1,
+                                title: 'Experience',
+                                icon: Icons.description_outlined,
+                                onHeaderTap: () => _toggle(1),
+                                onAddPressed: widget.readOnly
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const AddExperienceOverlay(),
+                                          ),
+                                        ),
+                                child: NotificationListener<ScrollNotification>(
+                                  onNotification: (n) {
+                                    if (n is OverscrollNotification && n.overscroll < 0) {
+                                      _pushOuterScroll(n.overscroll.abs());
+                                    } else if (n is ScrollUpdateNotification) {
+                                      final delta = n.scrollDelta ?? 0;
+                                      if (delta > 0) _pushOuterScroll(delta);
+                                    }
+                                    return false; // laisser le ListView défiler normalement
+                                  },
+                                  child: ListView.builder(
+                                    controller: _card1ScrollController,
+                                    primary: false,
+                                    physics: const ClampingScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                                    itemCount: cv.experiences.length,
+                                    itemBuilder: (context, i) {
+                                      final exp = cv.experiences[i];
+                                      return _TimelineContent(
+                                        title: exp.title,
+                                        company: exp.company,
+                                        location: exp.location,
+                                        date: exp.endDate ?? '',
+                                        secondaryDate: exp.period,
+                                        isAppMission: exp.isAppMission,
+                                        icon: Icons.business_center,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // 2. CARTE FORMATIONS (Animée)
+                          // Écoute les deux controllers : carte 2 peut être poussée par carte 3
+                          AnimatedBuilder(
+                            animation: Listenable.merge([_card2Controller, _card3Controller]),
+                            child: RepaintBoundary(
+                              child: _CvCardBase(
+                                index: 2,
+                                title: 'Formations',
+                                icon: Icons.school_outlined,
+                                onHeaderTap: () => _toggle(2),
+                                onHeaderDragUpdate: (details) => _handleDragUpdate(details, 2),
+                                onHeaderDragEnd: (details) => _handleDragEnd(details, 2),
+                                onAddPressed: widget.readOnly
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const AddFormationOverlay(),
+                                          ),
+                                        ),
+                                child: NotificationListener<ScrollNotification>(
+                                  onNotification: (n) => _onScrollNotification(n, 2),
+                                  child: ListView.builder(
+                                    controller: _card2ScrollController,
+                                    primary: false,
+                                    physics: const ClampingScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                                    itemCount: cv.formations.length,
+                                    itemBuilder: (context, i) {
+                                      final f = cv.formations[i];
+                                      final isValidated = f.isActive;
+                                      return _TimelineContent(
+                                        title: f.title,
+                                        company: f.institution,
+                                        location: f.location,
+                                        date: f.year.toString(),
+                                        badgeText: isValidated ? 'VALIDE' : null,
+                                        icon: Icons.school_outlined,
+                                        isValidated: isValidated,
+                                        onTap: isValidated ? () {
+                                          showModalBottomSheet(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            backgroundColor: Colors.transparent,
+                                            builder: (context) => CertificateViewerOverlay(
+                                              title: f.title,
+                                              institution: f.institution,
+                                              fileName: f.fileName ?? 'diplome_${f.title.toLowerCase().replaceAll(' ', '_')}.pdf',
+                                              filePath: f.filePath,
+                                            ),
+                                          );
+                                        } : null,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            builder: (context, child) {
+                              final c2Closed = h - _kPeekHeight - 50;
+                              const double c2Opened = _kPeekHeight;
+                              final c2Natural = c2Closed - (c2Closed - c2Opened) * _card2Controller.value - _card2ExtraOffset;
+
+                              // Position actuelle de la carte 3 (pour calculer le push)
+                              final c3Closed = h - 50;
+                              const double c3Opened = 2 * _kPeekHeight;
+                              final c3Current = c3Closed - (c3Closed - c3Opened) * _card3Controller.value - _card3ExtraOffset;
+
+                              // La carte 2 est poussée vers le haut par la carte 3 :
+                              // elle doit toujours être au moins _kPeekHeight au-dessus de carte 3
+                              final double pushedTop = c3Current - _kPeekHeight;
+                              // Minimum = 48 (hauteur de la barre des onglets) pour ne jamais la couvrir
+                              final c2Top = (c2Natural < pushedTop ? c2Natural : pushedTop)
+                                  .clamp(48.0, c2Closed);
+
+                              return Positioned(
+                                top: c2Top,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: child!,
+                              );
+                            },
+                          ),
+
+                          // 3. CARTE SKILLS ET LANGUES
+                          // Écoute les deux controllers : carte 3 ne peut pas monter au-dessus de carte 2
+                          AnimatedBuilder(
+                            animation: Listenable.merge([_card2Controller, _card3Controller]),
+                            child: RepaintBoundary(
+                              child: _CvCardBase(
+                                index: 3,
+                                title: 'Skillls et langues',
+                                icon: Icons.notes_outlined,
+                                onHeaderTap: () => _toggle(3),
+                                onHeaderDragUpdate: (details) => _handleDragUpdate(details, 3),
+                                onHeaderDragEnd: (details) => _handleDragEnd(details, 3),
+                                onAddPressed: widget.readOnly
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const AddSkillsAndLanguagesOverlay(),
+                                          ),
+                                        ),
+                                child: NotificationListener<ScrollNotification>(
+                                  onNotification: (n) => _onScrollNotification(n, 3),
+                                  child: ListView(
+                                    controller: _card3ScrollController,
+                                    primary: false,
+                                    physics: const ClampingScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                    children: [
+                                      _SkillsList(cv: cv),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            builder: (context, child) {
+                              // Recalcule la position de la carte 2 pour contraindre la carte 3
+                              final c2Closed = h - _kPeekHeight - 55;
+                              const double c2Opened = _kPeekHeight;
+                              final c2Natural = c2Closed - (c2Closed - c2Opened) * _card2Controller.value - _card2ExtraOffset;
+                              final c3Closed = h - 55;
+                              final c3Natural = c3Closed - (c3Closed - c2Opened * 2) * _card3Controller.value - _card3ExtraOffset;
+
+                              // Position de la carte 2 avec son propre push par la carte 3
+                              final c3Min = c2Natural.clamp(48.0, c2Closed) + _kPeekHeight;
+
+                              // Carte 3 ne peut jamais monter au-dessus du header de carte 2
+                              final c3Top = c3Natural.clamp(c3Min, c3Closed.toDouble());
+
+                              return Positioned(
+                                top: c3Top,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: child!,
+                              );
+                            },
+                          ),
+                        ],
+                      );
+                    },
+              ),
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(9999),
-              child: LinearProgressIndicator(
-                value: s.progress,
-                minHeight: 8,
-                backgroundColor: const Color(0xFFF1F5F9),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6E14C7)),
+          ),
+        ),
+      );
+  }
+}
+
+class _SkillsList extends StatelessWidget {
+  final CvEntity cv;
+  const _SkillsList({required this.cv});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'LANGUES',
+              style: _styleW70012Slate700LS11,
+            ),
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AddSkillsAndLanguagesOverlay(),
+                ),
               ),
+              child: const Icon(Icons.add, size: 18, color: AppColors.slate900),
             ),
           ],
         ),
-      );
+        const SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            mainAxisExtent: 70,
+          ),
+          itemCount: cv.languages.length,
+          itemBuilder: (context, index) => _LanguageCard(cv.languages[index]),
+        ),
+        const SizedBox(height: 32),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'SKILLS',
+              style: _styleW70012Slate600LS11,
+            ),
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AddSkillsAndLanguagesOverlay(),
+                ),
+              ),
+              icon: const Icon(Icons.add, size: 20, color: AppColors.slate900),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        ...cv.skills.map((s) => _SkillRow(s)),
+      ],
+    );
+  }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Conteneur de Base Partagé
-// ══════════════════════════════════════════════════════════════════
-
-class _CvCardBase extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Widget child;
-  final Color? titleColor;
-  final GestureDragUpdateCallback? onHeaderDragUpdate;
-  final GestureDragEndCallback? onHeaderDragEnd;
-  final VoidCallback? onHeaderTap;
-  final VoidCallback? onAddPressed;
-  final VoidCallback? onScrolledToTop;
-
-  const _CvCardBase({
-    required this.icon,
-    required this.title,
-    required this.child,
-    this.titleColor,
-    this.onHeaderDragUpdate,
-    this.onHeaderDragEnd,
-    this.onHeaderTap,
-    this.onAddPressed,
-    this.onScrolledToTop,
-  });
+class _LanguageCard extends StatelessWidget {
+  final CvLanguageEntity language;
+  const _LanguageCard(this.language);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white, // Fond blanc demandé
-        borderRadius: BorderRadius.circular(15), 
-        border: Border.all(color: const Color(0xFFE2E8F0).withValues(alpha: 0.3)), 
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12), 
-            blurRadius: 12, 
-            offset: const Offset(0, 4),
+        color: _kJobCardGray,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(language.name, style: _styleW70014Slate900),
+          const SizedBox(height: 4),
+          Text(language.level, style: _style12Slate700),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkillRow extends StatelessWidget {
+  final CvSkillEntity skill;
+  const _SkillRow(this.skill);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(skill.name, style: _styleW60014Slate900),
+              if (skill.levelLabel != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _kLightBg,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(skill.levelLabel!, style: _styleW70010Violet),
+                ),
+            ],
           ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08), 
-            blurRadius: 4, 
-            offset: const Offset(0, 2),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: skill.progress,
+              minHeight: 8,
+              backgroundColor: const Color(0xFFF1F5F9),
+              valueColor: const AlwaysStoppedAnimation<Color>(_kViolet),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+
+class _CvCardBase extends StatelessWidget {
+  final int index;
+  final String title;
+  final IconData icon;
+  final Widget child;
+  final VoidCallback onHeaderTap;
+  final VoidCallback? onAddPressed;
+
+  const _CvCardBase({
+    required this.index,
+    required this.title,
+    required this.icon,
+    required this.child,
+    required this.onHeaderTap,
+    required this.onAddPressed,
+    this.onHeaderDragUpdate,
+    this.onHeaderDragEnd,
+  });
+
+  final void Function(DragUpdateDetails)? onHeaderDragUpdate;
+  final void Function(DragEndDetails)? onHeaderDragEnd;
+
+
+  static const _decoration = BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.all(Radius.circular(20)),
+    border: Border.fromBorderSide(
+      BorderSide(color: Color(0xFFEEEBF4), width: 1.5),
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Color(0x0D3A1B5E),
+        blurRadius: 4,
+        spreadRadius: 3,
+      ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final Color headerColor = index == 1
+        ? _kBlack
+        : index == 2
+            ? _kViolet
+            : const Color(0xFF0F172A);
+
+    final textStyle = index == 1 ? _titleStyleBlack
+        : index == 2 ? _titleStyleViolet
+        : _titleStyleDark;
+
+    return Container(
+      decoration: _decoration,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // L'en-tête (draggable)
           GestureDetector(
+            onTap: onHeaderTap,
             onVerticalDragUpdate: onHeaderDragUpdate,
             onVerticalDragEnd: onHeaderDragEnd,
-            onTap: onHeaderTap,
             behavior: HitTestBehavior.opaque,
             child: Container(
-              height: _kPeekHeight, // Header de 49px (Figma a 42-49 selon l'espace)
+              height: _kPeekHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               decoration: const BoxDecoration(
-                color: _kLightBg, // #F5F2F9
-                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                color: _kJobCardGray, // Utiliser la même couleur que les formations validées
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Icon(icon, size: 20, color: titleColor ?? _kViolet),
-                  const SizedBox(width: 10),
+                  Icon(icon, size: 24, color: headerColor),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(title, style: GoogleFonts.splineSans(fontWeight: FontWeight.w700, fontSize: 16, color: titleColor ?? _kViolet)),
+                    child: Text(
+                      title,
+                      style: textStyle,
+                    ),
                   ),
-                  GestureDetector(
-                    onTap: onAddPressed,
-                    child: Icon(Icons.add, size: 20, color: titleColor ?? _kViolet),
-                  ),
+                  if (onAddPressed != null)
+                    GestureDetector(
+                      onTap: onAddPressed,
+                      child: const Icon(Icons.add, color: _kViolet, size: 20),
+                    ),
                 ],
               ),
             ),
           ),
           Expanded(
-            child: NotificationListener<ScrollNotification>(
-              onNotification: (ScrollNotification notification) {
-                if (notification is OverscrollNotification) {
-                  // On désactive la fermeture par overscroll vers le bas (pull-down à l'index 0)
-                  // pour éviter que les cartes ne se remettent à leur place quand on remonte.
-                  if (notification.overscroll > 0) {
-                    final dummyDetails = DragUpdateDetails(
-                      globalPosition: Offset.zero,
-                      delta: Offset(0, -notification.overscroll), 
-                    );
-                    onHeaderDragUpdate?.call(dummyDetails);
-                  }
-                } 
-                
-                if (notification is ScrollEndNotification && notification.metrics.pixels <= 0) {
-                  onScrolledToTop?.call();
-                }
-
-                if (notification is ScrollEndNotification && notification.metrics.pixels >= notification.metrics.maxScrollExtent) {
-                   // Optionnel: on pourrait ouvrir la carte suivante par le bas ici
-                }
-
-                if (notification is ScrollEndNotification) {
-                  final dummyEnd = DragEndDetails(primaryVelocity: 0);
-                  onHeaderDragEnd?.call(dummyEnd);
-                }
-                return false;
-              },
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
               child: child,
             ),
           ),
@@ -676,128 +658,144 @@ class _CvCardBase extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Elements visuels
-// ══════════════════════════════════════════════════════════════════
-
 class _TimelineContent extends StatelessWidget {
-  final String title, subtitle, date;
+  final String title, company, location, date;
   final String? secondaryDate;
   final bool isAppMission;
   final String? badgeText;
   final IconData? icon;
+  final bool isValidated;
   final VoidCallback? onTap;
 
   const _TimelineContent({
     required this.title,
-    required this.subtitle,
+    required this.company,
+    required this.location,
     required this.date,
     this.secondaryDate,
     this.isAppMission = false,
     this.badgeText,
     this.icon,
+    this.isValidated = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Show badge if isAppMission is true or if badgeText is provided
     final showBadge = isAppMission || badgeText != null;
     final displayBadgeText = badgeText ?? (isAppMission ? 'APP MISSION' : '');
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        child: Column(
+    // Design spécial pour APP MISSION (comme missions terminées)
+    if (isAppMission) {
+      // Créer une MissionEntity avec des données complètes pour les APP MISSION
+      final mission = MissionEntity(
+        id: 'app_mission_${title.hashCode}',
+        jobTitle: title,
+        companyName: company,
+        startDate: DateTime.now().subtract(const Duration(days: 90)),
+        endDate: DateTime.now().subtract(const Duration(days: 30)),
+        location: location,
+        status: 'completed',
+        recruiterName: 'Sophie Laurent',
+        candidateName: 'Farouja',
+        candidateRating: 4.8,
+        candidateFeedback: 'Excellente prestation lors de cette mission.',
+        recruiterRating: 4.8,
+        recruiterFeedback: 'Professionnalisme exemplaire.',
+        imageUrl: 'assets/images/imageannonc(${(title.hashCode % 5) + 1}).jpg',
+        team: [
+          MissionMemberEntity(
+            name: 'Sophie Laurent',
+            role: 'Event Manager',
+            rating: 4.9,
+            avatarUrl: 'assets/images/pdp_1.png',
+          ),
+        ],
+      );
+      
+      return CompletedMissionCard(
+        mission: mission,
+        showAppMissionBadge: true,
+        onTap: () {
+          showCompletedMissionSheet(context, mission);
+        },
+      );
+    }
+
+    // Design normal pour les autres cartes
+    final cardContent = Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.fromLTRB(16, 13, 16, 16),
+      decoration: BoxDecoration(
+        color: isValidated ? const Color(0xFFEFEDF2) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (showBadge || date.isNotEmpty) ...[
-            Row(
-              children: [
-                if (showBadge)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0x1A7F19E6),
-                      borderRadius: BorderRadius.circular(9999),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.verified, size: 10, color: _kViolet),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            displayBadgeText,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 10,
-                              letterSpacing: 0.5,
-                              color: _kViolet,
-                            ),
-                          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (showBadge)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.violet,
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.verified, size: 12, color: Colors.white),
+                      const SizedBox(width: 4),
+                      Text(
+                        displayBadgeText,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                          color: Colors.white,
+                          letterSpacing: 1.0,
                         ),
-                      ],
-                    ),
-                  ),
-                if (showBadge && date.isNotEmpty) const SizedBox(width: 8),
-                if (date.isNotEmpty)
-                  Expanded(
-                    child: Text(
-                      date,
-                      textAlign: showBadge ? TextAlign.right : TextAlign.left,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF94A3B8),
                       ),
-                    ),
+                    ],
                   ),
-              ],
-            ),
-            const SizedBox(height: 12),
-          ],
+                ),
+              if (date.isNotEmpty)
+                Text(
+                  date,
+                  style: _styleW50012Slate700,
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Text(
             title,
-            style: GoogleFonts.plusJakartaSans(
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              height: 1.2,
-              color: const Color(0xFF0F172A),
-            ),
+            style: _styleW70016Slate900,
           ),
           const SizedBox(height: 8),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (icon != null) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Icon(icon, size: 14, color: _kViolet.withValues(alpha: 0.8)),
-                ),
+                Icon(icon, size: 12, color: AppColors.violet),
                 const SizedBox(width: 6),
               ],
+              Text(
+                company,
+                style: _styleW50014Slate700,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '•',
+                style: _style14Slate700,
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.location_on, size: 12, color:AppColors.violet),
+              const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  subtitle,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF64748B),
-                  ),
+                  location,
+                  style: _styleW50014Slate700,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -806,19 +804,21 @@ class _TimelineContent extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               secondaryDate!,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: const Color(0xFF94A3B8),
-              ),
+              style: _styleW50012Slate700,
             ),
           ],
         ],
       ),
-    ),
-  );
-}
-}
+    );
 
-// Nettoyage : _TimelineItem n'est plus utilisé car on utilise des blocs discret dans une ListView avec du spacing.
+    // Si onTap est fourni, rendre la carte cliquable
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: cardContent,
+      );
+    }
 
+    return cardContent;
+  }
+}

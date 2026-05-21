@@ -1,49 +1,41 @@
-// C:\projects\Pfe-Jobiha\frontend\lib\app\app.dart
-
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/features/jobs/screens/candidate_home_screen.dart';
+import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
 import 'package:job_app/features/auth/screens/welcome_screen.dart';
 import 'package:job_app/features/auth/screens/login_screen.dart';
 import 'package:job_app/features/auth/screens/signup_role_screen.dart';
 import 'package:job_app/features/auth/screens/signup_form_screen.dart';
 import 'package:job_app/features/auth/screens/signup_profile_screen.dart';
-import 'package:job_app/features/auth/screens/verify_email_screen.dart';
 import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
-import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
+import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
+import 'package:job_app/features/profile/screens/candidate_public_profile_screen.dart';
+import 'package:job_app/features/profile/screens/edit_profile_screen.dart';
+import 'package:job_app/features/profile/screens/report_comment_screen.dart';
+import 'package:job_app/features/auth/screens/verify_email_screen.dart';
 import 'package:job_app/features/settings/screens/settings_screen.dart';
-import 'package:job_app/features/settings/screens/saved_screen.dart';
-import 'package:job_app/features/settings/screens/applications_sent_screen.dart';
-import 'package:job_app/features/settings/screens/applications_received_screen.dart';
-import 'package:job_app/features/settings/screens/personal_info_screen.dart';
-import 'package:job_app/features/settings/screens/security_screen.dart';
-import 'package:job_app/features/settings/screens/deactivate_account_screen.dart';
-import 'package:job_app/features/settings/screens/accessibility_screen.dart';
-import 'package:job_app/features/settings/screens/language_screen.dart';
-import 'package:job_app/features/settings/screens/blocked_users_screen.dart';
-import 'package:job_app/features/settings/screens/help_center_screen.dart';
-import 'package:job_app/features/settings/screens/privacy_policy_screen.dart';
-import 'package:job_app/features/settings/screens/terms_conditions_screen.dart';
 import 'package:job_app/features/auth/screens/preferences_screen.dart';
-import 'package:job_app/features/messaging/screens/chat_list_screen.dart';
-import 'package:job_app/features/notifications/screens/candidate_notifications_screen.dart';
-import 'package:job_app/features/notifications/screens/notifications_screen.dart';
-import 'package:job_app/features/auth/screens/forgot_password_screen.dart';
-import 'package:job_app/features/candidates/screens/candidates_screen.dart';
 
-
-
-// ── ADDED these two imports for the AuthGate ────────────────────────────────────────────────────
+// ── AuthGate imports (Amani) ──────────────────────────────────────────────────
 import 'package:job_app/features/auth/providers/auth_providers.dart';
 import 'package:job_app/features/auth/data/models/auth_state.dart';
 
 
 
+// ── Mouse drag scrolling on web (Youcef) ─────────────────────────────────────
+class _WebScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      };
+}
 
 
-
-// ── AuthGate ─────────────────────────────────────────────────────────────────
-// Sits at the root. Watches authProvider and shows the right screen.
-// This is what replaces the hardcoded `home: WelcomeScreen()`.
+// ── AuthGate (Amani) ──────────────────────────────────────────────────────────
 class _AuthGate extends ConsumerWidget {
   const _AuthGate();
 
@@ -52,8 +44,6 @@ class _AuthGate extends ConsumerWidget {
     final auth = ref.watch(authProvider);
 
     switch (auth.status) {
-      // _restoreSession() is still running — stay blank.
-      // The native splash screen is still visible at this point.
       case AuthStatus.initial:
       case AuthStatus.loading:
         return const Scaffold(
@@ -61,13 +51,11 @@ class _AuthGate extends ConsumerWidget {
           body: SizedBox.shrink(),
         );
 
-      // Session restored and valid — skip welcome, go straight to dashboard.
       case AuthStatus.authenticated:
-        return auth.role == 'candidat' 
-            ? const CandidatesScreen() //if 'candidat' <- i added it for test (amani)
-            : const JobsListApp(); //else 'recruteur'
+        return auth.role == 'candidat'
+            ? const CandidateHomeScreen()
+            : const JobsListScreen();
 
-      // No session / logged out / error — show welcome as usual.
       default:
         return const WelcomeScreen();
     }
@@ -75,51 +63,49 @@ class _AuthGate extends ConsumerWidget {
 }
 
 
-// ── App ───────────────────────────────────────────────────────────────────────
-
+// ── App (Youcef) ──────────────────────────────────────────────────────────────
 class App extends StatelessWidget {
   const App({super.key});
+
+  static final Map<String, WidgetBuilder> _routes = {
+    '/welcome':                  (_) => const WelcomeScreen(),
+    '/login':                    (_) => const LoginScreen(),
+    '/signup':                   (_) => const SignupRoleScreen(),
+    '/signup-form':              (_) => const SignupFormScreen(),
+    '/signup-profile':           (_) => const SignupProfileScreen(),
+    '/recruiter-profile':        (_) => const RecruiterProfileScreen(),
+    '/recruiter-public-profile': (_) => const RecruiterPublicProfileScreen(),
+    '/candidate-public-profile': (_) => const CandidatePublicProfileScreen(),
+    '/edit-profile':             (_) => const EditProfileScreen(),
+    '/candidate-home':           (_) => const CandidateHomeScreen(),
+    '/recruiter-home':           (_) => const JobsListScreen(),
+
+    //added by amani
+      
+    '/verify-email':         (context) => const VerifyEmailScreen(),
+    '/preferences':          (context) => const PreferencesScreen(),
+  };
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      
-      home: const _AuthGate(),
-
-      routes: {
- 
-       '/home-candidat':        (context) => const CandidatesScreen(),  // ← changed
-       '/home-recruteur':       (context) => const JobsListApp(), 
-       '/welcome':              (context) => const WelcomeScreen(),
-       '/login':                (context) => const LoginScreen(),
-       '/signup':               (context) => const SignupRoleScreen(),
-       '/signup-form':          (context) => const SignupFormScreen(),
-       '/verify-email':         (context) => const VerifyEmailScreen(),
-       '/signup-profile':       (context) => const SignupProfileScreen(),
-       '/recruiter-profile':    (context) => const RecruiterProfileScreen(),
-       '/settings':             (context) => const SettingsScreen(),
-       '/saved':                (context) => const SavedScreen(),
-       '/notifications':        (context) => const NotificationsScreen(),
-       '/applications-sent':    (context) => const ApplicationsSentScreen(),
-       '/applications-received': (context) => const ApplicationsReceivedScreen(),
-       '/personal-info':        (context) => const PersonalInfoScreen(),
-       '/security':             (context) => const SecurityScreen(),
-       '/deactivate-account':   (context) => const DeactivateAccountScreen(),
-       '/accessibility':        (context) => const AccessibilityScreen(),
-       '/language':             (context) => const LanguageScreen(),
-       '/blocked-users':        (context) => const BlockedUsersScreen(),
-       '/help-center':          (context) => const HelpCenterScreen(),
-       '/privacy-policy':       (context) => const PrivacyPolicyScreen(),
-       '/terms-conditions':     (context) => const TermsConditionsScreen(),
-       '/preferences':          (context) => const PreferencesScreen(),
-       '/messages':                   (context) => const ChatListScreen(),
-       '/candidate-notifications':    (context) => const CandidateNotificationsScreen(),
-       '/recruiter-notifications':    (context) => const NotificationsScreen(),
-       '/forgot-password':            (context) => const ForgotPasswordScreen(),
-
+      theme: AppTextStyles.lightTheme,
+      scrollBehavior: _WebScrollBehavior(),
+      home: const _AuthGate(),        // ← only change from Youcef's version
+      routes: _routes,
+      onGenerateRoute: (settings) {
+        if (settings.name == '/report-comment') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          return MaterialPageRoute(
+            builder: (_) => ReportCommentScreen(
+              authorName: args?['authorName'] ?? '',
+              commentText: args?['commentText'] ?? '',
+            ),
+          );
+        }
+        return null;
       },
     );
   }
 }
-

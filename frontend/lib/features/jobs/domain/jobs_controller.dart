@@ -1,5 +1,7 @@
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
+import 'package:job_app/features/jobs/domain/create_mission_params.dart';
+import 'package:job_app/features/jobs/domain/recruiter_filters.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 
 /// Couche domaine : contient TOUTE la logique métier.
@@ -14,10 +16,16 @@ class JobsController {
     return _repository.getMyJobs();
   }
 
-  /// Récupère toutes les missions de l'utilisateur courant
+  /// Récupère toutes les missions de l'utilisateur courant (purge auto des non confirmées expirées).
   Future<List<MissionEntity>> fetchMissions() async {
     return _repository.getMissions();
   }
+
+  Future<MissionEntity> createMission(CreateMissionParams params) =>
+      _repository.createMission(params);
+
+  Future<MissionEntity> confirmMission(String missionId) =>
+      _repository.confirmMission(missionId);
 
   /// Filtre les jobs actifs
   List<JobEntity> filterActive(List<JobEntity> jobs) =>
@@ -26,6 +34,63 @@ class JobsController {
   /// Filtre les brouillons
   List<JobEntity> filterDrafts(List<JobEntity> jobs) =>
       jobs.where((j) => j.status == JobStatus.draft).toList();
+
+  /// Filtre les annonces recruteur (statut, date de publication, département).
+  List<JobEntity> filterJobs(List<JobEntity> jobs, RecruiterFilters filters) {
+    if (filters.isEmpty) return jobs;
+    return jobs.where((j) {
+      if (filters.department != null && j.department != filters.department) {
+        return false;
+      }
+      if (filters.status != null &&
+          _jobStatusLabel(j.status) != filters.status) {
+        return false;
+      }
+      if (!RecruiterFilterDates.matchesPostedWithin(
+          j.postedAt, filters.dateFilter)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  /// Filtre les missions (statut, durée, département).
+  List<MissionEntity> filterMissions(
+    List<MissionEntity> missions,
+    RecruiterFilters filters,
+  ) {
+    if (filters.isEmpty) return missions;
+    return missions.where((m) {
+      if (filters.jobId != null && m.jobId != filters.jobId) {
+        return false;
+      }
+      if (filters.department != null && m.department != filters.department) {
+        return false;
+      }
+      if (filters.status != null &&
+          _missionStatusLabel(m) != filters.status) {
+        return false;
+      }
+      if (!RecruiterFilterDates.matchesMissionDuration(
+          m.startDate, m.endDate, filters.dateFilter)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  String _jobStatusLabel(JobStatus status) => switch (status) {
+        JobStatus.draft => 'Brouillon',
+        JobStatus.searching => 'Publié',
+        JobStatus.closed => 'Terminé',
+      };
+
+  String _missionStatusLabel(MissionEntity mission) => switch (mission.status) {
+        'unconfirmed' => 'Non confirmée',
+        'completed' => 'Terminé',
+        'in_progress' => 'En cours',
+        _ => 'En cours',
+      };
 
   /// Sauvegarde un job (brouillon → actif, ou création)
   Future<JobEntity> saveJob(JobEntity job) async {
@@ -42,8 +107,11 @@ class JobsController {
     final job = JobEntity(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // ID temporaire
       title: form.title,
-      companyName:
-          'Ma Super Entreprise', // TODO: Récupérer depuis le user profile
+      companyName: 'Le Petit Bistro', // TODO(API): injecter depuis /users/me
+      recruiterId: 'recruiter_1',
+      recruiterName: 'Ahmed Bensalem',
+      recruiterRole: 'Responsable RH',
+      recruiterAvatarAsset: 'assets/images/pdp_1.png',
       contractType: form.contractType, // Ajouté
       postedAt: DateTime.now(),
       status: JobStatus.draft,
@@ -60,6 +128,10 @@ class JobsController {
       id: draft.id,
       title: draft.title,
       companyName: draft.companyName,
+      recruiterId: draft.recruiterId,
+      recruiterName: draft.recruiterName,
+      recruiterRole: draft.recruiterRole,
+      recruiterAvatarAsset: draft.recruiterAvatarAsset,
       contractType: draft.contractType, // Ajouté
       postedAt: DateTime.now(),
       status: JobStatus.searching,
@@ -79,6 +151,11 @@ class JobsController {
       id: form.id,
       title: form.title.trim(),
       companyName: existing?.companyName ?? '',
+      recruiterId: existing?.recruiterId ?? 'recruiter_1',
+      recruiterName: existing?.recruiterName ?? 'Ahmed Bensalem',
+      recruiterRole: existing?.recruiterRole ?? 'Responsable RH',
+      recruiterAvatarAsset: existing?.recruiterAvatarAsset,
+      department: existing?.department ?? 'IT',
       contractType: form.contractType, // Ajouté
       postedAt: existing?.postedAt ?? DateTime.now(),
       status: existing?.status ?? JobStatus.searching,
@@ -90,7 +167,88 @@ class JobsController {
     return _repository.saveJob(updated);
   }
 
+  /// Annonces publiées (feed candidat).
+  /// TODO(API): GET /api/v1/jobs?published=true
+  List<JobEntity> filterPublished(List<JobEntity> jobs) =>
+      jobs.where((j) => j.isPublished).toList();
+
+  /// Recherche texte sur annonces publiées.
+  /// TODO(API): GET /api/v1/jobs?published=true&q=
+  List<JobEntity> searchPublished(List<JobEntity> jobs, String query) {
+    final published = filterPublished(jobs);
+    if (query.trim().isEmpty) return published;
+    final q = query.toLowerCase();
+    return published
+        .where((j) => j.title.toLowerCase().contains(q))
+        .toList();
+  }
+
+  /// Filtres chips — jobs enregistrés (candidat).
+  /// TODO(API): GET /api/v1/users/me/saved-jobs + query params filtres
+  List<JobEntity> filterSavedJobs(
+    List<JobEntity> jobs,
+    Map<String, List<String>> selectedValues,
+  ) {
+    return jobs.where((job) {
+      final contracts = selectedValues['contrat'] ?? [];
+      if (contracts.isNotEmpty) {
+        final matchesContract = contracts.any((contract) {
+          return switch (contract.toLowerCase()) {
+            'cdi' => job.contractType == ContractType.cdi,
+            'cdd' => job.contractType == ContractType.mission,
+            'freelance' => job.contractType == ContractType.freelance,
+            _ => true,
+          };
+        });
+        if (!matchesContract) return false;
+      }
+
+      for (final cat in ['horraires', 'categorie', 'localisation', 'domaine']) {
+        final options = selectedValues[cat] ?? [];
+        if (options.isNotEmpty) {
+          final haystack = '${job.title} ${job.companyName}'.toLowerCase();
+          final matchesCat =
+              options.any((opt) => haystack.contains(opt.toLowerCase()));
+          if (!matchesCat) return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
+  /// Tri jobs enregistrés selon chip actif.
+  List<JobEntity> sortSavedJobs(
+    List<JobEntity> jobs,
+    String chip,
+  ) {
+    final sorted = [...jobs];
+    switch (chip) {
+      case 'categorie':
+        sorted.sort((a, b) => a.title.compareTo(b.title));
+        return sorted;
+      case 'contrat':
+        sorted.sort(
+            (a, b) => a.contractType.index.compareTo(b.contractType.index));
+        return sorted;
+      case 'localisation':
+        sorted.sort((a, b) => a.companyName.compareTo(b.companyName));
+        return sorted;
+      case 'domaine':
+        sorted.sort((a, b) => b.viewCount.compareTo(a.viewCount));
+        return sorted;
+      case 'horraires':
+      default:
+        sorted.sort((a, b) => b.postedAt.compareTo(a.postedAt));
+        return sorted;
+    }
+  }
+
   /// Calcule le total de candidatures
   int totalCandidates(List<JobEntity> jobs) =>
       jobs.fold(0, (sum, j) => sum + j.candidateCount);
+
+  /// Met à jour une mission avec le review du candidat
+  Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback) async {
+    return _repository.updateMissionReview(missionId, rating, feedback);
+  }
 }

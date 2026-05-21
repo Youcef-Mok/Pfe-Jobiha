@@ -2,15 +2,18 @@ import 'package:job_app/features/candidates/data/models/candidate_model.dart';
 import 'package:job_app/features/candidates/domain/candidate_entity.dart';
 import 'candidates_repository.dart';
 
+// TODO(API): Remplacer par CandidatesRepositoryHttp dans candidates_provider.dart.
 class CandidatesRepositoryMock implements CandidatesRepository {
   @override
   Future<List<CandidateModel>> getCandidates(String jobId) async {
+    // TODO(API): GET /api/v1/jobs/:jobId/candidates
     await Future.delayed(const Duration(milliseconds: 800));
     return _mockCandidates;
   }
 
   @override
   Future<void> updateCandidateStatus(String candidateId, String status) async {
+    // TODO(API): PATCH /api/v1/candidates/:candidateId/status  body: { status }
     await Future.delayed(const Duration(milliseconds: 300));
     final index = _mockCandidates.indexWhere((c) => c.id == candidateId);
     if (index != -1) {
@@ -45,6 +48,7 @@ class CandidatesRepositoryMock implements CandidatesRepository {
     DateTime date,
     String timeSlot,
   ) async {
+    // TODO(API): POST /api/v1/interviews  body: { candidateId, date, timeSlot }
     await Future.delayed(const Duration(milliseconds: 500));
   }
 

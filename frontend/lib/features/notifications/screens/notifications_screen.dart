@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:job_app/core/theme/app_theme.dart';
 import '../data/providers/notifications_provider.dart';
+import '../domain/notification_entity.dart';
+import '../domain/notifications_controller.dart';
 import '../widgets/notification_card.dart';
 import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 
@@ -11,149 +14,148 @@ class NotificationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(notificationsControllerProvider);
     final controller = ref.read(notificationsControllerProvider.notifier);
-    final groupedNotifications = controller.groupedNotifications;
-    final unreadCount = controller.unreadCount;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F6F8),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1D1B1F)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Notifications',
-          style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w700, fontSize: 18, color: Color(0xFF1D1B1F)),
-        ),
-        actions: [
-          if (unreadCount > 0)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: const Color(0xFF3A1B5E), borderRadius: BorderRadius.circular(12)),
-                  child: Text(
-                    '$unreadCount nouvelles',
-                    style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 12, color: Colors.white),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            Container(
+              color: AppColors.background,
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Notifications',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 20,
+                      height: 1.5,
+                      color: Color(0xFF000000),
+                    ),
                   ),
-                ),
+                  GestureDetector(
+                    onTap: () => controller.markAllAsRead(),
+                    child: const Text(
+                      'Mark all as read',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        color: Color(0xFF401E66),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _FilterTabs(
-            selectedFilter: controller.selectedFilter,
-            onFilterChanged: (filter) => controller.setFilter(filter),
-          ),
-          Expanded(
-            child: state.isLoading 
-                ? const Center(child: CircularProgressIndicator())
-                : groupedNotifications.isEmpty
-                    ? const _EmptyState()
-                    : ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        children: groupedNotifications.entries.map((entry) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              NotificationSectionHeader(title: entry.key),
-                              ...entry.value.map((notification) {
-                                return NotificationCard(
-                                  notification: notification,
-                                  onTap: () => controller.markAsRead(notification.id),
-                                );
-                              }),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-          ),
-        ],
+
+            // â”€â”€ Filter tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            _FilterTabs(
+              activeFilter: state.activeFilter,
+              onFilterChanged: (f) => controller.setFilter(f),
+            ),
+
+            // â”€â”€ Notification list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            Expanded(
+              child: state.isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF401E66)))
+                  : _buildList(controller),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: const AppBottomNavBar(currentIndex: 1),
     );
   }
+
+  Widget _buildList(NotificationsController controller) {
+    final grouped = controller.groupedNotifications;
+    if (grouped.isEmpty) return const _EmptyState();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 16),
+      children: grouped.entries.map((entry) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            NotificationSectionHeader(title: entry.key),
+            ...entry.value.map((n) => NotificationCard(
+                  notification: n,
+                  onTap: () => controller.markAsRead(n.id),
+                )),
+          ],
+        );
+      }).toList(),
+    );
+  }
 }
 
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Filter tabs
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _FilterTabs extends StatelessWidget {
-  final String selectedFilter;
-  final Function(String) onFilterChanged;
+  final NotificationFilter activeFilter;
+  final Function(NotificationFilter) onFilterChanged;
 
-  const _FilterTabs({
-    required this.selectedFilter,
-    required this.onFilterChanged,
-  });
+  const _FilterTabs({required this.activeFilter, required this.onFilterChanged});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-      color: const Color(0xFFF7F6F8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _FilterChip(
-            label: 'All',
-            isSelected: selectedFilter == 'all',
-            onTap: () => onFilterChanged('all'),
-          ),
-          _FilterChip(
-            label: 'Clients',
-            isSelected: selectedFilter == 'clients',
-            onTap: () => onFilterChanged('clients'),
-          ),
-          _FilterChip(
-            label: 'Système',
-            isSelected: selectedFilter == 'system',
-            onTap: () => onFilterChanged('system'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+        height: 35,
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF401E66) : const Color(0xFFF6F3F8),
-          borderRadius: BorderRadius.circular(9999),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            height: 1.43,
-            color: isSelected ? Colors.white : const Color(0xFF475569),
-          ),
+        padding: const EdgeInsets.all(3),
+        child: Row(
+          children: NotificationFilter.values.map((filter) {
+            final isActive = filter == activeFilter;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onFilterChanged(filter),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  decoration: BoxDecoration(
+                    color: isActive ? AppColors.background : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: isActive
+                        ? [const BoxShadow(color: Color(0x1A7F13EC), blurRadius: 2, offset: Offset(0, 1))]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      filter.label,
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        color: isActive
+                            ? const Color(0xFF401E66)
+                            : const Color(0xFF7A4FA0),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
   }
 }
 
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Empty state
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -163,14 +165,25 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_none, size: 64, color: Colors.grey),
+          Icon(Icons.notifications_none_outlined, size: 56, color: Color(0xFF94A3B8)),
           SizedBox(height: 16),
           Text(
-            'Pas de notifications',
+            'Aucune notification',
             style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontWeight: FontWeight.w700,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Vous êtes Ã  jour !',
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontWeight: FontWeight.w400,
+              fontSize: 14,
+              color: Color(0xFF94A3B8),
             ),
           ),
         ],
@@ -178,5 +191,4 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-
 

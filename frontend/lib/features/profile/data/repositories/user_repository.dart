@@ -5,6 +5,9 @@ import 'package:job_app/features/profile/domain/cv_entity.dart';
 abstract class UserRepository {
   /// Récupère le profil de l'utilisateur connecté
   Future<UserEntity> getCurrentUser();
+  
+  /// Récupère un profil public par id (candidat/recruteur)
+  Future<UserEntity> getUserById(String userId);
 
   /// Récupère les avis des employés pour un recruteur
   Future<List<EmployeeReviewEntity>> getEmployeeReviews(String userId);

@@ -6,6 +6,11 @@ class JobModel {
   final String id;
   final String title;
   final String companyName;
+  final String recruiterId;
+  final String recruiterName;
+  final String recruiterRole;
+  final String? recruiterAvatarAsset;
+  final String department;
   final String contractType; // "cdi" | "mission" | "freelance"
   final String postedAt; // ISO 8601 depuis l'API
   final String status; // "active" | "draft" | "closed"
@@ -20,6 +25,11 @@ class JobModel {
     required this.id,
     required this.title,
     required this.companyName,
+    this.recruiterId = 'recruiter_1',
+    this.recruiterName = 'Ahmed Bensalem',
+    this.recruiterRole = 'Responsable RH',
+    this.recruiterAvatarAsset = 'assets/images/pdp_1.png',
+    this.department = 'IT',
     required this.contractType,
     required this.postedAt,
     required this.status,
@@ -36,6 +46,11 @@ class JobModel {
         id: json['id'] as String,
         title: json['title'] as String,
         companyName: json['company_name'] as String,
+        recruiterId: json['recruiter_id'] as String? ?? 'recruiter_1',
+        recruiterName: json['recruiter_name'] as String? ?? 'Ahmed Bensalem',
+        recruiterRole: json['recruiter_role'] as String? ?? 'Responsable RH',
+        recruiterAvatarAsset: json['recruiter_avatar_asset'] as String?,
+        department: json['department'] as String? ?? 'IT',
         contractType: json['contract_type'] as String? ?? 'cdi',
         postedAt: json['posted_at'] as String,
         status: json['status'] as String,
@@ -60,6 +75,11 @@ class JobModel {
         'id': id,
         'title': title,
         'company_name': companyName,
+        'recruiter_id': recruiterId,
+        'recruiter_name': recruiterName,
+        'recruiter_role': recruiterRole,
+        'recruiter_avatar_asset': recruiterAvatarAsset,
+        'department': department,
         'contract_type': contractType,
         'posted_at': postedAt,
         'status': status,
@@ -76,6 +96,11 @@ class JobModel {
         id: id,
         title: title,
         companyName: companyName,
+        recruiterId: recruiterId,
+        recruiterName: recruiterName,
+        recruiterRole: recruiterRole,
+        recruiterAvatarAsset: recruiterAvatarAsset,
+        department: department,
         contractType: _parseContract(contractType),
         postedAt: DateTime.parse(postedAt),
         status: _parseStatus(status),
@@ -92,6 +117,11 @@ class JobModel {
         id: entity.id,
         title: entity.title,
         companyName: entity.companyName,
+        recruiterId: entity.recruiterId,
+        recruiterName: entity.recruiterName,
+        recruiterRole: entity.recruiterRole,
+        recruiterAvatarAsset: entity.recruiterAvatarAsset,
+        department: entity.department,
         contractType: entity.contractType.name,
         postedAt: entity.postedAt.toIso8601String(),
         status: entity.status.name,
@@ -233,4 +263,3 @@ class JobCommentModel {
         reply: entity.reply,
       );
 }
-

@@ -2,12 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/candidates/domain/candidate_entity.dart';
+import 'package:job_app/features/candidates/domain/candidates_controller.dart';
 import 'package:job_app/features/candidates/data/models/candidate_model.dart';
 import 'package:job_app/features/candidates/data/repositories/candidates_repository.dart';
-import 'package:job_app/features/candidates/data/repositories/candidates_repository_api.dart';
+import 'package:job_app/features/candidates/data/repositories/candidates_repository_mock.dart';
 
+// TODO(API): Remplacer CandidatesRepositoryMock par CandidatesRepositoryHttp.
+//            Endpoint: GET /api/jobs/:jobId/candidates
 final candidatesRepositoryProvider = Provider<CandidatesRepository>((ref) {
-  return CandidatesRepositoryApi();
+  return CandidatesRepositoryMock();
 });
 
 final candidatesTabProvider = StateProvider<CandidateStatus>((ref) {
@@ -15,7 +18,7 @@ final candidatesTabProvider = StateProvider<CandidateStatus>((ref) {
 });
 
 final currentJobIdProvider = StateProvider<String>((ref) {
-  return ''; // Set dynamically when navigating to a job's candidates
+  return '2'; // Mock job ID correctly linked to mock data
 });
 
 class CandidatesNotifier
@@ -25,7 +28,7 @@ class CandidatesNotifier
 
   CandidatesNotifier(this._repository, this._jobId)
       : super(const AsyncValue.loading()) {
-    fetch();
+    Future.microtask(() => fetch());
   }
 
   Future<void> fetch() async {
@@ -82,48 +85,43 @@ final selectedJobProvider = Provider<JobEntity?>((ref) {
   final jobsAsync = ref.watch(jobsNotifierProvider);
   return jobsAsync.whenOrNull(
     data: (jobs) {
-      if (jobs.isEmpty) return null;
       try {
         return jobs.firstWhere((j) => j.id == jobId);
       } catch (_) {
-        return jobs.first; // Fallback to first job if id not found
+        return jobs.isNotEmpty ? jobs.first : null;
       }
     },
   );
 });
 
-// Gère la logique de filtrage
+// Logique de filtrage déléguée au controller du domaine
 final candidatesControllerProvider =
     Provider((ref) => const CandidatesController());
 
-class CandidatesController {
-  const CandidatesController();
+final candidatesSortModeProvider = StateProvider<String>((ref) => 'recent');
 
-  List<CandidateModel> filterAndSort({
-    required List<CandidateModel> candidates,
-    required CandidateStatus tab,
-    required String sortMode,
-  }) {
-    // 1. Filtrage par tab
-    var list = candidates.where((c) {
-      if (tab == CandidateStatus.archive) {
-        return c.status == CandidateStatus.archive;
-      }
-      if (tab == CandidateStatus.nouveau) {
-        return c.status == CandidateStatus.nouveau || c.status == CandidateStatus.archive;
-      }
-      return c.status == tab;
-    }).toList();
+/// Candidats filtrés/triés — écran liste par offre.
+final filteredCandidatesProvider =
+    Provider<AsyncValue<List<CandidateEntity>>>((ref) {
+  final candidatesAsync = ref.watch(candidatesNotifierProvider);
+  final tab = ref.watch(candidatesTabProvider);
+  final sortMode = ref.watch(candidatesSortModeProvider);
+  final controller = ref.watch(candidatesControllerProvider);
+  return candidatesAsync.whenData(
+    (list) => controller.filterAndSort(
+      candidates: list,
+      tab: tab,
+      sortMode: sortMode,
+    ),
+  );
+});
 
-    // 2. Tris
-    if (sortMode == 'best') {
-      list.sort((a, b) => b.rating.compareTo(a.rating));
-    } else if (sortMode == 'recent') {
-      list.sort((a, b) => b.id.compareTo(a.id));
-    } else if (sortMode == 'unprocessed') {
-      list = list.where((c) => c.status == CandidateStatus.nouveau).toList();
-    }
-
-    return list;
-  }
-}
+/// Candidats statut « nouveau » — onglet candidatures (détail offre).
+final jobNouveauCandidatesProvider =
+    Provider<AsyncValue<List<CandidateEntity>>>((ref) {
+  final candidatesAsync = ref.watch(candidatesNotifierProvider);
+  final controller = ref.watch(candidatesControllerProvider);
+  return candidatesAsync.whenData(
+    (list) => controller.filterByStatus(list, CandidateStatus.nouveau),
+  );
+});

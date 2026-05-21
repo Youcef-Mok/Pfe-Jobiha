@@ -117,4 +117,12 @@ class UserRepositoryApi implements UserRepository {
       skills: skills,
     );
   }
+
+  //added this to fix the error 
+  //TODO: replace with real apiendpoint implementation
+  @override
+  Future<UserEntity> getUserById(String userId) {
+    throw UnimplementedError('getUserById not yet implemented');
+  }
+
 }

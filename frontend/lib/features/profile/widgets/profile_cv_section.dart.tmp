@@ -1,0 +1,798 @@
+﻿import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:job_app/features/profile/domain/cv_entity.dart';
+import 'package:job_app/features/profile/widgets/profile_add_overlays.dart';
+import 'package:job_app/features/jobs/domain/mission_entity.dart';
+import 'package:job_app/features/jobs/screens/mission_details_screen.dart';
+
+const double _kPeekHeight = 49.0; // Exact Figma spacing between stacked cards
+const Color _kViolet = Color(0xFF401E66);
+const Color _kLightBg = Color(0xFFF5F2F9);
+
+/// Section CV : 3 cartes qui s'empilent.
+class ProfileCvSection extends ConsumerStatefulWidget {
+  const ProfileCvSection({super.key});
+
+  // Helper pour acc├®der au state depuis les sous-widgets
+  static ProfileCvSectionState? of(BuildContext context) =>
+      context.findAncestorStateOfType<ProfileCvSectionState>();
+      
+  @override
+  ConsumerState<ProfileCvSection> createState() => ProfileCvSectionState();
+}
+
+class ProfileCvSectionState extends ConsumerState<ProfileCvSection>
+    with TickerProviderStateMixin {
+  
+  late AnimationController _card2Controller;
+  late AnimationController _card3Controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _card2Controller = AnimationController(
+        vsync: this, 
+        duration: const Duration(milliseconds: 400)
+    );
+    _card3Controller = AnimationController(
+        vsync: this, 
+        duration: const Duration(milliseconds: 400)
+    );
+  }
+
+  @override
+  void dispose() {
+    _card2Controller.dispose();
+    _card3Controller.dispose();
+    super.dispose();
+  }
+
+  void _handleDragUpdate2(DragUpdateDetails d, double maxTravel) {
+    if (maxTravel <= 0) return;
+    final delta = d.delta.dy / maxTravel;
+    _card2Controller.value = (_card2Controller.value - delta).clamp(0.0, 1.0);
+    // Carte 3 ne peut pas ├¬tre AU-DESSUS de carte 2
+    if (_card3Controller.value > _card2Controller.value) {
+      _card3Controller.value = _card2Controller.value;
+    }
+  }
+
+  void _handleDragEnd2(DragEndDetails d) {
+    if (_card2Controller.isAnimating) return;
+    final velocity = d.primaryVelocity ?? 0;
+    if (velocity < -300) {
+      _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+    } else if (velocity > 300) {
+      // Pour fermer, il faut un geste vers le bas assez convaincu
+      _card2Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+      _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+    } else {
+      // Persistance : si on est d├®j├á en haut, on y reste sauf si on est redescendu sous les 20%
+      if (_card2Controller.value > 0.8) {
+        _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+      } else if (_card2Controller.value < 0.2) {
+        _card2Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+        _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+      } else {
+        // Au milieu, on revient ├á l'├®tat le plus proche
+        _card2Controller.animateTo(_card2Controller.value > 0.5 ? 1.0 : 0.0, curve: Curves.easeOutQuart);
+      }
+    }
+  }
+
+  void _handleDragUpdate3(DragUpdateDetails d, double maxTravel) {
+    if (maxTravel <= 0) return;
+    final delta = d.delta.dy / maxTravel;
+    _card3Controller.value = (_card3Controller.value - delta).clamp(0.0, 1.0);
+    // Carte 2 doit ├¬tre au moins aussi haute que carte 3
+    if (_card2Controller.value < _card3Controller.value) {
+      _card2Controller.value = _card3Controller.value;
+    }
+  }
+
+  void _handleDragEnd3(DragEndDetails d) {
+    if (_card3Controller.isAnimating) return;
+    final velocity = d.primaryVelocity ?? 0;
+    if (velocity < -300) {
+      _card3Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+    } else if (velocity > 300) {
+      _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+    } else {
+      // Persistance pour la carte 3
+      if (_card3Controller.value > 0.8) {
+        _card3Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+      } else if (_card3Controller.value < 0.2) {
+        _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+      } else {
+        _card3Controller.animateTo(_card3Controller.value > 0.5 ? 1.0 : 0.0, curve: Curves.easeOutQuart);
+      }
+    }
+  }
+
+  void _toggleCard2() {
+    if (_card2Controller.value > 0.5) {
+      _card2Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+      _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+    } else {
+      _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+    }
+  }
+
+  void _toggleCard3() {
+    if (_card3Controller.value > 0.5) {
+      _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+    } else {
+      _card3Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+      _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+    }
+  }
+
+  void _closeAll() {
+    _card2Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+    _card3Controller.animateTo(0.0, curve: Curves.easeOutQuart);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cvAsync = ref.watch(cvDataProvider);
+
+    return cvAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Erreur: $e')),
+      data: (cv) => LayoutBuilder(builder: (context, constraints) {
+        // Pour que les headers soient "sticky" au bas de l'├®cran m├¬me lors du scroll du header profil,
+        // on calcule une hauteur disponible bas├®e sur la vue r├®elle (viewport).
+        final viewH = MediaQuery.of(context).size.height;
+        final bottomSafe = MediaQuery.of(context).padding.bottom;
+        
+        // On estime la hauteur occup├®e par les ├®l├®ments persistants sous le CV (NavBar ~80-90)
+        // et au-dessus (Tabs ~48). On veut que les peeks soient au-dessus de la nav bar.
+        const double navBarHeight = 90.0;
+        const double tabsHeight = 48.0;
+        
+        // La hauteur "visible" sur l'├®cran pour le contenu du body
+        final screenAvailH = viewH - bottomSafe - navBarHeight - tabsHeight - 10; // -10 de marge
+        
+        // On prend le min entre la contrainte r├®elle et ce qu'on peut voir ├á l'├®cran
+        // pour s'assurer que les cartes ne "fuient" pas vers le bas si le body est tr├¿s long.
+        final availH = math.min(constraints.maxHeight, screenAvailH);
+        
+        const double topMargin = 5.0;
+        final maxTravel = math.max(0.0, availH - topMargin - 3 * _kPeekHeight);
+
+        return AnimatedBuilder(
+          animation: Listenable.merge([_card2Controller, _card3Controller]),
+          builder: (context, _) {
+            final val2 = _card2Controller.value;
+            final val3 = _card3Controller.value;
+
+            // Positions top de chaque carte
+            final card1Top = topMargin;
+            final card2Top = topMargin + _kPeekHeight + maxTravel * (1 - val2);
+            final card3Top = topMargin + 2 * _kPeekHeight + maxTravel * (1 - val3);
+
+            // Hauteurs: la carte "active" prend toute la hauteur restante.
+            // Les cartes "cach├®es" n'ont que la hauteur de leur peek header.
+            final card1Height = card2Top - card1Top; // = _kPeekHeight quand card2 est ouverte
+            final card2Height = card3Top - card2Top; // = _kPeekHeight quand card3 est ouverte  
+            final card3Height = availH - card3Top;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // ÔöÇÔöÇ Carte 1 (Experience) ÔöÇÔöÇ
+                  Positioned(
+                    top: card1Top,
+                    left: 0, right: 0,
+                    height: math.max(card1Height, _kPeekHeight),
+                    child: RepaintBoundary(
+                      child: _ExperienceCard(
+                        experiences: cv.experiences,
+                        onHeaderDragUpdate: (d) => _handleDragUpdate2(d, maxTravel),
+                        onHeaderDragEnd: _handleDragEnd2,
+                        onHeaderTap: _closeAll,
+                        onScrolledToTop: () {
+                          _card2Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+                        },
+                      ),
+                    ),
+                  ),
+
+                  // ÔöÇÔöÇ Carte 2 (Formations) ÔöÇÔöÇ
+                  Positioned(
+                    top: card2Top,
+                    left: 0, right: 0,
+                    height: math.max(card2Height, _kPeekHeight),
+                    child: RepaintBoundary(
+                      child: _FormationsCard(
+                        formations: cv.formations,
+                        onHeaderDragUpdate: (d) => _handleDragUpdate2(d, maxTravel),
+                        onHeaderDragEnd: _handleDragEnd2,
+                        onHeaderTap: _toggleCard2,
+                        onScrolledToTop: () {
+                          if (_card2Controller.value >= 0.99) {
+                            _card3Controller.animateTo(1.0, curve: Curves.easeOutQuart);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+
+                  // ÔöÇÔöÇ Carte 3 (Skills) ÔöÇÔöÇ
+                  Positioned(
+                    top: card3Top,
+                    left: 0, right: 0,
+                    height: math.max(card3Height, _kPeekHeight),
+                    child: RepaintBoundary(
+                      child: _SkillsCard(
+                        languages: cv.languages,
+                        skills: cv.skills,
+                        onHeaderDragUpdate: (d) => _handleDragUpdate3(d, maxTravel),
+                        onHeaderDragEnd: _handleDragEnd3,
+                        onHeaderTap: _toggleCard3,
+                        onAddLanguage: () => showModal(context, const AddLanguageOverlay()),
+                        onAddSkill: () => showModal(context, const AddSkillOverlay()),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+
+
+  // Aide ├á la navigation
+  void navigateToMission(BuildContext context, String title, String company) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MissionDetailsScreen(
+          mission: MissionEntity(
+            id: 'm-mock',
+            jobTitle: title,
+            companyName: company,
+            startDate: DateTime.now().subtract(const Duration(days: 30)),
+            endDate: DateTime.now().subtract(const Duration(days: 5)),
+            location: 'Paris, France',
+            status: 'completed',
+            recruiterName: 'Jean Dupont',
+            candidateName: 'John Doe',
+            summary: 'D├®tails de la mission effectu├®e...',
+          ),
+        ),
+      ),
+    );
+  }
+
+  void showModal(BuildContext context, Widget overlay) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (context) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: SizedBox(
+            width: 358,
+            child: overlay,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// Sous-Cartes Configs
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+class _FormationsCard extends StatelessWidget {
+  final List<CvFormationEntity> formations;
+  final GestureDragUpdateCallback? onHeaderDragUpdate;
+  final GestureDragEndCallback? onHeaderDragEnd;
+  final VoidCallback? onHeaderTap;
+  final VoidCallback? onScrolledToTop;
+
+  const _FormationsCard({
+    required this.formations,
+    this.onHeaderDragUpdate,
+    this.onHeaderDragEnd,
+    this.onHeaderTap,
+    this.onScrolledToTop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _CvCardBase(
+      icon: Icons.school_outlined,
+      title: 'Formations',
+      titleColor: const Color(0xFF401E66),
+      onHeaderDragUpdate: onHeaderDragUpdate,
+      onHeaderDragEnd: onHeaderDragEnd,
+      onHeaderTap: onHeaderTap,
+      onScrolledToTop: onScrolledToTop,
+      child: ListView.builder(
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        itemCount: formations.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _TimelineContent(
+            title: formations[index].title,
+            subtitle: '${formations[index].institution} ÔÇó ${formations[index].location}',
+            date: formations[index].year.toString(),
+            icon: Icons.school_outlined,
+            badgeText: 'VALIDE',
+            onTap: () => ProfileCvSection.of(context)?.showModal(context, CertificateViewerOverlay(
+              title: formations[index].title,
+              institution: formations[index].institution,
+            )),
+          ),
+        ),
+      ),
+      onAddPressed: () => ProfileCvSection.of(context)?.showModal(context, const AddFormationOverlay()),
+    );
+  }
+}
+
+class _ExperienceCard extends StatelessWidget {
+  final List<CvExperienceEntity> experiences;
+  final GestureDragUpdateCallback? onHeaderDragUpdate;
+  final GestureDragEndCallback? onHeaderDragEnd;
+  final VoidCallback? onHeaderTap;
+  final VoidCallback? onScrolledToTop;
+
+  const _ExperienceCard({
+    required this.experiences,
+    this.onHeaderDragUpdate,
+    this.onHeaderDragEnd,
+    this.onHeaderTap,
+    this.onScrolledToTop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _CvCardBase(
+      icon: Icons.work_outline,
+      title: 'Experience',
+      titleColor: Colors.black, // #000000 dans la spec CSS
+      onHeaderDragUpdate: onHeaderDragUpdate,
+      onHeaderDragEnd: onHeaderDragEnd,
+      onHeaderTap: onHeaderTap,
+      onScrolledToTop: onScrolledToTop,
+      child: ListView.builder(
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        itemCount: experiences.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _TimelineContent(
+            title: experiences[index].title,
+            subtitle: '${experiences[index].company} ÔÇó ${experiences[index].location}',
+            date: experiences[index].endDate ?? '',
+            secondaryDate: experiences[index].period,
+            isAppMission: experiences[index].isAppMission,
+            onTap: experiences[index].isAppMission 
+                ? () {
+                    // Acc├¿s au buildContext via le parent (ProfileCvSection) est via callbacks
+                    // Mais ici on est dans _ExperienceCard qui est dans ProfileCvSection
+                    // On va passer une fonction de navigation
+                    ProfileCvSection.of(context)?.navigateToMission(
+                      context, 
+                      experiences[index].title, 
+                      experiences[index].company
+                    );
+                  }
+                : null,
+          ),
+        ),
+      ),
+      onAddPressed: () => ProfileCvSection.of(context)?.showModal(context, const AddExperienceOverlay()),
+    );
+  }
+}
+
+class _SkillsCard extends StatelessWidget {
+  final List<CvLanguageEntity> languages;
+  final List<CvSkillEntity> skills;
+  final GestureDragUpdateCallback? onHeaderDragUpdate;
+  final GestureDragEndCallback? onHeaderDragEnd;
+  final VoidCallback? onHeaderTap;
+  final VoidCallback? onAddLanguage;
+  final VoidCallback? onAddSkill;
+
+  const _SkillsCard({
+    required this.languages,
+    required this.skills,
+    this.onHeaderDragUpdate,
+    this.onHeaderDragEnd,
+    this.onHeaderTap,
+    this.onAddLanguage,
+    this.onAddSkill,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _CvCardBase(
+      icon: Icons.view_column_outlined,
+      title: 'Skills et langues',
+      titleColor: const Color(0xFF0F172A),
+      onHeaderDragUpdate: onHeaderDragUpdate,
+      onHeaderDragEnd: onHeaderDragEnd,
+      onHeaderTap: onHeaderTap,
+      onAddPressed: onAddSkill, // Par d├®faut le "+" du haut ouvre l'ajout de skill
+      child: ListView(
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          _sectionHeader('LANGUES', onAddLanguage),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 2.5,
+            ),
+            itemCount: languages.length,
+            itemBuilder: (context, index) {
+              final lang = languages[index];
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F6F8),
+                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      lang.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.splineSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      lang.level,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.splineSans(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        color: _kViolet,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          _sectionHeader('SKILLS', onAddSkill),
+          const SizedBox(height: 12),
+          ...skills.map((s) => _skillRow(s)),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String label, VoidCallback? onTap) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: GoogleFonts.splineSans(fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 0.6, color: const Color(0xFF94A3B8))),
+          GestureDetector(
+            onTap: onTap,
+            child: const Icon(Icons.add, size: 18, color: _kViolet),
+          ),
+        ],
+      );
+
+  Widget _skillRow(CvSkillEntity s) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(s.name, style: GoogleFonts.splineSans(fontWeight: FontWeight.w500, fontSize: 14, color: const Color(0xFF334155)))),
+                const SizedBox(width: 8),
+                if (s.levelLabel != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: const Color(0x1A7F0DF2), borderRadius: BorderRadius.circular(9999)),
+                    child: Text(s.levelLabel!, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFF6E14C7))),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(9999),
+              child: LinearProgressIndicator(
+                value: s.progress,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFF1F5F9),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6E14C7)),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// Conteneur de Base Partag├®
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+class _CvCardBase extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Widget child;
+  final Color? titleColor;
+  final GestureDragUpdateCallback? onHeaderDragUpdate;
+  final GestureDragEndCallback? onHeaderDragEnd;
+  final VoidCallback? onHeaderTap;
+  final VoidCallback? onAddPressed;
+  final VoidCallback? onScrolledToTop;
+
+  const _CvCardBase({
+    required this.icon,
+    required this.title,
+    required this.child,
+    this.titleColor,
+    this.onHeaderDragUpdate,
+    this.onHeaderDragEnd,
+    this.onHeaderTap,
+    this.onAddPressed,
+    this.onScrolledToTop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white, // Fond blanc demand├®
+        borderRadius: BorderRadius.circular(15), 
+        border: Border.all(color: const Color(0xFFE2E8F0).withValues(alpha: 0.3)), 
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12), 
+            blurRadius: 12, 
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08), 
+            blurRadius: 4, 
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // L'en-t├¬te (draggable)
+          GestureDetector(
+            onVerticalDragUpdate: onHeaderDragUpdate,
+            onVerticalDragEnd: onHeaderDragEnd,
+            onTap: onHeaderTap,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              height: _kPeekHeight, // Header de 49px (Figma a 42-49 selon l'espace)
+              decoration: const BoxDecoration(
+                color: _kLightBg, // #F5F2F9
+                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(icon, size: 20, color: titleColor ?? _kViolet),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(title, style: GoogleFonts.splineSans(fontWeight: FontWeight.w700, fontSize: 16, color: titleColor ?? _kViolet)),
+                  ),
+                  GestureDetector(
+                    onTap: onAddPressed,
+                    child: Icon(Icons.add, size: 20, color: titleColor ?? _kViolet),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification notification) {
+                if (notification is OverscrollNotification) {
+                  // On d├®sactive la fermeture par overscroll vers le bas (pull-down ├á l'index 0)
+                  // pour ├®viter que les cartes ne se remettent ├á leur place quand on remonte.
+                  if (notification.overscroll > 0) {
+                    final dummyDetails = DragUpdateDetails(
+                      globalPosition: Offset.zero,
+                      delta: Offset(0, -notification.overscroll), 
+                    );
+                    onHeaderDragUpdate?.call(dummyDetails);
+                  }
+                } 
+                
+                if (notification is ScrollEndNotification && notification.metrics.pixels <= 0) {
+                  onScrolledToTop?.call();
+                }
+
+                if (notification is ScrollEndNotification && notification.metrics.pixels >= notification.metrics.maxScrollExtent) {
+                   // Optionnel: on pourrait ouvrir la carte suivante par le bas ici
+                }
+
+                if (notification is ScrollEndNotification) {
+                  final dummyEnd = DragEndDetails(primaryVelocity: 0);
+                  onHeaderDragEnd?.call(dummyEnd);
+                }
+                return false;
+              },
+              child: child,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// Elements visuels
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+class _TimelineContent extends StatelessWidget {
+  final String title, subtitle, date;
+  final String? secondaryDate;
+  final bool isAppMission;
+  final String? badgeText;
+  final IconData? icon;
+  final VoidCallback? onTap;
+
+  const _TimelineContent({
+    required this.title,
+    required this.subtitle,
+    required this.date,
+    this.secondaryDate,
+    this.isAppMission = false,
+    this.badgeText,
+    this.icon,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Show badge if isAppMission is true or if badgeText is provided
+    final showBadge = isAppMission || badgeText != null;
+    final displayBadgeText = badgeText ?? (isAppMission ? 'APP MISSION' : '');
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showBadge || date.isNotEmpty) ...[
+            Row(
+              children: [
+                if (showBadge)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1A7F19E6),
+                      borderRadius: BorderRadius.circular(9999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.verified, size: 10, color: _kViolet),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            displayBadgeText,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                              letterSpacing: 0.5,
+                              color: _kViolet,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (showBadge && date.isNotEmpty) const SizedBox(width: 8),
+                if (date.isNotEmpty)
+                  Expanded(
+                    child: Text(
+                      date,
+                      textAlign: showBadge ? TextAlign.right : TextAlign.left,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          Text(
+            title,
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              height: 1.2,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (icon != null) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(icon, size: 14, color: _kViolet.withValues(alpha: 0.8)),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Text(
+                  subtitle,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (secondaryDate != null && secondaryDate!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              secondaryDate!,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFF94A3B8),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+}
+
+// Nettoyage : _TimelineItem n'est plus utilis├® car on utilise des blocs discret dans une ListView avec du spacing.
+

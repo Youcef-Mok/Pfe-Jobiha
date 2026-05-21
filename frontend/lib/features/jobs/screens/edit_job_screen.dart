@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
+import 'package:job_app/features/jobs/widgets/job_candidate_preferences_fields.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 
 
@@ -98,6 +99,12 @@ class _EditJobScreenState extends ConsumerState<EditJobScreen> {
                               controller: _descCtrl,
                               onChanged: notifier.updateDescription,
                             ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          JobCandidatePreferencesFields(
+                            sectionTitleStyle: AppTextStyles.sectionTitle
+                                .copyWith(fontSize: 20),
                           ),
                           const SizedBox(height: 24),
 
@@ -840,3 +847,4 @@ class _EditFooter extends StatelessWidget {
     );
   }
 }
+

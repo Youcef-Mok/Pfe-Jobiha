@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
 import 'package:job_app/features/jobs/domain/jobs_controller.dart';
+import 'package:job_app/features/jobs/domain/recruiter_filters.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository_api.dart';
 
@@ -30,7 +31,7 @@ class JobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
   final JobsController _controller;
 
   JobsNotifier(this._controller) : super(const AsyncValue.loading()) {
-    fetch();
+    Future.microtask(() => fetch());
   }
 
   Future<void> fetch() async {
@@ -62,7 +63,7 @@ class MissionsNotifier extends StateNotifier<AsyncValue<List<MissionEntity>>> {
   final JobsController _controller;
 
   MissionsNotifier(this._controller) : super(const AsyncValue.loading()) {
-    fetch();
+    Future.microtask(() => fetch());
   }
 
   Future<void> fetch() async {
@@ -80,6 +81,67 @@ final missionsNotifierProvider =
     StateNotifierProvider<MissionsNotifier, AsyncValue<List<MissionEntity>>>(
   (ref) => MissionsNotifier(ref.watch(jobsControllerProvider)),
 );
+
+final filteredJobsProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
+  final jobsAsync = ref.watch(jobsNotifierProvider);
+  final filters = ref.watch(recruiterFiltersProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return jobsAsync.whenData((jobs) => controller.filterJobs(jobs, filters));
+});
+
+final filteredMissionsProvider =
+    Provider<AsyncValue<List<MissionEntity>>>((ref) {
+  final missionsAsync = ref.watch(missionsNotifierProvider);
+  final filters = ref.watch(recruiterFiltersProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return missionsAsync.whenData(
+    (missions) => controller.filterMissions(missions, filters),
+  );
+});
+
+final publishedJobsProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
+  final jobsAsync = ref.watch(jobsNotifierProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return jobsAsync.whenData(controller.filterPublished);
+});
+
+final recruiterPublishedJobsProvider =
+    Provider.family<AsyncValue<List<JobEntity>>, String>((ref, recruiterId) {
+  final publishedAsync = ref.watch(publishedJobsProvider);
+  return publishedAsync.whenData(
+    (jobs) => jobs.where((j) => j.recruiterId == recruiterId).toList(),
+  );
+});
+
+final recruiterFilteredPublishedJobsProvider =
+    Provider.family<AsyncValue<List<JobEntity>>, String>((ref, recruiterId) {
+  final jobsAsync = ref.watch(recruiterPublishedJobsProvider(recruiterId));
+  final filters = ref.watch(recruiterFiltersProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return jobsAsync.whenData((jobs) => controller.filterJobs(jobs, filters));
+});
+
+final recruiterFilteredMissionsByNameProvider =
+    Provider.family<AsyncValue<List<MissionEntity>>, String>(
+        (ref, recruiterName) {
+  final missionsAsync = ref.watch(missionsNotifierProvider);
+  final filters = ref.watch(recruiterFiltersProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return missionsAsync.whenData((missions) {
+    final scoped = missions.where((m) => m.recruiterName == recruiterName).toList();
+    return controller.filterMissions(scoped, filters);
+  });
+});
+
+final candidateJobSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final candidateJobSearchResultsProvider =
+    Provider<AsyncValue<List<JobEntity>>>((ref) {
+  final jobsAsync = ref.watch(jobsNotifierProvider);
+  final query = ref.watch(candidateJobSearchQueryProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return jobsAsync.whenData((jobs) => controller.searchPublished(jobs, query));
+});
 
 // ─────────────────────────────────────────────
 // 4. Filtered providers (computed, zéro logique UI)
@@ -135,9 +197,9 @@ final combinedJobsAndMissionsProvider =
 // ─────────────────────────────────────────────
 // 5. Tab selection provider
 // ─────────────────────────────────────────────
-enum JobsTab { missions, myJobs, drafts }
+enum JobsTab { myJobs, missions, activity, applications, interviews }
 
-final jobsTabProvider = StateProvider<JobsTab>((ref) => JobsTab.missions);
+final jobsTabProvider = StateProvider<JobsTab>((ref) => JobsTab.activity);
 
 // ─────────────────────────────────────────────
 // 6. Create Job Form Provider
@@ -270,12 +332,21 @@ class MissionReviewNotifier extends StateNotifier<MissionReview> {
   /// Valide la fin de mission : soumet l'avis + met à jour le statut
   Future<bool> submit() async {
     if (!state.isValid) return false;
-    // Simule appel API
-    await Future.delayed(const Duration(milliseconds: 600));
-    // TODO: persister via repository
-    // Refresh la liste des missions
-    _ref.read(missionsNotifierProvider.notifier).fetch();
-    return true;
+    try {
+      // Appel au controller pour persister le review
+      await _ref.read(jobsControllerProvider).updateMissionReview(
+        state.missionId,
+        state.rating.toDouble(),
+        state.comment,
+      );
+      // Refresh la liste des missions (pour les recruteurs)
+      _ref.read(missionsNotifierProvider.notifier).fetch();
+      // Refresh aussi la liste des missions du candidat (pour le profil)
+      _ref.read(candidateMissionsProvider.notifier).fetch();
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 }
 
@@ -288,3 +359,72 @@ final missionReviewProvider =
 final reviewSubmitStatusProvider =
     StateProvider.autoDispose<SubmitStatus>((ref) => SubmitStatus.idle);
 
+// ─────────────────────────────────────────────
+// 10. Candidate Missions (profil candidat)
+// ─────────────────────────────────────────────
+class CandidateMissionsNotifier extends StateNotifier<AsyncValue<List<MissionEntity>>> {
+  final Ref _ref;
+
+  CandidateMissionsNotifier(this._ref) : super(const AsyncValue.loading()) {
+    Future.microtask(() => fetch());
+  }
+
+  Future<void> fetch() async {
+    state = const AsyncValue.loading();
+    try {
+      await Future.delayed(const Duration(milliseconds: 200));
+      final missions = await _ref.read(jobsRepositoryProvider).getMissions();
+      // TODO(API): GET /api/v1/missions retournera uniquement les missions du candidat connecté — supprimer ce filtre
+      final candidateMissions = missions.where((m) => m.candidateName == 'Farouja').toList();
+      state = AsyncValue.data(candidateMissions);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+
+final candidateMissionsProvider =
+    StateNotifierProvider<CandidateMissionsNotifier, AsyncValue<List<MissionEntity>>>((ref) {
+  return CandidateMissionsNotifier(ref);
+});
+
+final candidateMissionsByNameProvider =
+    Provider.family<AsyncValue<List<MissionEntity>>, String>((ref, candidateName) {
+  final missionsAsync = ref.watch(missionsNotifierProvider);
+  return missionsAsync.whenData(
+    (missions) => missions.where((m) => m.candidateName == candidateName).toList(),
+  );
+});
+
+
+// ─────────────────────────────────────────────
+// 11. Recruiter Filters Provider (état UI — logique dans les controllers)
+// ─────────────────────────────────────────────
+class RecruiterFiltersNotifier extends StateNotifier<RecruiterFilters> {
+  RecruiterFiltersNotifier() : super(const RecruiterFilters());
+
+  void setStatus(String? v) =>
+      state = state.copyWith(status: v, clearStatus: v == null);
+
+  void setDateFilter(String? v) =>
+      state = state.copyWith(dateFilter: v, clearDateFilter: v == null);
+
+  void setDepartment(String? v) =>
+      state = state.copyWith(department: v, clearDepartment: v == null);
+
+  void setJobId(String? v) =>
+      state = state.copyWith(jobId: v, clearJobId: v == null);
+
+  void setSavedOnly(bool v) => state = state.copyWith(savedOnly: v);
+
+  void toggleSavedOnly() => state = state.copyWith(savedOnly: !state.savedOnly);
+
+  void reset() => state = const RecruiterFilters();
+
+  void apply(RecruiterFilters filters) => state = filters;
+}
+
+final recruiterFiltersProvider =
+    StateNotifierProvider<RecruiterFiltersNotifier, RecruiterFilters>(
+  (ref) => RecruiterFiltersNotifier(),
+);
