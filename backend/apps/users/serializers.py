@@ -258,7 +258,7 @@ class UserMeSerializer(serializers.Serializer):
     def get_domain(self, obj):
         p = self._profile(obj)
         if isinstance(p, Candidat):
-            return p.experience or None
+            return p.domain or None
         if isinstance(p, Recruteur):
             return p.type_structure or None
         return None
@@ -270,6 +270,9 @@ class UserMeSerializer(serializers.Serializer):
         return ''
 
     def get_location(self, obj):
+        # Return the location text field if available, otherwise fall back to lat/long
+        if obj.location:
+            return obj.location
         if obj.latitude is not None and obj.longitude is not None:
             return f"{obj.latitude}, {obj.longitude}"
         return ''
@@ -283,7 +286,7 @@ class UserMeSerializer(serializers.Serializer):
         return ''
 
     def get_avatar_url(self, obj):
-        return None
+        return obj.avatar_url if obj.avatar_url else None
 
     def get_followers_count(self, obj):
         return 0

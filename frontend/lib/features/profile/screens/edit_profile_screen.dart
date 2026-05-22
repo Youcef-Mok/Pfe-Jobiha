@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:job_app/core/api/api_client.dart';
+import 'package:job_app/core/api/api_endpoints.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:dio/dio.dart';
 import 'dart:io';
 
 // Constantes de couleur
@@ -23,30 +26,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _bioController = TextEditingController();
   final _locationController = TextEditingController();
   
-  String _selectedDomain = 'Restauration';
+  String _selectedDomain = '';
   IconData _selectedDomainIcon = Icons.restaurant;
-
-  @override
-  void initState() {
-    super.initState();
-    // Charger les données actuelles
-    Future.microtask(() {
-      final userAsync = ref.read(candidateCurrentUserProvider);
-      userAsync.whenData((user) {
-        if (mounted) {
-          setState(() {
-            _nameController.text = user.name;
-            _usernameController.text = user.name.toLowerCase().replaceAll(' ', '_');
-            _bioController.text = user.bio;
-            _locationController.text = user.location;
-            _selectedDomain = user.domain;
-            // Définir l'icône selon le domaine
-            _selectedDomainIcon = _getDomainIcon(user.domain);
-          });
-        }
-      });
-    });
-  }
+  bool _isLocalLoading = false;
+  bool _controllersInitialized = false;
 
   IconData _getDomainIcon(String domain) {
     switch (domain) {
@@ -79,36 +62,107 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     
     if (image != null) {
-      // Update the profile photo in the state
-      ref.read(candidateCurrentUserProvider.notifier).updateProfilePhoto(image.path);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Photo de profil mise à jour'),
-            backgroundColor: const Color(0xFF401E66),
+      try {
+        // Upload to backend
+        final dio = ApiClient.instance;
+        final formData = FormData.fromMap({
+          'avatar': await MultipartFile.fromFile(
+            image.path,
+            filename: image.name,
           ),
-        );
+        });
+        
+        final response = await dio.post(ApiEndpoints.meAvatar, data: formData);
+        
+        // Update local state with the new avatar URL from server
+        final avatarUrl = response.data['avatar_url'] as String?;
+        if (avatarUrl != null) {
+          ref.read(candidateCurrentUserProvider.notifier).updateProfilePhoto(avatarUrl);
+        }
+        
+        // Refresh to ensure we have latest data
+        await ref.read(candidateCurrentUserProvider.notifier).refresh();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo de profil mise à jour'),
+              backgroundColor: Color(0xFF401E66),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('[EditProfileScreen] Error uploading avatar: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur lors du téléchargement: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
 
-  void _saveProfile() {
-    // Save profile changes to state including domain
-    ref.read(candidateCurrentUserProvider.notifier).updateProfileInfo(
-      name: _nameController.text,
-      bio: _bioController.text,
-      location: _locationController.text,
-      domain: _selectedDomain, // Ajout du domaine
-    );
+  void _saveProfile() async {
+    // Show loading state
+    setState(() => _isLocalLoading = true);
     
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Profil mis à jour avec succès'),
-        backgroundColor: const Color(0xFF401E66),
-      ),
-    );
+    try {
+      // Parse name into first and last name
+      final nameParts = _nameController.text.trim().split(' ');
+      final prenom = nameParts.isNotEmpty ? nameParts.first : '';
+      final nom = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+      
+      // Prepare update data for backend
+      final updateData = <String, dynamic>{};
+      
+      if (prenom.isNotEmpty) updateData['prenom'] = prenom;
+      if (nom.isNotEmpty) updateData['nom'] = nom;
+      if (_bioController.text.isNotEmpty) updateData['experience'] = _bioController.text;
+      if (_selectedDomain.isNotEmpty) updateData['domain'] = _selectedDomain;
+      if (_locationController.text.isNotEmpty) updateData['location'] = _locationController.text;
+      
+      // Call the API
+      final dio = ApiClient.instance;
+      await dio.patch(ApiEndpoints.me, data: updateData);
+      
+      // Update local state
+      ref.read(candidateCurrentUserProvider.notifier).updateProfileInfo(
+        name: _nameController.text,
+        bio: _bioController.text,
+        location: _locationController.text,
+        domain: _selectedDomain,
+      );
+      
+      // Refresh to get latest data from server
+      await ref.read(candidateCurrentUserProvider.notifier).refresh();
+      
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil mis à jour avec succès'),
+            backgroundColor: Color(0xFF401E66),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[EditProfileScreen] Error saving profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la mise à jour: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLocalLoading = false);
+      }
+    }
   }
 
   void _showDomainSelector() {
@@ -143,31 +197,51 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Widget _buildProfileImage(String? avatarUrl) {
-    // Check if it's a local file path
-    if (avatarUrl != null && !avatarUrl.startsWith('assets/') && File(avatarUrl).existsSync()) {
-      return Image.file(
-        File(avatarUrl),
+    // Check if it's a network URL
+    if (avatarUrl != null && avatarUrl.isNotEmpty && (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))) {
+      return Image.network(
+        avatarUrl,
         fit: BoxFit.cover,
         width: 96,
         height: 96,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(Icons.person, size: 48, color: Colors.grey);
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        },
       );
     }
     
-    // Use asset image
-    return Image.asset(
-      avatarUrl ?? 'assets/images/imageannonc(3).jpg',
-      fit: BoxFit.cover,
-      width: 96,
-      height: 96,
-      errorBuilder: (context, error, stackTrace) {
-        return const Icon(Icons.person, size: 48, color: Colors.grey);
-      },
-    );
+    // Default: show person icon
+    return const Icon(Icons.person, size: 48, color: Colors.grey);
   }
 
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(candidateCurrentUserProvider);
+
+    // Initialize controllers when data arrives (only once)
+    userAsync.whenData((user) {
+      if (!_controllersInitialized && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_controllersInitialized) {
+            setState(() {
+              _nameController.text = user.name;
+              _usernameController.text = user.name.toLowerCase().replaceAll(' ', '_');
+              _bioController.text = user.bio;
+              _locationController.text = user.location;
+              _selectedDomain = user.domain;
+              _selectedDomainIcon = _getDomainIcon(user.domain);
+              _controllersInitialized = true;
+            });
+          }
+        });
+      }
+    });
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -235,15 +309,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           
           // Bouton Terminé
           GestureDetector(
-            onTap: _saveProfile,
-            child: Text(
-              'Terminé',
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF513376),
-              ),
-            ),
+            onTap: _isLocalLoading ? null : _saveProfile,
+            child: _isLocalLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF513376)),
+                    ),
+                  )
+                : Text(
+                    'Terminé',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF513376),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -571,7 +654,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 
                 Expanded(
                   child: Text(
-                    _locationController.text.isEmpty ? 'Paris, France' : _locationController.text,
+                    _locationController.text.isEmpty ? 'Alger, Algérie' : _locationController.text,
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,

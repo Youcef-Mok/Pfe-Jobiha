@@ -13,8 +13,10 @@ class ProfileRepository {
     required List<String> competences,
     required String experience,
   }) async {
+    // Use /users/me instead of /candidats/me because the backend
+    // UserMeView.put() handles both candidate and recruiter updates
     await _dio.patch(
-      ApiEndpoints.candidatMe,
+      ApiEndpoints.me,
       data: {
         'competences': competences,
         'experience':  experience,
@@ -28,14 +30,19 @@ class ProfileRepository {
     required String nomStructure,
     required String typeStructure,
     String? description,
+    String? localisation,
   }) async {
+    // Use /users/me instead of /recruteurs/me because the backend
+    // UserMeView.put() handles both candidate and recruiter updates
     await _dio.patch(
-      ApiEndpoints.recruteurMe,
+      ApiEndpoints.me,
       data: {
         'nom_structure':  nomStructure,
         'type_structure': typeStructure,
         if (description != null && description.isNotEmpty)
           'description': description,
+        if (localisation != null && localisation.isNotEmpty)
+          'location': localisation,
       },
     );
   }

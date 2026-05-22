@@ -506,6 +506,7 @@ class _RecruiterProfileScreenState extends ConsumerState<RecruiterProfileScreen>
                       nomStructure:  _companyName!,
                       typeStructure: _industry!,
                       description:   _aboutUs,
+                      localisation:  _location,
                     );
                     if (success && mounted) {
                       Navigator.pushReplacementNamed(context, '/home-recruteur');

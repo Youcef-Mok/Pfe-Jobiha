@@ -17,69 +17,8 @@ final profileControllerProvider = Provider<ProfileController>(
 );
 
 // ─────────────────────────────────────────────
-// 2. Current User Provider
+// 2. Current User Provider (Real API - No Mock Data)
 // ─────────────────────────────────────────────
-class UserNotifier extends StateNotifier<AsyncValue<UserEntity>> {
-  UserNotifier() : super(const AsyncValue.loading()) {
-    _loadUser();
-  }
-
-  Future<void> _loadUser() async {
-    // TODO(API): GET /api/v1/users/me (avec token candidat)
-    //            Remplacer les données hardcodées ci-dessous par :
-    //            final user = await ref.read(profileControllerProvider).fetchCurrentUser();
-    //            Le backend retournera le bon profil selon le JWT (candidat ou recruteur).
-    try {
-      await Future.delayed(const Duration(milliseconds: 250));
-      const user = UserEntity(
-        id: 'candidate_1',
-        name: 'Farouja',
-        role: 'Serveur',
-        domain: 'Restauration',
-        company: 'Restauration',
-        location: 'Alger Birlmouta',
-        bio: 'Specializing in scaling Series A-C startups with high-performing engineering teams. 12+ years of experience in the EMEA and US',
-        avatarUrl: 'assets/images/imageannonc(3).jpg',
-        followersCount: 0,
-        missionsCount: 120,
-        rating: 4.9,
-        accountType: 'candidate',
-      );
-      state = AsyncValue.data(user);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
-
-  void updateUser(UserEntity updatedUser) {
-    state = AsyncValue.data(updatedUser);
-  }
-
-  void updateProfilePhoto(String newAvatarUrl) {
-    state.whenData((user) {
-      state = AsyncValue.data(user.copyWith(avatarUrl: newAvatarUrl));
-    });
-  }
-
-  void updateProfileInfo({
-    String? name,
-    String? bio,
-    String? location,
-    String? domain,
-  }) {
-    state.whenData((user) {
-      state = AsyncValue.data(user.copyWith(
-        name: name ?? user.name,
-        bio: bio ?? user.bio,
-        location: location ?? user.location,
-        domain: domain ?? user.domain,
-      ));
-    });
-  }
-
-  Future<void> refresh() => _loadUser();
-}
-
 final currentUserProvider = FutureProvider<UserEntity>((ref) async {
   ref.keepAlive();
   final controller = ref.watch(profileControllerProvider);
@@ -204,15 +143,70 @@ final profileTabProvider =
     StateProvider<ProfileTab>((ref) => ProfileTab.description);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Candidate profile (only: Competences + Reviews)
+// Candidate profile (with update capabilities)
 // ─────────────────────────────────────────────────────────────────────────────
 enum CandidateProfileTab { description, competences, missions }
 
 final candidateProfileTabProvider =
     StateProvider<CandidateProfileTab>((ref) => CandidateProfileTab.description);
 
-final candidateCurrentUserProvider = StateNotifierProvider<UserNotifier, AsyncValue<UserEntity>>((ref) {
-  return UserNotifier();
+class CandidateUserNotifier extends StateNotifier<AsyncValue<UserEntity>> {
+  final ProfileController _controller;
+
+  CandidateUserNotifier(this._controller) : super(const AsyncValue.loading()) {
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    try {
+      final user = await _controller.fetchCurrentUser();
+      state = AsyncValue.data(user);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  void updateProfilePhoto(String newAvatarUrl) {
+    state.whenData((user) {
+      state = AsyncValue.data(user.copyWith(avatarUrl: newAvatarUrl));
+    });
+  }
+
+  Future<void> updateProfileInfo({
+    String? name,
+    String? bio,
+    String? location,
+    String? domain,
+  }) async {
+    try {
+      final currentUser = state.value;
+      if (currentUser == null) return;
+
+      // Update locally first for immediate UI feedback
+      final updatedUser = currentUser.copyWith(
+        name: name ?? currentUser.name,
+        bio: bio ?? currentUser.bio,
+        location: location ?? currentUser.location,
+        domain: domain ?? currentUser.domain,
+      );
+      state = AsyncValue.data(updatedUser);
+
+      // Then save to backend
+      await _controller.updateProfile(updatedUser);
+      
+      // Reload to get server state
+      await _loadUser();
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> refresh() => _loadUser();
+}
+
+final candidateCurrentUserProvider = StateNotifierProvider<CandidateUserNotifier, AsyncValue<UserEntity>>((ref) {
+  final controller = ref.watch(profileControllerProvider);
+  return CandidateUserNotifier(controller);
 });
 
 final candidateEmployeeReviewsProvider =

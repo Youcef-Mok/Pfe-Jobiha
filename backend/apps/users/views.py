@@ -323,7 +323,7 @@ class UserMeView(APIView):
         utilisateur = request.user
 
         # Update base Utilisateur fields
-        base_fields = ['nom', 'prenom', 'telephone', 'latitude', 'longitude']
+        base_fields = ['nom', 'prenom', 'telephone', 'latitude', 'longitude', 'avatar_url', 'location', 'bio']
         for f in base_fields:
             if f in request.data:
                 setattr(utilisateur, f, request.data[f])
@@ -336,6 +336,8 @@ class UserMeView(APIView):
                 c.competences = request.data['competences']
             if 'experience' in request.data:
                 c.experience = request.data['experience']
+            if 'domain' in request.data:
+                c.domain = request.data['domain']
             c.save()
         elif hasattr(utilisateur, 'recruteur'):
             r = utilisateur.recruteur
@@ -352,6 +354,46 @@ class UserMeView(APIView):
     # Keep PATCH as alias
     def patch(self, request):
         return self.put(request)
+
+
+class UserAvatarUploadView(APIView):
+    """POST /users/me/avatar - Upload profile picture"""
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        avatar_file = request.FILES.get('avatar')
+        if not avatar_file:
+            return Response(
+                {'detail': 'No avatar file provided.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Save the file
+        import os
+        from django.conf import settings
+        
+        # Create avatars directory if it doesn't exist
+        avatars_dir = os.path.join(settings.MEDIA_ROOT, 'avatars')
+        os.makedirs(avatars_dir, exist_ok=True)
+        
+        # Generate unique filename
+        import uuid
+        ext = os.path.splitext(avatar_file.name)[1]
+        filename = f"{request.user.id}_{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(avatars_dir, filename)
+        
+        # Write file
+        with open(filepath, 'wb+') as destination:
+            for chunk in avatar_file.chunks():
+                destination.write(chunk)
+        
+        # Update user's avatar_url with absolute URL
+        avatar_url = request.build_absolute_uri(f"{settings.MEDIA_URL}avatars/{filename}")
+        request.user.avatar_url = avatar_url
+        request.user.save()
+        
+        return Response(UserMeSerializer(request.user).data)
 
 # ===========================================================================
 # Candidat endpoints

@@ -118,11 +118,30 @@ class UserRepositoryApi implements UserRepository {
     );
   }
 
-  //added this to fix the error 
-  //TODO: replace with real apiendpoint implementation
   @override
-  Future<UserEntity> getUserById(String userId) {
-    throw UnimplementedError('getUserById not yet implemented');
+  Future<UserEntity> getUserById(String userId) async {
+    final id = int.tryParse(userId) ?? 0;
+    
+    // Try to fetch as recruiter first, then as candidate
+    // Since we don't have GET /users/{id}, we need to try role-specific endpoints
+    try {
+      final response = await _dio.get(ApiEndpoints.recruteurById(id));
+      final json = response.data as Map<String, dynamic>;
+      return UserModel.fromJson(json).toEntity();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        // Not a recruiter, try candidate
+        try {
+          final response = await _dio.get(ApiEndpoints.candidatById(id));
+          final json = response.data as Map<String, dynamic>;
+          return UserModel.fromJson(json).toEntity();
+        } catch (e) {
+          debugPrint('[getUserById] User $id not found as recruiter or candidate');
+          rethrow;
+        }
+      }
+      rethrow;
+    }
   }
 
 }

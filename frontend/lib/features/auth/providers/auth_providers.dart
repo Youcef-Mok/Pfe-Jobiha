@@ -308,6 +308,7 @@ class ProfileNotifier extends StateNotifier<AsyncValue<void>> {
     required String nomStructure,
     required String typeStructure,
     String? description,
+    String? localisation,
   }) async {
     state = const AsyncLoading();
     try {
@@ -315,6 +316,7 @@ class ProfileNotifier extends StateNotifier<AsyncValue<void>> {
         nomStructure:  nomStructure,
         typeStructure: typeStructure,
         description:   description,
+        localisation:  localisation,
       );
       state = const AsyncData(null);
       return true;

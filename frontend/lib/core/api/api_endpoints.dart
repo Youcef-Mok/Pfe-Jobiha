@@ -41,6 +41,7 @@ class ApiEndpoints {
   // ── Users ───────────────────────────────────────────────────────────────────
   static const String users             = '$_base/users';
   static const String me                = '$_base/users/me';
+  static const String meAvatar          = '$_base/users/me/avatar';
   static String userById(int userId)    => '$_base/users/$userId';
   static String userReviews(int userId) => '$_base/users/$userId/reviews';
   static String userCv(int userId)      => '$_base/users/$userId/cv';
@@ -56,9 +57,11 @@ class ApiEndpoints {
   static const String candidatMe        = '$_base/candidats/me'; 
   static const String candidatDispos    = '$_base/candidats/me/disponibilites'; 
   static const String candidatPortfolio = '$_base/candidats/me/portfolio';
+  static String candidatById(int id)    => '$_base/candidats/$id';
 
   // ── Recruteur ───────────────────────────────────────────────────────────────
   static const String recruteurMe       = '$_base/recruteurs/me';
+  static String recruteurById(int id)   => '$_base/recruteurs/$id';
 
   // ── Settings ─────────────────────────────────────────────────────────────
   static const String settings          = '$_base/settings';

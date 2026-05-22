@@ -28,6 +28,7 @@ urlpatterns = [
     # --- Users ---
     path('users', views.UserListView.as_view(), name='users-list'),
     path('users/me', views.UserMeView.as_view(), name='user-me'),
+    path('users/me/avatar', views.UserAvatarUploadView.as_view(), name='user-avatar-upload'),
     path('users/<int:id>/reviews', views.UserReviewsView.as_view(), name='user-reviews'),
     path('users/<int:id>/cv', views.UserCvView.as_view(), name='user-cv'),
 
