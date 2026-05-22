@@ -54,39 +54,85 @@ class JobModel {
   });
 
   /// Désérialisation depuis JSON (API REST)
-  factory JobModel.fromJson(Map<String, dynamic> json) => JobModel(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        description: json['description'] as String? ?? '',
-        companyName: json['company_name'] as String,
-        recruiterId: json['recruiter_id'] as String? ?? 'recruiter_1',
-        recruiterName: json['recruiter_name'] as String? ?? 'Ahmed Bensalem',
-        recruiterRole: json['recruiter_role'] as String? ?? 'Responsable RH',
-        recruiterAvatarAsset: json['recruiter_avatar_asset'] as String?,
-        department: json['department'] as String? ?? 'IT',
-        contractType: json['contract_type'] as String? ?? 'cdi',
-        city: json['city'] as String? ?? json['ville'] as String?,
-        location: json['location'] as String?,
-        scheduleLabel: json['schedule_label'] as String?,
-        latitude: (json['latitude'] as num?)?.toDouble(),
-        longitude: (json['longitude'] as num?)?.toDouble(),
-        postedAt: json['posted_at'] as String? ?? DateTime.now().toIso8601String(),
-        status: json['status'] as String,
-        candidateCount: json['candidate_count'] as int? ?? 0,
-        viewCount: json['view_count'] as int? ?? 0,
-        logoAsset: json['logo_asset'] as String?,
-        isPublished: json['is_published'] as bool? ?? false,
-        candidates: (json['candidates'] as List<dynamic>?)
-                ?.map((e) =>
-                    JobCandidateModel.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-        comments: (json['comments'] as List<dynamic>?)
-                ?.map(
-                    (e) => JobCommentModel.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-      );
+  factory JobModel.fromJson(Map<String, dynamic> json) {
+    String pickString(List<dynamic> values, {String fallback = ''}) {
+      for (final v in values) {
+        if (v == null) continue;
+        final s = v.toString().trim();
+        if (s.isNotEmpty) return s;
+      }
+      return fallback;
+    }
+
+    int pickInt(List<dynamic> values, {int fallback = 0}) {
+      for (final v in values) {
+        if (v == null) continue;
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        final parsed = int.tryParse(v.toString());
+        if (parsed != null) return parsed;
+      }
+      return fallback;
+    }
+
+    double? pickDouble(List<dynamic> values) {
+      for (final v in values) {
+        if (v == null) continue;
+        if (v is num) return v.toDouble();
+        final parsed = double.tryParse(v.toString());
+        if (parsed != null) return parsed;
+      }
+      return null;
+    }
+
+    bool pickBool(List<dynamic> values, {bool fallback = false}) {
+      for (final v in values) {
+        if (v == null) continue;
+        if (v is bool) return v;
+        final s = v.toString().trim().toLowerCase();
+        if (s == 'true' || s == '1') return true;
+        if (s == 'false' || s == '0') return false;
+      }
+      return fallback;
+    }
+
+    return JobModel(
+      id: pickString([json['id']]),
+      title: pickString([json['title']], fallback: 'Annonce'),
+      description: pickString([json['description']]),
+      companyName: pickString([json['company_name'], json['company']], fallback: 'Entreprise'),
+      recruiterId: pickString([json['recruiter_id']], fallback: 'recruiter_1'),
+      recruiterName: pickString([json['recruiter_name']], fallback: 'Ahmed Bensalem'),
+      recruiterRole: pickString([json['recruiter_role']], fallback: 'Responsable RH'),
+      recruiterAvatarAsset: pickString([json['recruiter_avatar_asset'], json['recruiter_avatar']]),
+      department: pickString([json['department'], json['category']], fallback: 'IT'),
+      contractType: pickString([json['contract_type']], fallback: 'cdi'),
+      city: pickString([json['city'], json['ville'], json['wilaya']]),
+      location: pickString([json['location'], json['city'], json['wilaya']]),
+      scheduleLabel: pickString([json['schedule_label'], json['hours']]),
+      latitude: pickDouble([json['latitude'], json['lat']]),
+      longitude: pickDouble([json['longitude'], json['lng']]),
+      postedAt: pickString(
+        [json['posted_at'], json['created_at'], json['date_creation']],
+        fallback: DateTime.now().toIso8601String(),
+      ),
+      status: pickString([json['status']], fallback: 'draft'),
+      candidateCount: pickInt([json['candidate_count'], json['candidatures_count']]),
+      viewCount: pickInt([json['view_count'], json['views_count']]),
+      logoAsset: pickString([json['logo_asset'], json['image'], json['image_url']]),
+      isPublished: pickBool([json['is_published']], fallback: false),
+      candidates: (json['candidates'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(JobCandidateModel.fromJson)
+              .toList() ??
+          [],
+      comments: (json['comments'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(JobCommentModel.fromJson)
+              .toList() ??
+          [],
+    );
+  }
 
   /// Sérialisation vers JSON
   Map<String, dynamic> toJson() => {

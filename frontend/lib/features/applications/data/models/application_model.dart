@@ -40,25 +40,50 @@ class ApplicationModel {
     this.motivationLetter,
   });
 
-  factory ApplicationModel.fromJson(Map<String, dynamic> json) => ApplicationModel(
-        id: json['id'] as String,
-        jobId: json['job_id'] as String? ?? '',
-        jobTitle: json['job_title'] as String? ?? '',
-        companyName: json['company_name'] as String? ?? '',
-        department: json['department'] as String? ?? 'IT',
-        logoAsset: json['logo_asset'] as String?,
-        status: json['status'] as String? ?? 'pending',
-        appliedAt: json['applied_at'] as String? ?? DateTime.now().toIso8601String(),
-        location: json['location'] as String? ?? '',
-        contractType: json['contract_type'] as String? ?? 'cdi',
-        scheduleLabel: json['schedule_label'] as String?,
-        interviewDate: json['interview_date'] as String?,
-        candidateName: json['candidate_name'] as String?,
-        candidateAvatar: json['candidate_avatar'] as String?,
-        candidateDomain: json['candidate_domain'] as String?,
-        candidateRating: (json['candidate_rating'] as num?)?.toDouble() ?? 0.0,
-        motivationLetter: json['motivation_letter'] as String?,
-      );
+  factory ApplicationModel.fromJson(Map<String, dynamic> json) {
+    final rawJob = (json['job'] is Map<String, dynamic>)
+        ? json['job'] as Map<String, dynamic>
+        : (json['offre'] is Map<String, dynamic>)
+            ? json['offre'] as Map<String, dynamic>
+            : const <String, dynamic>{};
+
+    String pickString(List<dynamic> values, {String fallback = ''}) {
+      for (final v in values) {
+        if (v == null) continue;
+        final s = v.toString().trim();
+        if (s.isNotEmpty) return s;
+      }
+      return fallback;
+    }
+
+    String? pickNullable(List<dynamic> values) {
+      final v = pickString(values);
+      return v.isEmpty ? null : v;
+    }
+
+    return ApplicationModel(
+      id: pickString([json['id']]),
+      jobId: pickString([json['job_id'], json['offre_id'], rawJob['id']]),
+      jobTitle: pickString([json['job_title'], rawJob['title']]),
+      companyName: pickString([json['company_name'], rawJob['company_name']]),
+      department: pickString([json['department'], rawJob['category']], fallback: 'IT'),
+      logoAsset: pickNullable([json['logo_asset'], rawJob['image'], rawJob['logo_asset']]),
+      status: pickString([json['status']], fallback: 'pending'),
+      appliedAt: pickString(
+        [json['applied_at'], json['created_at'], json['date_creation']],
+        fallback: DateTime.now().toIso8601String(),
+      ),
+      location: pickString([json['location'], rawJob['location']]),
+      contractType: pickString([json['contract_type'], rawJob['contract_type']], fallback: 'cdi'),
+      scheduleLabel: pickNullable([json['schedule_label'], rawJob['schedule_label']]),
+      interviewDate: pickNullable([json['interview_date']]),
+      candidateName: pickNullable([json['candidate_name']]),
+      candidateAvatar: pickNullable([json['candidate_avatar']]),
+      candidateDomain: pickNullable([json['candidate_domain']]),
+      candidateRating: (json['candidate_rating'] as num?)?.toDouble() ?? 0.0,
+      motivationLetter: pickNullable([json['motivation_letter']]),
+    );
+  }
 
   ApplicationEntity toEntity() => ApplicationEntity(
         id: id,
@@ -82,6 +107,7 @@ class ApplicationModel {
 
   static ApplicationStatus _parseStatus(String v) => switch (v) {
         'accepted' => ApplicationStatus.accepted,
+        'interview' => ApplicationStatus.accepted,
         'rejected' => ApplicationStatus.rejected,
         _ => ApplicationStatus.pending,
       };

@@ -41,6 +41,18 @@ Future<void> showLocationSheet(BuildContext context) {
   );
 }
 
+Future<void> showDomainSheet(BuildContext context) {
+  return showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    isDismissible: true,
+    enableDrag: true,
+    useSafeArea: true,
+    builder: (context) => const _DomainSheet(),
+  );
+}
+
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // DISPONIBILITÉ
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -331,6 +343,138 @@ class _ContractTypeSheet extends ConsumerWidget {
   }
 }
 
+class _DomainSheet extends ConsumerWidget {
+  const _DomainSheet();
+
+  static const _domains = <String>[
+    'Restauration',
+    'Technologie',
+    'Commerce',
+    'Sante',
+    'Education',
+    'Transport',
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filters = ref.watch(candidateFiltersProvider);
+    final notifier = ref.read(candidateFiltersProvider.notifier);
+
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: const Color(0xFFCCC3D0)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 50,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDEDEDE),
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Domaine',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      color: Color(0xFF3A1B5E),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => notifier.setCategory(null),
+                    child: const Text(
+                      'Réinitialiser',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF401E66),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: _domains.map((label) {
+                  final isSelected = filters.category == label;
+                  return GestureDetector(
+                    onTap: () => notifier.setCategory(isSelected ? null : label),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF3A1B5E)
+                            : const Color(0xFFEFEDF2),
+                        borderRadius: BorderRadius.circular(9999),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: isSelected ? Colors.white : const Color(0xFF3A1B5E),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: () {
+                    ref.invalidate(nearbyJobsProvider);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3A1B5E),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9999),
+                    ),
+                  ),
+                  child: const Text(
+                    'Confirmer',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // LOCALISATION
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -365,6 +509,9 @@ class _LocationSheetState extends ConsumerState<_LocationSheet> {
 
   void _clearAll() {
     ref.read(candidateFiltersProvider.notifier).setLocation(null);
+    ref
+        .read(candidateFiltersProvider.notifier)
+        .setLocationGeo(lat: null, lng: null, radiusKm: null);
     setState(() {
       _distance = 10;
       _searchQuery = '';
@@ -391,6 +538,11 @@ class _LocationSheetState extends ConsumerState<_LocationSheet> {
       ref
           .read(candidateFiltersProvider.notifier)
           .setLocation(_pickedLabel ?? 'Position choisie');
+      ref.read(candidateFiltersProvider.notifier).setLocationGeo(
+            lat: _pickedLatLng?.latitude,
+            lng: _pickedLatLng?.longitude,
+            radiusKm: _distance,
+          );
       // Animate the preview map to the new position
       _previewMapController.move(_pickedLatLng!, 13.0);
     }
@@ -610,7 +762,17 @@ class _LocationSheetState extends ConsumerState<_LocationSheet> {
                         value: _distance,
                         min: 1,
                         max: 50,
-                        onChanged: (val) => setState(() => _distance = val),
+                        onChanged: (val) {
+                          setState(() => _distance = val);
+                          final picked = _pickedLatLng;
+                          if (picked != null) {
+                            ref.read(candidateFiltersProvider.notifier).setLocationGeo(
+                                  lat: picked.latitude,
+                                  lng: picked.longitude,
+                                  radiusKm: val,
+                                );
+                          }
+                        },
                       ),
                     ),
                     const SizedBox(height: 8),

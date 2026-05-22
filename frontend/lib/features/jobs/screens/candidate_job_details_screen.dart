@@ -9,8 +9,10 @@ import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/applications/domain/application_entity.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
 import 'package:job_app/features/messaging/screens/private_message_screen.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/report_comment_screen.dart';
 
@@ -883,64 +885,198 @@ class _MapPreviewState extends State<_MapPreview> with SingleTickerProviderState
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TAB 2 "“ COMMENTAIRES (collapsible threads)
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-class _CommentsTab extends ConsumerWidget {
+class _CommentsTab extends ConsumerStatefulWidget {
   final JobEntity job;
   const _CommentsTab({required this.job});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final expanded = ref.watch(_expandedThreadsProvider);
+  ConsumerState<_CommentsTab> createState() => _CommentsTabState();
+}
 
-    if (job.comments.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(32),
-        child: Center(
-          child: Text(
-            'Aucun commentaire pour le moment.',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
-              color: Color(0xFF94A3B8),
-            ),
-          ),
+class _CommentsTabState extends ConsumerState<_CommentsTab> {
+  final TextEditingController _commentController = TextEditingController();
+  final FocusNode _commentFocusNode = FocusNode();
+  late List<JobCommentEntity> _comments;
+  bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _comments = List<JobCommentEntity>.from(widget.job.comments);
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    _commentFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitComment() async {
+    final question = _commentController.text.trim();
+    if (question.isEmpty || _isSending) return;
+    setState(() => _isSending = true);
+    try {
+      final newComment = await ref
+          .read(jobsControllerProvider)
+          .addJobComment(widget.job.id, question);
+      if (!mounted) return;
+      setState(() {
+        _comments = [newComment, ..._comments];
+        _commentController.clear();
+        _isSending = false;
+      });
+      _commentFocusNode.unfocus();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'envoyer le commentaire.'),
         ),
       );
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final expanded = ref.watch(_expandedThreadsProvider);
+    final currentUserAsync = ref.watch(candidateCurrentUserProvider);
+    final currentUser = currentUserAsync.valueOrNull;
+    final userInitial =
+        (currentUser?.name.trim().isNotEmpty ?? false) ? currentUser!.name[0].toUpperCase() : 'U';
+    final avatarUrl = currentUser?.avatarUrl?.trim();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(15, 10, 15, 10),
+        padding: const EdgeInsets.fromLTRB(15, 10, 15, 12),
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
-          children: job.comments.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final comment = entry.value;
-            final isExpanded = expanded.contains(idx);
-            final isLast = idx == job.comments.length - 1;
-            return Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
-              child: _CommentThread(
-                comment: comment,
-                isExpanded: isExpanded,
-                isFirst: idx == 0,
-                onToggle: () {
-                  final notifier = ref.read(_expandedThreadsProvider.notifier);
-                  final current = Set<int>.from(notifier.state);
-                  if (current.contains(idx)) {
-                    current.remove(idx);
-                  } else {
-                    current.add(idx);
-                  }
-                  notifier.state = current;
-                },
+          children: [
+            if (_comments.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Center(
+                  child: Text(
+                    'Aucun commentaire pour le moment.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ),
+              )
+            else
+              ..._comments.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final comment = entry.value;
+                final isExpanded = expanded.contains(idx);
+                final isLast = idx == _comments.length - 1;
+                return Padding(
+                  padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                  child: _CommentThread(
+                    comment: comment,
+                    isExpanded: isExpanded,
+                    isFirst: idx == 0,
+                    onToggle: () {
+                      final notifier = ref.read(_expandedThreadsProvider.notifier);
+                      final current = Set<int>.from(notifier.state);
+                      if (current.contains(idx)) {
+                        current.remove(idx);
+                      } else {
+                        current.add(idx);
+                      }
+                      notifier.state = current;
+                    },
+                  ),
+                );
+              }),
+            const SizedBox(height: 12),
+            Container(
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: Color(0xFFE7E0E7))),
               ),
-            );
-          }).toList(),
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFFF4F1F9),
+                    backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
+                        ? (avatarUrl.startsWith('http')
+                            ? NetworkImage(avatarUrl)
+                            : AssetImage(avatarUrl) as ImageProvider)
+                        : null,
+                    child: (avatarUrl == null || avatarUrl.isEmpty)
+                        ? Text(
+                            userInitial,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF4A454F),
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFEDF2),
+                        borderRadius: BorderRadius.circular(9999),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.centerLeft,
+                      child: TextField(
+                        controller: _commentController,
+                        focusNode: _commentFocusNode,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _submitComment(),
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          color: Color(0xFF1D1B1F),
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Ajouter un commentaire...',
+                          hintStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            color: Color(0xFF6B7280),
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    onPressed: _isSending ? null : _submitComment,
+                    icon: _isSending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(
+                            Icons.send_rounded,
+                            size: 20,
+                            color: Color(0xFF4A454F),
+                          ),
+                    splashRadius: 20,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -977,7 +1113,8 @@ class _CommentThreadState extends State<_CommentThread> {
 
   @override
   Widget build(BuildContext context) {
-    const repliesCount = 2;
+    final hasReply = widget.comment.reply.trim().isNotEmpty;
+    final repliesCount = hasReply ? 1 : 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -1170,21 +1307,14 @@ class _CommentThreadState extends State<_CommentThread> {
               child: Column(
                 children: [
                   
-                  _NestedReply(
-                    name: widget.comment.recruitorLabel,
-                    role: 'Recruteur',
-                    date: widget.comment.recruitorDate,
-                    text: widget.comment.reply,
-                    highlighted: true,
-                  ),
-                  const _NestedReply(
-                    name: 'David Chen',
-                    role: null,
-                    date: 'il y a 45m',
-                    text:
-                        "C'est toujours un plaisir de lire de tels témoignages. À très bientôt pour l'onboarding !",
-                    highlighted: false,
-                  ),
+                  if (hasReply)
+                    _NestedReply(
+                      name: widget.comment.recruitorLabel,
+                      role: 'Recruteur',
+                      date: widget.comment.recruitorDate,
+                      text: widget.comment.reply,
+                      highlighted: true,
+                    ),
                   InkWell(
                     onTap: widget.onToggle,
                     child: const Padding(

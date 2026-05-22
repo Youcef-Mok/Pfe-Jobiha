@@ -44,8 +44,14 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
     });
 
     final nearbyJobsAsync = ref.watch(nearbyJobsProvider);
-    final publishedJobsAsync = ref.watch(candidateAllPublishedJobsProvider);
-    final filteredJobsAsync = _stableJobs(nearbyJobsAsync, publishedJobsAsync);
+    final publishedJobsAsync = ref.watch(candidateFilteredPublishedJobsProvider);
+    final topJobsAsync = ref.watch(candidateAllPublishedJobsProvider);
+    final candidateFilters = ref.watch(candidateFiltersProvider);
+    final filteredJobsAsync = _stableJobs(
+      nearbyJobsAsync,
+      publishedJobsAsync,
+      !candidateFilters.isEmpty,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -63,10 +69,12 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
 
             // ── Featured horizontal cards ──────────
             SliverToBoxAdapter(
-              child: filteredJobsAsync.when(
+              child: topJobsAsync.when(
                     loading: () => _buildHeroShimmer(),
                     error: (_, __) => const SizedBox.shrink(),
-                    data: (jobs) => _buildHeroCards(jobs),
+                    data: (jobs) => jobs.isEmpty
+                        ? const SizedBox.shrink()
+                        : _buildHeroCards(jobs),
                   ),
             ),
 
@@ -92,6 +100,30 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
                     child: Center(child: Text('Erreur de chargement')),
                   ),
                   data: (list) {
+                    if (list.isEmpty) {
+                      return SliverToBoxAdapter(
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(
+                                color: const Color(0xFFEEEBF4), width: 1.5),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            candidateFilters.isEmpty
+                                ? 'Aucune annonce disponible pour le moment.'
+                                : 'Aucune annonce ne correspond à vos filtres.',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 14,
+                              color: Color(0xFF8D8DA6),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
                     return SliverToBoxAdapter(
                       child: Container(
                         margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
@@ -102,9 +134,24 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                        child: Column(
+                          child: Column(
                           children: list
-                              .map((job) => CandidateJobCard(job: job))
+                              .map((job) => CandidateJobCard(
+                                    job: job,
+                                    showApplyButton: true,
+                                    onApply: () async {
+                                      await ref
+                                          .read(applicationsNotifierProvider.notifier)
+                                          .apply(job.id);
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Candidature envoyee'),
+                                          backgroundColor: AppColors.violet,
+                                        ),
+                                      );
+                                    },
+                                  ))
                               .toList(),
                         ),
                       ),
@@ -121,12 +168,14 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
   AsyncValue<List<JobEntity>> _stableJobs(
     AsyncValue<List<JobEntity>> nearby,
     AsyncValue<List<JobEntity>> published,
+    bool hasActiveFilters,
   ) {
     return nearby.when(
       loading: () => published,
       error: (_, __) => published,
       data: (nearbyList) {
         if (nearbyList.isNotEmpty) return AsyncValue.data(nearbyList);
+        if (hasActiveFilters) return const AsyncValue.data(<JobEntity>[]);
         return published.whenData((list) => list);
       },
     );
@@ -135,22 +184,9 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
   // Top Section (Header + Search)
   Widget _buildTopSection() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: Row(
         children: [
-          // Avatar
-          Padding(
-            padding: const EdgeInsets.only(left: 10, right: 6),
-            child: Container(
-              width: 35,
-              height: 35,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.violet,
-              ),
-              child: const Icon(Icons.person, color: Colors.white, size: 18),
-            ),
-          ),
           // Search field
           Expanded(
             child: GestureDetector(
@@ -277,14 +313,16 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
   // Hero image cards (horizontal)
   // -----------------------------------------------------------------------------
   Widget _buildHeroCards(List<JobEntity> jobs) {
+    final sortedJobs = List<JobEntity>.from(jobs)
+      ..sort((a, b) => b.postedAt.compareTo(a.postedAt));
     return SizedBox(
       height: 223,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        itemCount: jobs.length,
+        itemCount: sortedJobs.length,
         separatorBuilder: (_, __) => const SizedBox(width: 24),
-        itemBuilder: (ctx, i) => _HeroJobCard(job: jobs[i]),
+        itemBuilder: (ctx, i) => _HeroJobCard(job: sortedJobs[i]),
       ),
     );
   }
@@ -565,7 +603,10 @@ class _FilterChips extends ConsumerWidget {
       chips.add(_FilterChip(
         label: filters.category!,
         isSelected: true,
-        onTap: () => showContractTypeSheet(context),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CandidateFiltersScreen()),
+        ),
         onRemove: () =>
             ref.read(candidateFiltersProvider.notifier).setCategory(null),
       ));
@@ -604,38 +645,22 @@ class _FilterChips extends ConsumerWidget {
     chips.add(_FilterChip(
       label: 'Horaires',
       showArrow: true,
-      onTap: () async {
-        await showAvailabilitySheet(context);
-        if (!context.mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CandidateSearchScreen()),
-        );
-      },
+      onTap: () => showAvailabilitySheet(context),
     ));
     chips.add(_FilterChip(
       label: 'Contrat',
       showArrow: true,
-      onTap: () async {
-        await showContractTypeSheet(context);
-        if (!context.mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CandidateSearchScreen()),
-        );
-      },
+      onTap: () => showContractTypeSheet(context),
     ));
     chips.add(_FilterChip(
       label: 'Localisation',
       showArrow: true,
-      onTap: () async {
-        await showLocationSheet(context);
-        if (!context.mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CandidateSearchScreen()),
-        );
-      },
+      onTap: () => showLocationSheet(context),
+    ));
+    chips.add(_FilterChip(
+      label: 'Domaine',
+      showArrow: true,
+      onTap: () => showDomainSheet(context),
     ));
 
     return SizedBox(
@@ -669,7 +694,7 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: isSelected ? null : onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(

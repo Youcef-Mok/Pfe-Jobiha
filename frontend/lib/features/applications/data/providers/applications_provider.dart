@@ -211,25 +211,41 @@ class CandidateFilters {
   final String? category;
   final List<String> availability;
   final String? location;
+  final double? locationLat;
+  final double? locationLng;
+  final double? locationRadiusKm;
   final List<String> contractTypes;
 
   const CandidateFilters({
     this.category,
     this.availability = const [],
     this.location,
+    this.locationLat,
+    this.locationLng,
+    this.locationRadiusKm,
     this.contractTypes = const [],
   });
 
   CandidateFilters copyWith({
-    String? category,
+    Object? category = _noValue,
     List<String>? availability,
-    String? location,
+    Object? location = _noValue,
+    Object? locationLat = _noValue,
+    Object? locationLng = _noValue,
+    Object? locationRadiusKm = _noValue,
     List<String>? contractTypes,
   }) =>
       CandidateFilters(
-        category: category ?? this.category,
+        category: identical(category, _noValue) ? this.category : category as String?,
         availability: availability ?? this.availability,
-        location: location ?? this.location,
+        location: identical(location, _noValue) ? this.location : location as String?,
+        locationLat:
+            identical(locationLat, _noValue) ? this.locationLat : locationLat as double?,
+        locationLng:
+            identical(locationLng, _noValue) ? this.locationLng : locationLng as double?,
+        locationRadiusKm: identical(locationRadiusKm, _noValue)
+            ? this.locationRadiusKm
+            : locationRadiusKm as double?,
         contractTypes: contractTypes ?? this.contractTypes,
       );
 
@@ -237,6 +253,9 @@ class CandidateFilters {
       category == null &&
       availability.isEmpty &&
       location == null &&
+      locationLat == null &&
+      locationLng == null &&
+      locationRadiusKm == null &&
       contractTypes.isEmpty;
 }
 
@@ -244,7 +263,19 @@ class CandidateFiltersNotifier extends StateNotifier<CandidateFilters> {
   CandidateFiltersNotifier() : super(const CandidateFilters());
 
   void setCategory(String? v) => state = state.copyWith(category: v);
-  void setLocation(String? v) => state = state.copyWith(location: v);
+  void setLocation(String? v) => state = state.copyWith(
+        location: v,
+        locationLat: v == null ? null : _noValue,
+        locationLng: v == null ? null : _noValue,
+        locationRadiusKm: v == null ? null : _noValue,
+      );
+  void setLocationGeo({double? lat, double? lng, double? radiusKm}) {
+    state = state.copyWith(
+      locationLat: lat,
+      locationLng: lng,
+      locationRadiusKm: radiusKm,
+    );
+  }
   void toggleAvailability(String v) {
     final list = List<String>.from(state.availability);
     if (list.contains(v)) {
@@ -267,6 +298,8 @@ class CandidateFiltersNotifier extends StateNotifier<CandidateFilters> {
 
   void reset() => state = const CandidateFilters();
 }
+
+const _noValue = Object();
 
 final candidateFiltersProvider =
     StateNotifierProvider<CandidateFiltersNotifier, CandidateFilters>(

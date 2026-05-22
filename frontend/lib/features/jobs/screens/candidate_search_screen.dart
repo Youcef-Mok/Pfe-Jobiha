@@ -30,7 +30,10 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(_onTextChanged);
-    Future.microtask(() => _focusNode.requestFocus());
+    Future.microtask(() {
+      ref.read(candidateJobSearchQueryProvider.notifier).state = '';
+      _focusNode.requestFocus();
+    });
   }
 
   void _onTextChanged() {
@@ -71,10 +74,8 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(candidateJobSearchQueryProvider);
-    final filters = ref.watch(candidateFiltersProvider);
+    ref.watch(candidateFiltersProvider);
     final jobsAsync = ref.watch(jobSearchProvider);
-    final nearbyAsync = ref.watch(nearbyJobsProvider);
-    final showFilterResultsWhenQueryEmpty = query.isEmpty && !filters.isEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -155,16 +156,14 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
               ),
             ),
             Expanded(
-              child: (query.isEmpty && !showFilterResultsWhenQueryEmpty)
+              child: query.isEmpty
                   ? _buildRecentSearches()
                   : Column(
                       children: [
                         const SizedBox(height: 8),
                         const _FilterChips(),
                         Expanded(
-                          child: showFilterResultsWhenQueryEmpty
-                              ? _buildFilterResults(nearbyAsync)
-                              : _buildSearchResults(jobsAsync),
+                          child: _buildSearchResults(jobsAsync),
                         ),
                       ],
                     ),
@@ -316,52 +315,6 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
     );
   }
 
-  Widget _buildFilterResults(AsyncValue<List<JobEntity>> jobsAsync) {
-    return Container(
-      color: Colors.white,
-      child: jobsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('Erreur de chargement')),
-        data: (results) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-                child: Text(
-                  '${results.length} Emplois disponibles',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                      child: Column(
-                        children: [
-                          for (final job in results) CandidateJobCard(job: job),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
 }
 
 // -----------------------------------------------------------------------------

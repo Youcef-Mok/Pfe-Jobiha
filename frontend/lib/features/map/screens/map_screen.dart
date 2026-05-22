@@ -10,9 +10,10 @@ import 'package:job_app/core/widgets/candidate_nav_bar.dart';
 import 'package:job_app/features/map/domain/map_job_entity.dart';
 import 'package:job_app/features/map/data/providers/map_providers.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
-import 'package:job_app/features/jobs/data/providers/jobs_provider.dart' hide recentSearchesProvider;
 import 'package:job_app/features/jobs/screens/candidate_filters_screen.dart';
+import 'package:job_app/features/jobs/screens/candidate_job_details_screen.dart';
 import 'package:job_app/features/jobs/widgets/candidate_job_card.dart';
+import 'package:job_app/features/applications/data/providers/applications_provider.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -82,6 +83,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _selectJob(MapJobEntity job) {
     ref.read(selectedMapJobProvider.notifier).state = job;
+    ref.read(recentSearchesProvider.notifier).addSearch(job.title);
 
     // Smoothly animate map to center on job icon, with offset to avoid overlay
     _animatedMapMove(LatLng(job.lat - 0.0038, job.lng), 15.5);
@@ -121,10 +123,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.invalidate(allMapJobsProvider);
     setState(() => _showSearch = true);
   }
-  void _closeSearch() => setState(() => _showSearch = false);
+  void _closeSearch() {
+    ref.read(mapSearchQueryProvider.notifier).state = '';
+    setState(() {
+      _showSearch = false;
+      _showResults = false;
+    });
+  }
   void _submitSearch(String q) {
     ref.read(mapSearchQueryProvider.notifier).state = q;
-    ref.read(candidateJobSearchQueryProvider.notifier).state = q;
     ref.invalidate(allMapJobsProvider);
     ref.read(recentSearchesProvider.notifier).addSearch(q);
     setState(() {
@@ -135,7 +142,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _clearResults() {
     ref.read(mapSearchQueryProvider.notifier).state = '';
-    ref.read(candidateJobSearchQueryProvider.notifier).state = '';
     setState(() {
       _showResults = false;
     });
@@ -254,7 +260,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final searchQuery = ref.watch(mapSearchQueryProvider);
     final selectedJob = ref.watch(selectedMapJobProvider);
     final filtered = ref.watch(filteredMapJobsProvider);
-    final searchResults = ref.watch(jobSearchProvider);
+    final mapFilters = ref.watch(mapFiltersProvider);
+    final candidateFilters = ref.watch(candidateFiltersProvider);
+    final hasActiveFilters = mapFilters.isNotEmpty || !candidateFilters.isEmpty;
+    final hasActiveSearch = searchQuery.trim().isNotEmpty;
     final gps = ref.watch(userGpsPositionProvider);
     final userEntity = ref.watch(candidateCurrentUserProvider).valueOrNull;
     final userLat = gps?.lat ?? userEntity?.latitude ?? _defaultLat;
@@ -389,6 +398,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   selectedJob: selectedJob,
                   allJobs: filtered,
                   onJobTap: _selectJob,
+                  hasActiveFilters: hasActiveFilters,
+                  hasActiveSearch: hasActiveSearch,
                 );
               },
             ),
@@ -402,13 +413,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
               top: MediaQuery.of(context).padding.top + 132,
               child: _SearchResultsSheet(
                 query: searchQuery,
-                jobs: searchResults.valueOrNull ?? const [],
+                hasActiveFilters: hasActiveFilters,
                 onClose: _clearResults,
-                onJobTap: (j) {
+                onJobTap: (job) {
                   _clearResults();
-                  if (j.latitude != null && j.longitude != null) {
+                  if (job.latitude != null && job.longitude != null) {
                     _animatedMapMove(
-                        LatLng(j.latitude! - 0.0038, j.longitude!), 15.5);
+                      LatLng(job.latitude!, job.longitude!),
+                      15.5,
+                    );
                   }
                 },
               ),
@@ -434,7 +447,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   onSearchTap: _openSearch,
                   hideSearchBar: false,
                   hideFilterRow: false,
-                  onFilterApplied: () => setState(() => _showResults = true),
+                  onFilterApplied: () {
+                    ref.invalidate(allMapJobsProvider);
+                    setState(() => _showResults = true);
+                  },
                 ),
               );
             }(),
@@ -1427,12 +1443,16 @@ class _BottomSheet extends StatelessWidget {
   final MapJobEntity? selectedJob;
   final List<MapJobEntity> allJobs;
   final Function(MapJobEntity) onJobTap;
+  final bool hasActiveFilters;
+  final bool hasActiveSearch;
 
   const _BottomSheet({
     required this.scrollController,
     required this.selectedJob,
     required this.allJobs,
     required this.onJobTap,
+    required this.hasActiveFilters,
+    required this.hasActiveSearch,
   });
 
   @override
@@ -1482,6 +1502,8 @@ class _BottomSheet extends StatelessWidget {
           selectedJob: null,
           allJobs: allJobs,
           onJobTap: onJobTap,
+          hasActiveFilters: hasActiveFilters,
+          hasActiveSearch: hasActiveSearch,
         ),
       ),
     );
@@ -1494,12 +1516,16 @@ class _BottomSheetContent extends ConsumerStatefulWidget {
   final MapJobEntity? selectedJob;
   final List<MapJobEntity> allJobs;
   final Function(MapJobEntity) onJobTap;
+  final bool hasActiveFilters;
+  final bool hasActiveSearch;
 
   const _BottomSheetContent({
     required this.scrollController,
     required this.selectedJob,
     required this.allJobs,
     required this.onJobTap,
+    required this.hasActiveFilters,
+    required this.hasActiveSearch,
   });
 
   @override
@@ -1515,7 +1541,10 @@ class _BottomSheetContentState extends ConsumerState<_BottomSheetContent> {
     widget.scrollController.addListener(_onScroll);
   }
 
-  void _onScroll() {}
+  void _onScroll() {
+    // When user scrolls the sheet controller, check if we're at max
+    // We use the DraggableScrollableSheet notification instead
+  }
 
   @override
   void dispose() {
@@ -1525,10 +1554,9 @@ class _BottomSheetContentState extends ConsumerState<_BottomSheetContent> {
 
   @override
   Widget build(BuildContext context) {
-    final nearbyAsync = ref.watch(nearbyJobsProvider);
-
     return NotificationListener<DraggableScrollableNotification>(
       onNotification: (n) {
+        // Only show 'Nearby jobs' list when clearly expanded
         final expanded = n.extent >= 0.70;
         if (expanded != _isExpanded) {
           setState(() => _isExpanded = expanded);
@@ -1537,6 +1565,7 @@ class _BottomSheetContentState extends ConsumerState<_BottomSheetContent> {
       },
       child: CustomScrollView(
         controller: widget.scrollController,
+        // Using ClampingScrollPhysics allows the sheet to drag properly
         physics: const ClampingScrollPhysics(),
         slivers: [
           // Header + Suggestions (visible in both states)
@@ -1573,10 +1602,10 @@ class _BottomSheetContentState extends ConsumerState<_BottomSheetContent> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 padding: const EdgeInsets.all(12),
-                child: nearbyAsync.when(
-                  loading: () => const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
+                child: ref.watch(mapNearbyJobsProvider).when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
                       child: CircularProgressIndicator(
                         color: Color(0xFF401E66),
                         strokeWidth: 2.5,
@@ -1584,11 +1613,26 @@ class _BottomSheetContentState extends ConsumerState<_BottomSheetContent> {
                     ),
                   ),
                   error: (_, __) => const SizedBox.shrink(),
-                  data: (jobs) => Column(
-                    children: jobs
-                        .map((job) => CandidateJobCard(job: job))
-                        .toList(),
-                  ),
+                  data: (jobs) => jobs.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'Aucun emploi à proximité',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 14,
+                              color: Color(0xFF8D8DA6),
+                            ),
+                          ),
+                        )
+                      : Column(
+                          children: jobs
+                              .map((job) => CandidateJobCard(
+                                    job: _mapJobToEntity(job),
+                                    onTap: () => widget.onJobTap(job),
+                                  ))
+                              .toList(),
+                        ),
                 ),
               ),
             ),
@@ -1644,6 +1688,8 @@ class _BottomSheetContentState extends ConsumerState<_BottomSheetContent> {
           _SuggestionsCardList(
             jobs: widget.allJobs,
             onJobTap: widget.onJobTap,
+            hasActiveFilters: widget.hasActiveFilters,
+            hasActiveSearch: widget.hasActiveSearch,
           ),
       ],
     );
@@ -1654,11 +1700,46 @@ class _BottomSheetContentState extends ConsumerState<_BottomSheetContent> {
 class _SuggestionsCardList extends StatelessWidget {
   final List<MapJobEntity> jobs;
   final Function(MapJobEntity) onJobTap;
+  final bool hasActiveFilters;
+  final bool hasActiveSearch;
 
-  const _SuggestionsCardList({required this.jobs, required this.onJobTap});
+  const _SuggestionsCardList({
+    required this.jobs,
+    required this.onJobTap,
+    required this.hasActiveFilters,
+    required this.hasActiveSearch,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (jobs.isEmpty) {
+      final message = hasActiveSearch
+          ? 'Aucune annonce trouvée pour cette recherche.'
+          : hasActiveFilters
+              ? 'Aucune annonce ne correspond à vos filtres.'
+              : 'Aucune annonce disponible pour le moment.';
+      return Container(
+        height: 140,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Center(
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 14,
+              color: Color(0xFF8D8DA6),
+            ),
+          ),
+        ),
+      );
+    }
     return SizedBox(
       height: 227,
       child: ListView.separated(
@@ -1675,14 +1756,14 @@ class _SuggestionsCardList extends StatelessWidget {
 }
 
 // ─── Suggestion card (image + title + company + 2 buttons) ───────────────────
-class _SuggestionCard extends StatelessWidget {
+class _SuggestionCard extends ConsumerWidget {
   final MapJobEntity job;
   final VoidCallback onTap;
 
   const _SuggestionCard({required this.job, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1712,10 +1793,7 @@ class _SuggestionCard extends StatelessWidget {
                     width: 280,
                     height: 105,
                     child: job.imageAsset != null
-                        ? Image.asset(job.imageAsset!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                Container(color: const Color(0xFF334155)))
+                        ? _buildMapImage(job.imageAsset!, fit: BoxFit.cover)
                         : Container(color: const Color(0xFF334155)),
                   ),
                   // Gradient overlay
@@ -1799,30 +1877,33 @@ class _SuggestionCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      // Candidater button
+                      // Postuler button
                       Expanded(
-                        child: Container(
-                          height: 36,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Color(0xFF331554),
-                                Color(0xFF4A2D6B),
-                              ],
-                              transform: GradientRotation(1.86),
+                        child: GestureDetector(
+                          onTap: () => _applyToJobFromMap(context, ref, job),
+                          child: Container(
+                            height: 36,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Color(0xFF331554),
+                                  Color(0xFF4A2D6B),
+                                ],
+                                transform: GradientRotation(1.86),
+                              ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'Candidater',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                                color: Colors.white,
+                            child: const Center(
+                              child: Text(
+                                'Postuler',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
@@ -1871,27 +1952,56 @@ class _SuggestionCard extends StatelessWidget {
   }
 }
 
-ContractType _parseContractType(String raw) {
-  final ct = raw.trim().toLowerCase();
-  if (ct == 'cdi') return ContractType.cdi;
-  if (ct == 'freelance') return ContractType.freelance;
-  return ContractType.mission;
-}
-
 JobEntity _mapJobToEntity(MapJobEntity mapJob) {
+  ContractType contract = ContractType.mission;
+  switch (mapJob.contractType.trim().toLowerCase()) {
+    case 'cdi':
+      contract = ContractType.cdi;
+      break;
+    case 'freelance':
+      contract = ContractType.freelance;
+      break;
+    case 'mission':
+    case 'cdd':
+    default:
+      contract = ContractType.mission;
+      break;
+  }
+
+  JobStatus status = JobStatus.searching;
+  switch (mapJob.status.trim().toLowerCase()) {
+    case 'draft':
+      status = JobStatus.draft;
+      break;
+    case 'closed':
+      status = JobStatus.closed;
+      break;
+    case 'searching':
+    default:
+      status = JobStatus.searching;
+      break;
+  }
+
   return JobEntity(
     id: mapJob.id,
     title: mapJob.title,
+    description: mapJob.description ?? '',
     companyName: mapJob.company,
-    contractType: _parseContractType(mapJob.contractType),
+    recruiterName: mapJob.recruiterName ?? '',
+    recruiterRole: mapJob.recruiterRole ?? '',
+    recruiterAvatarAsset: mapJob.recruiterAvatar,
+    contractType: contract,
+    city: mapJob.city.isNotEmpty ? mapJob.city : null,
     location: mapJob.city.isNotEmpty ? mapJob.city : null,
     scheduleLabel: mapJob.hours.isNotEmpty ? mapJob.hours : null,
-    postedAt: DateTime.now(),
-    status: JobStatus.searching,
-    candidateCount: 0,
-    viewCount: 0,
+    latitude: mapJob.lat,
+    longitude: mapJob.lng,
+    postedAt: mapJob.postedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+    status: status,
+    candidateCount: mapJob.candidateCount,
+    viewCount: mapJob.viewCount,
     logoAsset: mapJob.imageAsset,
-    isPublished: true,
+    isPublished: status == JobStatus.searching,
   );
 }
 
@@ -1902,32 +2012,116 @@ Future<void> _openGoogleMapsItinerary(MapJobEntity job) async {
   await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
+Widget _buildMapImage(String source, {BoxFit fit = BoxFit.cover}) {
+  if (source.startsWith('http://') || source.startsWith('https://')) {
+    return Image.network(
+      source,
+      fit: fit,
+      errorBuilder: (_, __, ___) => Container(color: const Color(0xFF334155)),
+    );
+  }
+  return Image.asset(
+    source,
+    fit: fit,
+    errorBuilder: (_, __, ___) => Container(color: const Color(0xFF334155)),
+  );
+}
+
+Future<String?> _showMotivationLetterOverlay(BuildContext context) async {
+  final controller = TextEditingController();
+  final result = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) {
+      return Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Lettre de motivation',
+              style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                hintText: 'Ecrivez votre motivation...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Annuler'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                    child: const Text('Envoyer'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
+  controller.dispose();
+  return result;
+}
+
+Future<void> _applyToJobFromMap(
+  BuildContext context,
+  WidgetRef ref,
+  MapJobEntity job,
+) async {
+  final motivationLetter = await _showMotivationLetterOverlay(context);
+  if (motivationLetter == null) return;
+  await ref
+      .read(applicationsNotifierProvider.notifier)
+      .apply(job.id, motivationLetter: motivationLetter);
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Candidature envoyee.')),
+    );
+  }
+}
+
 // ─── Selected job detail ───────────────────────────────────────────────────────
-class _SelectedJobDetail extends StatelessWidget {
+class _SelectedJobDetail extends ConsumerWidget {
   final MapJobEntity job;
   final VoidCallback? onClose;
   const _SelectedJobDetail({required this.job, this.onClose});
 
   void _openJobDetails(BuildContext context, MapJobEntity mapJob) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: false,
-      enableDrag: true,
-      isDismissible: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => FractionallySizedBox(
-        heightFactor: 0.88,
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
-          child: _MapJobDetailsOverlay(job: mapJob),
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CandidateJobDetailsScreen(job: _mapJobToEntity(mapJob)),
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
       height: 352,
       child: Stack(
@@ -1945,7 +2139,7 @@ class _SelectedJobDetail extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   job.imageAsset != null
-                      ? Image.asset(job.imageAsset!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF334155)))
+                      ? _buildMapImage(job.imageAsset!, fit: BoxFit.cover)
                       : Container(color: const Color(0xFF334155)),
                   // Gradient
                   DecoratedBox(
@@ -2201,28 +2395,31 @@ class _SelectedJobDetail extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Candidater — gradient, radius 12, width 134
+                // Postuler — gradient, radius 12, width 134
                 SizedBox(
                   width: 134,
                   height: 40,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [Color(0xFF331554), Color(0xFF4A2D6B)],
+                  child: GestureDetector(
+                    onTap: () => _applyToJobFromMap(context, ref, job),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Color(0xFF331554), Color(0xFF4A2D6B)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'Candidater',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          height: 1,
-                          color: Colors.white,
+                      child: const Center(
+                        child: Text(
+                          'Postuler',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            height: 1,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -2302,12 +2499,7 @@ class _MapJobDetailsOverlayState extends State<_MapJobDetailsOverlay> {
                   fit: StackFit.expand,
                   children: [
                     job.imageAsset != null
-                        ? Image.asset(
-                            job.imageAsset!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                Container(color: const Color(0xFF334155)),
-                          )
+                        ? _buildMapImage(job.imageAsset!, fit: BoxFit.cover)
                         : Container(color: const Color(0xFF334155)),
                     Positioned(
                       top: 12,
@@ -2432,10 +2624,14 @@ class _MapJobDetailsOverlayState extends State<_MapJobDetailsOverlay> {
                       _mapSectionHeader('Job Description'),
                       const SizedBox(height: 12),
                       _jobDescriptionCard(job),
-                      const SizedBox(height: 16),
-                      _managerSectionHeader(),
-                      const SizedBox(height: 12),
-                      const _HiringManagerStaticCard(),
+                      if ((job.recruiterName ?? '').trim().isNotEmpty ||
+                          (job.recruiterRole ?? '').trim().isNotEmpty ||
+                          (job.recruiterAvatar ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _managerSectionHeader(),
+                        const SizedBox(height: 12),
+                        _HiringManagerCard(job: job),
+                      ],
                     ] else ...[
                       _mapSectionHeader('Commentaires'),
                       const SizedBox(height: 12),
@@ -2508,9 +2704,11 @@ class _MapJobDetailsOverlayState extends State<_MapJobDetailsOverlay> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'We are seeking a visionary Senior Product Designer to join our core product team. You will be responsible for defining the user experience of our next-generation creative platform.',
-            style: TextStyle(
+          Text(
+            (job.description ?? '').trim().isNotEmpty
+                ? job.description!.trim()
+                : 'Description non disponible.',
+            style: const TextStyle(
               fontFamily: 'Inter',
               fontWeight: FontWeight.w400,
               fontSize: 15,
@@ -2519,27 +2717,11 @@ class _MapJobDetailsOverlayState extends State<_MapJobDetailsOverlay> {
             ),
           ),
           const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.only(left: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _StaticBullet('Drive the design process from discovery through delivery.'),
-                SizedBox(height: 8),
-                _StaticBullet('Collaborate with engineers to ensure high-fidelity implementation.'),
-                SizedBox(height: 8),
-                _StaticBullet('Maintain and evolve our internal design system.'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
               _StaticTag(job.contractType.toUpperCase()),
-              _StaticTag('PART-TIME'),
-              _StaticTag('REMOTE'),
               _StaticTagWithIcon(label: job.hours, icon: Icons.access_time),
               _StaticTagWithIcon(
                   label: job.city.isNotEmpty ? job.city : 'Ville non precisee',
@@ -2723,11 +2905,15 @@ class _StaticTagWithIcon extends StatelessWidget {
   }
 }
 
-class _HiringManagerStaticCard extends StatelessWidget {
-  const _HiringManagerStaticCard();
+class _HiringManagerCard extends StatelessWidget {
+  final MapJobEntity job;
+  const _HiringManagerCard({required this.job});
 
   @override
   Widget build(BuildContext context) {
+    final recruiterName = (job.recruiterName ?? '').trim();
+    final recruiterRole = (job.recruiterRole ?? '').trim();
+    final recruiterAvatar = (job.recruiterAvatar ?? '').trim();
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -2738,74 +2924,34 @@ class _HiringManagerStaticCard extends StatelessWidget {
       child: Row(
         children: [
           ClipOval(
-            child: Image.asset(
-              'assets/images/pdp_1.png',
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 56,
-                height: 56,
-                color: const Color(0xFFE9E6EC),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.person,
-                  size: 30,
-                  color: Color(0xFF401E66),
-                ),
-              ),
-            ),
+            child: _buildAvatar(recruiterAvatar),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sarah Jenkins',
-                  style: TextStyle(
+                  recruiterName.isNotEmpty ? recruiterName : 'Recruteur',
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                     color: Color(0xFF1D1B1F),
                   ),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Head of Design',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w400,
-                    fontSize: 12,
-                    color: Color(0xFF665976),
+                if (recruiterRole.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    recruiterRole,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w400,
+                      fontSize: 12,
+                      color: Color(0xFF665976),
+                    ),
                   ),
-                ),
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.star, size: 12, color: Color(0xFF6F5D1D)),
-                    SizedBox(width: 4),
-                    Text(
-                      '4.9',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: Color(0xFF1D1B1F),
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      '(42 reviews)',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w400,
-                        fontSize: 12,
-                        color: Color(0xFF7C7580),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ],
             ),
           ),
@@ -2823,6 +2969,42 @@ class _HiringManagerStaticCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(String source) {
+    if (source.isNotEmpty) {
+      if (source.startsWith('http://') || source.startsWith('https://')) {
+        return Image.network(
+          source,
+          width: 56,
+          height: 56,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _fallbackAvatar(),
+        );
+      }
+      return Image.asset(
+        source,
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackAvatar(),
+      );
+    }
+    return _fallbackAvatar();
+  }
+
+  Widget _fallbackAvatar() {
+    return Container(
+      width: 56,
+      height: 56,
+      color: const Color(0xFFE9E6EC),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.person,
+        size: 30,
+        color: Color(0xFF401E66),
       ),
     );
   }
@@ -2862,13 +3044,14 @@ class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
           orElse: () => const <MapJobEntity>[],
         );
     final q = _controller.text.trim().toLowerCase();
-    final jobSuggestions = allJobs
-        .where((j) =>
-            q.isEmpty ||
-            j.title.toLowerCase().contains(q) ||
-            j.company.toLowerCase().contains(q))
-        .take(6)
-        .toList();
+    final jobSuggestions = q.isEmpty
+        ? const <MapJobEntity>[]
+        : allJobs
+            .where((j) =>
+                j.title.toLowerCase().contains(q) ||
+                j.company.toLowerCase().contains(q))
+            .take(6)
+            .toList();
 
     return Material(
       color: Colors.white,
@@ -3008,7 +3191,7 @@ class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
                           onTap: () => widget.onSubmit(s),
                         )),
 
-                    // Job suggestions from all nearby jobs
+                    // Job suggestions from API /jobs/map
                     ...jobSuggestions.map((j) => _SearchItem(
                           icon: j.categoryIcon,
                           iconBg: const Color(0xFFEFEDF2),
@@ -3018,6 +3201,18 @@ class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
                           titleColor: const Color(0xFF401E66),
                           onTap: () => widget.onSubmit(j.title),
                         )),
+                    if (q.isNotEmpty && jobSuggestions.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(24, 8, 24, 8),
+                        child: Text(
+                          'Aucune annonce ne correspond à votre recherche.',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14,
+                            color: Color(0xFF8D8DA6),
+                          ),
+                        ),
+                      ),
 
                     // Voir plus
                     Padding(
@@ -3121,21 +3316,23 @@ class _SearchItem extends StatelessWidget {
 
 
 // ──────────────────────────────────────────────────────────────────────────
-class _SearchResultsSheet extends StatelessWidget {
+class _SearchResultsSheet extends ConsumerWidget {
   final String query;
-  final List<JobEntity> jobs;
   final Function(JobEntity) onJobTap;
   final VoidCallback? onClose;
+  final bool hasActiveFilters;
 
   const _SearchResultsSheet({
     required this.query,
-    required this.jobs,
     required this.onJobTap,
     this.onClose,
+    required this.hasActiveFilters,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final jobsAsync = ref.watch(mapSearchResultsProvider);
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -3156,18 +3353,19 @@ class _SearchResultsSheet extends StatelessWidget {
             ),
           ),
 
-          // Header: map-search icon + resultat + filter icon
+          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
             child: Row(
               children: [
-                const Icon(Icons.map_outlined,
-                    size: 22, color: Color(0xFF331554)),
+                const Icon(Icons.map_outlined, size: 22, color: Color(0xFF331554)),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'resultat',
-                    style: TextStyle(
+                    query.isNotEmpty ? '"$query"' : 'Résultats',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w600,
                       fontSize: 20,
@@ -3177,30 +3375,59 @@ class _SearchResultsSheet extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: onClose,
-                  child: const Icon(Icons.close,
-                      size: 24, color: Color(0xFF331554)),
+                  child: const Icon(Icons.close, size: 24, color: Color(0xFF331554)),
                 ),
               ],
             ),
           ),
 
-          // Job list with frame
+          // Job list
           Expanded(
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: jobs.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (ctx, i) => CandidateJobCard(
-                  job: jobs[i],
-                  onTap: () => onJobTap(jobs[i]),
+            child: jobsAsync.when(
+              loading: () => const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF401E66),
+                  strokeWidth: 2.5,
                 ),
               ),
+              error: (_, __) => const Center(
+                child: Text(
+                  'Erreur de chargement',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Color(0xFF8D8DA6)),
+                ),
+              ),
+              data: (jobs) => jobs.isEmpty
+                  ? Center(
+                      child: Text(
+                        query.trim().isNotEmpty
+                            ? 'Aucune annonce trouvée pour \"$query\".'
+                            : hasActiveFilters
+                                ? 'Aucune annonce ne correspond à vos filtres.'
+                                : 'Aucun résultat.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14,
+                          color: Color(0xFF8D8DA6),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: jobs.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 16),
+                        itemBuilder: (ctx, i) => CandidateJobCard(
+                          job: jobs[i],
+                          onTap: () => onJobTap(jobs[i]),
+                        ),
+                      ),
+                    ),
             ),
           ),
         ],

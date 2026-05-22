@@ -13,6 +13,8 @@ class CandidateJobCard extends ConsumerWidget {
   final String? interviewDate;
   final VoidCallback? onTap;
   final bool showSaveButton;
+  final bool showApplyButton;
+  final VoidCallback? onApply;
 
   const CandidateJobCard({
     super.key,
@@ -21,6 +23,8 @@ class CandidateJobCard extends ConsumerWidget {
     this.interviewDate,
     this.onTap,
     this.showSaveButton = true,
+    this.showApplyButton = false,
+    this.onApply,
   });
 
   @override
@@ -200,6 +204,37 @@ class CandidateJobCard extends ConsumerWidget {
                                 ),
                               ),
                             ],
+                          ),
+                        ],
+                        if (showApplyButton) ...[
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: SizedBox(
+                              height: 34,
+                              child: ElevatedButton(
+                                onPressed: onApply,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.violet,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Postuler',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ],

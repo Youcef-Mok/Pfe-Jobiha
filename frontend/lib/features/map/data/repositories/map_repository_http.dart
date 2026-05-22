@@ -27,7 +27,7 @@ class MapRepositoryHttp implements MapRepository {
     }
     if (category != null) params['category'] = category;
     if (contractType != null) params['contract_type'] = contractType;
-    // Do not limit by distance server-side; we sort client-side by proximity.
+    if (maxDistanceKm != null) params['max_distance_km'] = maxDistanceKm;
     final resp =
         await _dio.get(ApiEndpoints.mapJobs, queryParameters: params.isEmpty ? null : params);
     final list = _results(resp.data);
@@ -57,7 +57,7 @@ class MapRepositoryHttp implements MapRepository {
   @override
   Future<void> saveRecentSearch(String query) async {
     if (query.isEmpty) return;
-    await _dio.post(ApiEndpoints.recentSearches, data: {'query': query});
+    await _dio.post(ApiEndpoints.recentSearchCreate, data: {'query': query});
   }
 
   @override
@@ -86,10 +86,17 @@ class MapRepositoryHttp implements MapRepository {
       hours: (j['hours'] ?? j['schedule_label'] ?? '') as String,
       salary: _asDouble(j['salary']) ?? 0.0,
       contractType: (j['contract_type'] ?? '') as String,
+      status: (j['status'] ?? 'searching').toString(),
+      postedAt: _asDateTime(j['posted_at']),
+      candidateCount: _asInt(j['candidate_count']),
+      viewCount: _asInt(j['view_count']),
       rating: _asDouble(j['rating']) ?? 0.0,
       imageAsset: (j['image_asset'] ?? j['logo_asset']) as String?,
       recruiterAvatar:
           (j['recruiter_avatar'] ?? j['recruiter_avatar_asset']) as String?,
+      recruiterName: (j['recruiter_name'] ?? j['recruiter']) as String?,
+      recruiterRole: (j['recruiter_role'] ?? j['recruiter_title']) as String?,
+      description: (j['description'] ?? j['summary']) as String?,
       lat: lat,
       lng: lng,
       categoryIcon: _iconForCategory(category),
@@ -100,6 +107,21 @@ class MapRepositoryHttp implements MapRepository {
     if (value == null) return null;
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString());
+  }
+
+  int _asInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  DateTime? _asDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is String && value.trim().isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
   }
 
   static IconData _iconForCategory(String category) {

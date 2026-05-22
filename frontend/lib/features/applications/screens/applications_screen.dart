@@ -19,6 +19,11 @@ class ApplicationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appsAsync = ref.watch(candidateApplicationsListProvider);
     final overlayFilter = ref.watch(applicationsOverlayFilterProvider);
+    final publishedJobsAsync = ref.watch(candidateAllPublishedJobsProvider);
+    final publishedJobsById = publishedJobsAsync.maybeWhen(
+      data: (jobs) => {for (final j in jobs) j.id: j},
+      orElse: () => const <String, JobEntity>{},
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -46,7 +51,13 @@ class ApplicationsScreen extends ConsumerWidget {
                 error: (_, __) =>
                     const Center(child: Text('Erreur de chargement')),
                 data: (apps) =>
-                    _buildList(context, ref, apps, overlayFilter),
+                    _buildList(
+                      context,
+                      ref,
+                      apps,
+                      overlayFilter,
+                      publishedJobsById,
+                    ),
               ),
             ),
           ],
@@ -91,6 +102,7 @@ class ApplicationsScreen extends ConsumerWidget {
     WidgetRef ref,
     List<ApplicationEntity> apps,
     String overlayFilter,
+    Map<String, JobEntity> jobsById,
   ) {
     if (apps.isEmpty) {
       return Center(
@@ -166,7 +178,7 @@ class ApplicationsScreen extends ConsumerWidget {
                   children: [
                     for (final app in apps)
                       CandidateJobCard(
-                        job: _fallbackJob(app),
+                        job: jobsById[app.jobId] ?? _fallbackJob(app),
                         applicationStatus: app.status,
                         interviewDate: app.status == ApplicationStatus.accepted
                             ? app.interviewDate
@@ -204,11 +216,23 @@ class ApplicationsScreen extends ConsumerWidget {
   }
 
   JobEntity _fallbackJob(ApplicationEntity app) {
+    final rawLocation = app.location.trim();
+    final city = rawLocation.isEmpty
+        ? null
+        : (rawLocation.contains(',')
+            ? rawLocation.split(',').first.trim()
+            : rawLocation);
     return JobEntity(
       id: app.jobId,
       title: app.jobTitle,
       companyName: app.companyName,
+      department: app.department,
       contractType: app.contractType,
+      city: city,
+      location: rawLocation.isEmpty ? null : rawLocation,
+      scheduleLabel: app.scheduleLabel?.trim().isNotEmpty == true
+          ? app.scheduleLabel!.trim()
+          : null,
       postedAt: app.appliedAt,
       status: JobStatus.searching,
       candidateCount: 0,

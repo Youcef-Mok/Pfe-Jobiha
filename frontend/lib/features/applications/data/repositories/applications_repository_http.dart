@@ -27,15 +27,29 @@ class ApplicationsRepositoryHttp implements ApplicationsRepository {
     String jobId, {
     String? motivationLetter,
   }) async {
-    final resp = await _dio.post(
-      ApiEndpoints.appliedJobs,
-      data: {
-        'job_id': jobId,
-        if (motivationLetter != null && motivationLetter.trim().isNotEmpty)
-          'motivation_letter': motivationLetter.trim(),
-      },
-    );
-    return ApplicationModel.fromJson(resp.data as Map<String, dynamic>).toEntity();
+    final payload = <String, dynamic>{
+      'job_id': jobId,
+      if (motivationLetter != null && motivationLetter.trim().isNotEmpty)
+        'motivation_letter': motivationLetter.trim(),
+    };
+    try {
+      final resp = await _dio.post(ApiEndpoints.appliedJobs, data: payload);
+      return ApplicationModel.fromJson(resp.data as Map<String, dynamic>).toEntity();
+    } on DioException catch (e) {
+      final status = e.response?.statusCode ?? 0;
+      if (status == 400 || status == 422) {
+        final retryPayload = <String, dynamic>{
+          'offre_id': jobId,
+          if (motivationLetter != null && motivationLetter.trim().isNotEmpty)
+            'motivation_letter': motivationLetter.trim(),
+        };
+        final retry =
+            await _dio.post(ApiEndpoints.appliedJobs, data: retryPayload);
+        return ApplicationModel.fromJson(retry.data as Map<String, dynamic>)
+            .toEntity();
+      }
+      rethrow;
+    }
   }
 
   @override

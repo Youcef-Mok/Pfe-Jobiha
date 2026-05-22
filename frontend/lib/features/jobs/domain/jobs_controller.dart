@@ -283,4 +283,7 @@ class JobsController {
   Future<MissionEntity> updateMissionReview(String missionId, double rating, String feedback) async {
     return _repository.updateMissionReview(missionId, rating, feedback);
   }
+  Future<JobCommentEntity> addJobComment(String jobId, String question) async {
+    return _repository.addJobComment(jobId, question);
+  }
 }

@@ -1,8 +1,6 @@
-import 'dart:math' as math;
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
 
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
@@ -120,6 +118,13 @@ final candidateAllPublishedJobsProvider = Provider<AsyncValue<List<JobEntity>>>(
   return jobsAsync.whenData(controller.filterPublished);
 });
 
+final candidateFilteredPublishedJobsProvider =
+    Provider<AsyncValue<List<JobEntity>>>((ref) {
+  final jobsAsync = ref.watch(candidateAllPublishedJobsProvider);
+  final filters = ref.watch(candidateFiltersProvider);
+  return jobsAsync.whenData((jobs) => _applyCandidateFilters(jobs, filters));
+});
+
 /// Offres proches du user — GPS live > coordonnées profil > wilaya.
 /// Réactif aux filtres actifs du candidat.
 final nearbyJobsProvider = AutoDisposeFutureProvider<List<JobEntity>>((ref) async {
@@ -127,8 +132,10 @@ final nearbyJobsProvider = AutoDisposeFutureProvider<List<JobEntity>>((ref) asyn
   final user = ref.watch(candidateCurrentUserProvider).valueOrNull;
   final filters = ref.watch(candidateFiltersProvider);
 
-  final lat = gps?.lat ?? user?.latitude;
-  final lng = gps?.lng ?? user?.longitude;
+  final hasLocationPoint =
+      filters.locationLat != null && filters.locationLng != null;
+  final lat = hasLocationPoint ? filters.locationLat : (gps?.lat ?? user?.latitude);
+  final lng = hasLocationPoint ? filters.locationLng : (gps?.lng ?? user?.longitude);
   final hasGps = lat != null && lng != null;
   final hasLocation = user?.location != null && user!.location.isNotEmpty;
   final selectedLocation = (filters.location ?? '').trim();
@@ -138,22 +145,27 @@ final nearbyJobsProvider = AutoDisposeFutureProvider<List<JobEntity>>((ref) asyn
   final contractType = _mapContractTypeToApi(
     filters.contractTypes.isNotEmpty ? filters.contractTypes.first : null,
   );
-
-  final jobs = await ref.read(jobsControllerProvider).fetchNearbyJobs(
-    lat: hasGps ? lat : null,
-    lng: hasGps ? lng : null,
-    location: locationParam,
-    category: filters.category,
-    contractType: contractType,
-  );
+  final jobs = await ref.read(jobsRepositoryProvider).getAllJobs(
+        lat: hasGps ? lat : null,
+        lng: hasGps ? lng : null,
+        maxDistanceKm: hasLocationPoint ? (filters.locationRadiusKm ?? 10.0) : 30.0,
+        location: hasLocationPoint ? null : locationParam,
+        category: filters.category,
+        contractType: contractType,
+      );
 
   // Apply full filter set client-side so selected homepage filters always
   // have a visible effect, even if API supports only a subset.
-  final filtered = jobs.where((job) {
+  return _applyCandidateFilters(jobs, filters);
+});
+
+List<JobEntity> _applyCandidateFilters(
+  List<JobEntity> jobs,
+  CandidateFilters filters,
+) {
+  return jobs.where((job) {
     if (filters.category != null && filters.category!.trim().isNotEmpty) {
-      final selected = _normalizeFilterValue(filters.category!);
-      final dept = _normalizeFilterValue(job.department);
-      if (dept != selected) return false;
+      if (!_matchesDomain(job, filters.category!)) return false;
     }
 
     if (filters.contractTypes.isNotEmpty) {
@@ -169,7 +181,9 @@ final nearbyJobsProvider = AutoDisposeFutureProvider<List<JobEntity>>((ref) asyn
       if (!ok) return false;
     }
 
-    if (filters.location != null && filters.location!.trim().isNotEmpty) {
+    if (!hasLocationPoint &&
+        filters.location != null &&
+        filters.location!.trim().isNotEmpty) {
       final q = _normalizeFilterValue(filters.location!);
       final haystack =
           '${job.location ?? ''} ${job.companyName} ${job.department} ${job.title}'
@@ -190,23 +204,7 @@ final nearbyJobsProvider = AutoDisposeFutureProvider<List<JobEntity>>((ref) asyn
     }
     return true;
   }).toList();
-
-  // Sort by proximity — closest first; jobs with no GPS go to the end.
-  if (hasGps) {
-    final refLat = lat;
-    final refLng = lng;
-    filtered.sort((a, b) {
-      final da = (a.latitude != null && a.longitude != null)
-          ? _jobDistanceKm(refLat, refLng, a.latitude!, a.longitude!)
-          : double.infinity;
-      final db = (b.latitude != null && b.longitude != null)
-          ? _jobDistanceKm(refLat, refLng, b.latitude!, b.longitude!)
-          : double.infinity;
-      return da.compareTo(db);
-    });
-  }
-  return filtered;
-});
+}
 
 String? _mapContractTypeToApi(String? label) {
   if (label == null) return null;
@@ -216,6 +214,34 @@ String? _mapContractTypeToApi(String? label) {
     'freelance' => 'freelance',
     _ => null,
   };
+}
+
+String _categoryCanonical(String value) {
+  final n = _normalizeFilterValue(value);
+  if (n.contains('tech')) return 'technologie';
+  if (n.contains('restaur')) return 'restauration';
+  if (n.contains('commerc') || n.contains('vente')) return 'commerce';
+  if (n.contains('sante') || n.contains('medical')) return 'sante';
+  if (n.contains('educ') || n.contains('formation')) return 'education';
+  if (n.contains('transport') || n.contains('livraison')) return 'transport';
+  return n;
+}
+
+bool _matchesDomain(JobEntity job, String selectedDomain) {
+  final selected = _categoryCanonical(selectedDomain);
+  final haystack = _normalizeFilterValue(
+    '${job.department} ${job.title} ${job.companyName} ${job.location ?? ''} ${job.city ?? ''}',
+  );
+  final aliases = switch (selected) {
+    'technologie' => ['technologie', 'tech', 'it', 'informatique', 'dev'],
+    'restauration' => ['restauration', 'restaurant', 'cuisine', 'food'],
+    'commerce' => ['commerce', 'vente', 'seller', 'shop', 'retail'],
+    'sante' => ['sante', 'medical', 'clinique', 'hopital'],
+    'education' => ['education', 'formation', 'ecole', 'prof'],
+    'transport' => ['transport', 'livraison', 'chauffeur', 'driver'],
+    _ => [selected],
+  };
+  return aliases.any(haystack.contains);
 }
 
 String _normalizeFilterValue(String value) {
@@ -236,19 +262,6 @@ String _normalizeFilterValue(String value) {
       .replaceAll('û', 'u')
       .replaceAll('ü', 'u')
       .replaceAll(RegExp(r'\s+'), ' ');
-}
-
-double _jobDistanceKm(double lat1, double lng1, double lat2, double lng2) {
-  const r = 6371.0;
-  final dLat = (lat2 - lat1) * math.pi / 180.0;
-  final dLng = (lng2 - lng1) * math.pi / 180.0;
-  final sinLat = math.sin(dLat / 2);
-  final sinLng = math.sin(dLng / 2);
-  final a = sinLat * sinLat +
-      math.cos(lat1 * math.pi / 180.0) *
-          math.cos(lat2 * math.pi / 180.0) *
-          sinLng * sinLng;
-  return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 }
 
 final filteredJobsProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
@@ -345,12 +358,15 @@ class RecentSearchNotifier extends StateNotifier<AsyncValue<List<String>>> {
     } catch (_) {}
   }
 
-  void removeSearch(int index) {
+  Future<void> removeSearch(int index) async {
     final current = List<String>.from(state.valueOrNull ?? []);
-    if (index < current.length) {
-      current.removeAt(index);
-      state = AsyncValue.data(current);
-    }
+    if (index >= current.length) return;
+    final query = current[index];
+    current.removeAt(index);
+    state = AsyncValue.data(current);
+    try {
+      await _repository.removeRecentSearch(query);
+    } catch (_) {}
   }
 
   Future<void> clearSearches() async {

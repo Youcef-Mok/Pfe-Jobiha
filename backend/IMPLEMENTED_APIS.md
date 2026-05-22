@@ -52,7 +52,8 @@
 | PATCH | `/users/me/preferences` | `{ push_notif_enabled: bool }` (body: `{ push_notif_enabled: bool }`) |
 | GET | `/users/me/recent-searches` | `{ searches: ["string"] }` |
 | POST | `/users/me/recent-searches` | `{ query }` 201 (body: `{ query }`) |
-| DELETE | `/users/me/recent-searches` | 204 |
+| DELETE | `/users/me/recent-searches` | 204 — clear all |
+| DELETE | `/users/me/recent-searches?query=x` | 204 — supprime une seule entrée |
 | DELETE | `/account` | 204 |
 
 **Shape UserMeResponse :**
@@ -582,3 +583,59 @@ Notes d’alignement:
   - retour au provider unique `allMapJobsProvider` pour suggestions/proximite/recherche map (comme avant le dernier refactor).
 - Verification backend endpoint `GET /jobs/map`:
   - ajout du filtre `statut='searching'` en plus de `is_published=True` pour eviter de remonter des offres publiees mais non actives (source potentielle de jobs outdated).
+
+## Update 2026-05-22 (DB jobs status for map visibility)
+- Donnees BDD ajustees: 3 offres supplementaires passees en `statut='searching'` et `is_published=True` pour etre visibles dans `GET /jobs/map` sans changer la logique de filtre backend.
+- Ajustement complementaire: 1 offre repassee en `draft` avec `is_published=False` pour conserver un jeu de donnees mixte (brouillon + publiees).
+
+## Update 2026-05-22 (Map no hardcoded data in proximite cards)
+- `GET /jobs/map` enrichi avec champs reels:
+  - `status`, `posted_at`, `candidate_count`, `view_count`.
+- Frontend map:
+  - `MapJobEntity` et parser HTTP alignes sur ces champs.
+  - conversion `MapJobEntity -> JobEntity` (section emplois a proximite) supprime les valeurs hardcodees (`contractType`, `postedAt`, `status`, `candidateCount`, `viewCount`) et utilise les donnees API.
+
+## Update 2026-05-22 (Map candidature + detail reel + media parity)
+- `GET /jobs/map` renvoie maintenant `image_asset` depuis `offre.image_url` (URL absolue si chemin relatif) pour aligner l'affichage photo avec la Home.
+- Ecran map:
+  - labels boutons changes de `Candidater` vers `Postuler`.
+  - bouton `Postuler` branche avec saisie de lettre de motivation (overlay) puis appel endpoint candidature via `applicationsNotifierProvider.apply(jobId, motivationLetter)`.
+  - action `Voir details` depuis la carte map ouvre l'ecran detail offre candidat reel (`CandidateJobDetailsScreen`) au lieu d'un detail map mocke.
+  - rendu image map durci: support `http(s)` et assets locaux.
+
+## Update 2026-05-22 (Map page clean provider architecture)
+- Backend `GET /jobs/map`: implemention effective du filtre `max_distance_km` (deja documente mais non code).
+- Frontend Map — architecture providers propre et isolee:
+  - `allMapJobsProvider`: toutes les offres GPS (statut=searching), sans restriction distance → pins carte + suggestions overlay recherche + resultats recherche.
+  - `filteredMapJobsProvider`: tri par proximite sur `allMapJobsProvider` → markers carte.
+  - `mapNearbyJobsProvider` (NOUVEAU, dedie): offres GPS dans 30 km, triees par proximite → section "Emplois a proximite" (bottom sheet uniquement). Appelle `GET /jobs/map?max_distance_km=30&lat=&lng=`. Aucun partage avec les providers homepage ou search screen.
+  - `_BottomSheetContent` converti en `ConsumerStatefulWidget` pour acceder directement a `mapNearbyJobsProvider`.
+- Homepage/search screen non modifies: leurs providers restent independants.
+- Sections map resumees:
+  - Pins carte → `filteredMapJobsProvider` (tous GPS jobs, tri proximite)
+  - Suggestions (horizontal) → `widget.allJobs` = `filteredMapJobsProvider`
+  - Emplois a proximite → `mapNearbyJobsProvider` (30 km)
+  - Overlay recherche suggestions → `allMapJobsProvider` (tous, sans limite)
+  - Feuille resultats recherche → `filteredMapJobsProvider` avec `mapSearchQueryProvider`
+
+## Update 2026-05-22 (Recent searches fixes)
+- Backend `DELETE /users/me/recent-searches`: ajoute methode `delete` a `RecentSearchListView`.
+  - Sans param: efface tout l'historique (clear-all).
+  - Avec `?query=x`: supprime uniquement cette entree.
+- Backend `POST /users/me/recent-searches` → corrige `MapRepositoryHttp.saveRecentSearch` qui appelait la mauvaise URL; utilise desormais `POST /searches`.
+- Frontend `RecentSearchNotifier.removeSearch()`: persiste maintenant la suppression via `DELETE /users/me/recent-searches?query=x` (avant: local seulement).
+- Frontend `JobsRepositoryHttp`: ajout de `removeRecentSearch(query)`.
+- Frontend `candidate_search_screen.dart`: la section recherches recentes s'affiche toujours quand le champ est vide (avant: les filtres actifs declenchaient l'affichage des offres a la place).
+
+## Update 2026-05-22 (Home/Map filters + sorting behavior)
+- Frontend Home:
+  - section haute des annonces triee de la plus recente a la plus ancienne (tri par `postedAt` descendant).
+- Frontend Map:
+  - appliquer un filtre depuis la barre de filtres map ouvre maintenant directement la feuille de resultats.
+  - la feuille de resultats map n'est plus vide quand la requete texte est vide: elle charge les offres via `GET /jobs` avec les filtres actifs.
+  - filtrage localisation conserve le comportement "exact location" cote home/candidate filters (filtre sur `city/location` des annonces).
+- Alignement des options de filtres:
+  - options map normalisees sur les memes choix contractuels/disponibilite utilises par les filtres candidats:
+    - Horaires: `Temps plein`, `Temps partiel`, `Flexible`
+    - Categorie (contrat): `CDI`, `Mission`, `Freelance`
+  - categories candidat (ecran filtres) alignees sur les categories map (`Restauration`, `Technologie`, `Commerce`, `Sante`, `Education`, `Transport`).

@@ -260,6 +260,15 @@ class JobsRepositoryHttp implements JobsRepository {
     );
   }
 
+  @override
+  Future<JobCommentEntity> addJobComment(String jobId, String question) async {
+    final resp = await _dio.post(
+      ApiEndpoints.jobComments(int.parse(jobId)),
+      data: {'question': question},
+    );
+    return JobCommentModel.fromJson(resp.data as Map<String, dynamic>).toEntity();
+  }
+
   String? _contractLabelToApi(String label) => switch (label.toLowerCase()) {
         'cdi' => 'cdi',
         'cdd' || 'mission' => 'mission',

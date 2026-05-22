@@ -66,19 +66,6 @@ class _Header extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
-          // Photo de profil
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              image: const DecorationImage(
-                image: AssetImage('assets/images/pdp_1.png'),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
           // Texte
           Expanded(
             child: Column(
@@ -99,6 +86,37 @@ class _Header extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(width: 12),
+          // Barre de recherche élargie (remplit l'espace laissé par l'avatar)
+          Expanded(
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFEDF2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  SizedBox(width: 12),
+                  Icon(Icons.search, size: 18, color: Color(0xFF8D8DA6)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Rechercher une annonce',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        color: Color(0xFF8D8DA6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
           // Bouton Ajouter une offre
           GestureDetector(
             onTap: () {

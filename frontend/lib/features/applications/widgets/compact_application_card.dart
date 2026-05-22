@@ -33,6 +33,12 @@ class CompactApplicationCard extends StatelessWidget {
     final titleSize = dense ? 12.0 : 14.0;
     final excerptMaxLines = dense ? 1 : 1;
     final excerptFontSize = dense ? 11.0 : 11.0;
+    final motivation = (application.motivationLetter ?? '').trim();
+    final excerpt = motivation.isNotEmpty
+        ? motivation
+        : (application.candidateDomain?.trim().isNotEmpty == true
+            ? application.candidateDomain!.trim()
+            : 'Aucune motivation fournie');
 
     return Dismissible(
       key: Key(application.id),
@@ -164,7 +170,7 @@ class CompactApplicationCard extends StatelessWidget {
                 ),
               const SizedBox(height: 4),
               Text(
-                'Motivé(e) par ce poste, je souhaite mettre mes compétences à votre service...',
+                excerpt,
                 style: AppTextStyles.captionLight.copyWith(
                   fontSize: excerptFontSize,
                   color: AppColors.slate600,
@@ -229,3 +235,4 @@ class CompactApplicationCard extends StatelessWidget {
     );
   }
 }
+

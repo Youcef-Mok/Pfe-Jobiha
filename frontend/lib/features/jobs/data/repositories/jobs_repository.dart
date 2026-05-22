@@ -71,5 +71,8 @@ abstract class JobsRepository {
 
   /// Retire une offre des sauvegardes.
   Future<void> unsaveJobById(String jobId);
+
+  /// Ajoute un commentaire candidat sur une offre.
+  Future<JobCommentEntity> addJobComment(String jobId, String question);
 }
 

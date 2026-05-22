@@ -602,5 +602,53 @@ class JobsRepositoryMock implements JobsRepository {
     await Future.delayed(const Duration(milliseconds: 120));
     _savedJobIds.remove(jobId);
   }
+
+  @override
+  Future<JobCommentEntity> addJobComment(String jobId, String question) async {
+    await Future.delayed(const Duration(milliseconds: 220));
+    final index = _jobs.indexWhere((j) => j.id == jobId);
+    if (index < 0) {
+      throw Exception('Job not found');
+    }
+
+    const authorName = 'Vous';
+    final newComment = JobCommentModel(
+      initials: 'V',
+      authorName: authorName,
+      date: 'À l\'instant',
+      question: question,
+      recruitorLabel: 'Recruteur',
+      recruitorDate: '',
+      reply: '',
+    );
+
+    final job = _jobs[index];
+    _jobs[index] = JobModel(
+      id: job.id,
+      title: job.title,
+      companyName: job.companyName,
+      recruiterId: job.recruiterId,
+      recruiterName: job.recruiterName,
+      recruiterRole: job.recruiterRole,
+      recruiterAvatarAsset: job.recruiterAvatarAsset,
+      contractType: job.contractType,
+      department: job.department,
+      city: job.city,
+      location: job.location,
+      scheduleLabel: job.scheduleLabel,
+      latitude: job.latitude,
+      longitude: job.longitude,
+      postedAt: job.postedAt,
+      status: job.status,
+      candidateCount: job.candidateCount,
+      viewCount: job.viewCount,
+      logoAsset: job.logoAsset,
+      isPublished: job.isPublished,
+      candidates: job.candidates,
+      comments: [newComment, ...job.comments],
+    );
+
+    return newComment.toEntity();
+  }
 }
 

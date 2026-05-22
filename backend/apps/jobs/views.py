@@ -722,12 +722,14 @@ class MapJobsView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    # Alger-Centre fallback for jobs without real coordinates
+    _DEFAULT_LAT = 36.762
+    _DEFAULT_LNG = 3.040
+
     def get(self, request):
         queryset = Offre.objects.filter(
             is_published=True,
             statut='searching',
-            latitude__isnull=False,
-            longitude__isnull=False,
         ).select_related('recruteur')
 
         # Filters
@@ -749,6 +751,7 @@ class MapJobsView(APIView):
 
         user_lat = request.query_params.get('lat')
         user_lng = request.query_params.get('lng')
+        max_dist_km = request.query_params.get('max_distance_km')
         has_coords = False
         ulat = ulng = 0.0
         if user_lat and user_lng:
@@ -758,11 +761,28 @@ class MapJobsView(APIView):
             except (ValueError, TypeError):
                 pass
 
+        max_dist = None
+        if has_coords and max_dist_km:
+            try:
+                max_dist = float(max_dist_km)
+            except (ValueError, TypeError):
+                pass
+
         results = []
         for o in queryset:
+            # Use real coords if available; otherwise spread around Algiers default
+            if o.latitude is not None and o.longitude is not None:
+                lat = o.latitude
+                lng = o.longitude
+            else:
+                lat = self._DEFAULT_LAT + (o.id % 31 - 15) * 0.001
+                lng = self._DEFAULT_LNG + (o.id % 23 - 11) * 0.001
+
             dist = 'N/A'
             if has_coords:
-                dist = round(_haversine(ulat, ulng, o.latitude, o.longitude), 1)
+                dist = round(_haversine(ulat, ulng, lat, lng), 1)
+                if max_dist is not None and dist > max_dist:
+                    continue
             results.append({
                 'id': str(o.id),
                 'title': o.titre,
@@ -773,11 +793,19 @@ class MapJobsView(APIView):
                 'hours': o.schedule_label,
                 'salary': o.salaire,
                 'contract_type': o.type_contrat,
+                'status': o.statut,
+                'posted_at': o.created_at.isoformat() if o.created_at else None,
+                'candidate_count': o.candidate_count,
+                'view_count': o.view_count,
                 'rating': float(o.recruteur.note_globale) if o.recruteur and o.recruteur.note_globale is not None else None,
                 'recruiter_avatar': getattr(o.recruteur, 'avatar_url', None) if o.recruteur else None,
-                'lat': o.latitude,
-                'lng': o.longitude,
-                'image_asset': None,
+                'lat': lat,
+                'lng': lng,
+                'image_asset': (
+                    request.build_absolute_uri(o.image_url)
+                    if o.image_url and o.image_url.startswith('/')
+                    else o.image_url
+                ),
             })
 
         return Response(results)

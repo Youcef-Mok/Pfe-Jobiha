@@ -1240,7 +1240,11 @@ class SettingsLanguageView(APIView):
 # ===========================================================================
 
 class RecentSearchListView(APIView):
-    """GET /users/me/recent-searches  |  DELETE /users/me/recent-searches[?query=...]"""
+    """
+    GET    /users/me/recent-searches          → list
+    DELETE /users/me/recent-searches          → clear all
+    DELETE /users/me/recent-searches?query=x  → delete single entry
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

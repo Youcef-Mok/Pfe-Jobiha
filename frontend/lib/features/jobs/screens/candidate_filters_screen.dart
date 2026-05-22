@@ -508,13 +508,11 @@ class _CategoryDropdown extends StatelessWidget {
 
   static const _categories = <_CategoryItem>[
     _CategoryItem('Restauration', Icons.restaurant_outlined),
-    _CategoryItem('Livraison', Icons.delivery_dining_outlined),
-    _CategoryItem('Tech', Icons.computer_outlined),
-    _CategoryItem('Marketing', Icons.trending_up_outlined),
-    _CategoryItem('Design', Icons.brush_outlined),
+    _CategoryItem('Technologie', Icons.computer_outlined),
     _CategoryItem('Commerce', Icons.storefront_outlined),
-    _CategoryItem('Santé', Icons.health_and_safety_outlined),
-    _CategoryItem('Éducation', Icons.school_outlined),
+    _CategoryItem('Sante', Icons.health_and_safety_outlined),
+    _CategoryItem('Education', Icons.school_outlined),
+    _CategoryItem('Transport', Icons.directions_car_outlined),
   ];
 
   const _CategoryDropdown({required this.value, required this.onChanged});
@@ -674,3 +672,4 @@ class _CategoryDropdown extends StatelessWidget {
     );
   }
 }
+
