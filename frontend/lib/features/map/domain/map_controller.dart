@@ -40,10 +40,10 @@ class MapController {
 
   List<MapJobEntity> filterJobs(List<MapJobEntity> jobs, String query) {
     if (query.isEmpty) return jobs;
-    final q = query.toLowerCase();
+    final q = _normalize(query);
     return jobs.where((j) => 
-      j.title.toLowerCase().contains(q) || 
-      j.company.toLowerCase().contains(q)
+      _normalize(j.title).contains(q) || 
+      _normalize(j.company).contains(q)
     ).toList();
   }
 
@@ -59,33 +59,43 @@ class MapController {
     var result = filterJobs(jobs, searchQuery);
 
     if (candidateCategory != null) {
-      final cat = candidateCategory.toLowerCase();
+      final cat = _normalize(candidateCategory);
       result = result
-          .where((j) => j.category.toLowerCase().contains(cat))
+          .where((j) => _normalize(j.category).contains(cat))
           .toList();
     }
 
     if (candidateContractTypes.isNotEmpty) {
+      final selectedContracts = candidateContractTypes
+          .map(_contractLabelToApi)
+          .whereType<String>()
+          .toSet();
       result = result
-          .where((j) => candidateContractTypes.contains(j.contractType))
+          .where((j) => selectedContracts.contains(_normalize(j.contractType)))
           .toList();
     }
 
     if (mapFilters.containsKey('Categorie')) {
-      final cat = mapFilters['Categorie']!;
-      result = result.where((j) => j.contractType == cat).toList();
+      final cat = _contractLabelToApi(mapFilters['Categorie']!);
+      if (cat != null) {
+        result = result
+            .where((j) => _normalize(j.contractType) == cat)
+            .toList();
+      }
     }
 
     if (mapFilters.containsKey('Domaine')) {
-      final dom = mapFilters['Domaine']!;
+      final dom = _normalize(mapFilters['Domaine']!);
       result = result
-          .where((j) => j.category.toLowerCase().contains(dom.toLowerCase()))
+          .where((j) => _normalize(j.category).contains(dom))
           .toList();
     }
 
     if (mapFilters.containsKey('Horaires')) {
-      final hours = mapFilters['Horaires']!;
-      result = result.where((j) => j.hours.contains(hours)).toList();
+      final hours = _normalize(mapFilters['Horaires']!);
+      result = result
+          .where((j) => _normalize(j.hours).contains(hours))
+          .toList();
     }
 
     if (mapFilters.containsKey('Emplacement')) {
@@ -104,5 +114,35 @@ class MapController {
     }
 
     return result;
+  }
+
+  String _normalize(String value) {
+    final lower = value.trim().toLowerCase();
+    return lower
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('à', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('ä', 'a')
+        .replaceAll('î', 'i')
+        .replaceAll('ï', 'i')
+        .replaceAll('ô', 'o')
+        .replaceAll('ö', 'o')
+        .replaceAll('ù', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String? _contractLabelToApi(String label) {
+    final v = _normalize(label);
+    return switch (v) {
+      'cdi' => 'cdi',
+      'cdd' || 'mission' => 'mission',
+      'freelance' => 'freelance',
+      _ => null,
+    };
   }
 }

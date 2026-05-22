@@ -15,6 +15,7 @@ import 'package:job_app/core/widgets/candidate_nav_bar.dart';
 import 'package:job_app/features/jobs/widgets/candidate_filter_sheets.dart';
 import 'package:job_app/features/jobs/widgets/candidate_job_card.dart';
 import 'package:job_app/features/notifications/screens/candidate_notifications_screen.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 
 class CandidateHomeScreen extends ConsumerStatefulWidget {
   const CandidateHomeScreen({super.key});
@@ -35,9 +36,16 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Removed full-screen watch to reduce rebuild scope.
-    // Specific sections now use Consumer widgets.
-    final filteredJobsAsync = ref.watch(nearbyJobsProvider);
+    ref.listen(candidateCurrentUserProvider, (_, __) {
+      ref.invalidate(nearbyJobsProvider);
+    });
+    ref.listen(userGpsPositionProvider, (_, __) {
+      ref.invalidate(nearbyJobsProvider);
+    });
+
+    final nearbyJobsAsync = ref.watch(nearbyJobsProvider);
+    final publishedJobsAsync = ref.watch(candidateAllPublishedJobsProvider);
+    final filteredJobsAsync = _stableJobs(nearbyJobsAsync, publishedJobsAsync);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -107,6 +115,20 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
         ),
       ),
       bottomNavigationBar: const CandidateNavBar(currentIndex: 0),
+    );
+  }
+
+  AsyncValue<List<JobEntity>> _stableJobs(
+    AsyncValue<List<JobEntity>> nearby,
+    AsyncValue<List<JobEntity>> published,
+  ) {
+    return nearby.when(
+      loading: () => published,
+      error: (_, __) => published,
+      data: (nearbyList) {
+        if (nearbyList.isNotEmpty) return AsyncValue.data(nearbyList);
+        return published.whenData((list) => list);
+      },
     );
   }
 
@@ -316,12 +338,7 @@ class _HeroJobCard extends ConsumerWidget {
         height: 120,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          image: job.logoAsset != null
-              ? DecorationImage(
-                  image: AssetImage(job.logoAsset!),
-                  fit: BoxFit.cover,
-                )
-              : null,
+          image: _buildBackgroundImage(job.logoAsset),
           color: const Color(0xFF1A1A1A),
         ),
         child: ClipRRect(
@@ -416,7 +433,7 @@ class _HeroJobCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${job.companyName} • Alger',
+                      '${job.companyName} • ${job.city?.trim().isNotEmpty == true ? job.city! : 'Ville non precisee'}',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w400,
@@ -430,9 +447,11 @@ class _HeroJobCard extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          '8h-17h',
-                          style: TextStyle(
+                        Text(
+                          job.scheduleLabel?.trim().isNotEmpty == true
+                              ? job.scheduleLabel!
+                              : 'Horaire non precise',
+                          style: const TextStyle(
                             fontFamily: 'Manrope',
                             fontWeight: FontWeight.w700,
                             fontSize: 18,
@@ -473,6 +492,20 @@ class _HeroJobCard extends ConsumerWidget {
         ContractType.mission => 'Mission',
         ContractType.freelance => 'Freelance',
       };
+
+  DecorationImage? _buildBackgroundImage(String? source) {
+    if (source == null || source.isEmpty) return null;
+    if (source.startsWith('http://') || source.startsWith('https://')) {
+      return DecorationImage(
+        image: NetworkImage(source),
+        fit: BoxFit.cover,
+      );
+    }
+    return DecorationImage(
+      image: AssetImage(source),
+      fit: BoxFit.cover,
+    );
+  }
 }
 
 class _GlassButton extends StatelessWidget {
@@ -568,9 +601,42 @@ class _FilterChips extends ConsumerWidget {
     }
 
     // Default category chips
-    chips.add(_FilterChip(label: 'Horaires', showArrow: true, onTap: () => showAvailabilitySheet(context)));
-    chips.add(_FilterChip(label: 'Contrat', showArrow: true, onTap: () => showContractTypeSheet(context)));
-    chips.add(_FilterChip(label: 'Localisation', showArrow: true, onTap: () => showLocationSheet(context)));
+    chips.add(_FilterChip(
+      label: 'Horaires',
+      showArrow: true,
+      onTap: () async {
+        await showAvailabilitySheet(context);
+        if (!context.mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CandidateSearchScreen()),
+        );
+      },
+    ));
+    chips.add(_FilterChip(
+      label: 'Contrat',
+      showArrow: true,
+      onTap: () async {
+        await showContractTypeSheet(context);
+        if (!context.mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CandidateSearchScreen()),
+        );
+      },
+    ));
+    chips.add(_FilterChip(
+      label: 'Localisation',
+      showArrow: true,
+      onTap: () async {
+        await showLocationSheet(context);
+        if (!context.mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CandidateSearchScreen()),
+        );
+      },
+    ));
 
     return SizedBox(
       height: 41,

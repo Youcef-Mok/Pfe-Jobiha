@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' show TimeOfDay;
+import 'dart:typed_data';
 
 /// Entité métier pure — cette entité utilise maintenant TimeOfDay de Flutter.
 enum JobStatus { draft, closed, searching }
@@ -8,6 +9,7 @@ enum ContractType { cdi, mission, freelance }
 class JobEntity {
   final String id;
   final String title;
+  final String description;
   final String companyName;
   final String recruiterId;
   final String recruiterName;
@@ -15,6 +17,11 @@ class JobEntity {
   final String? recruiterAvatarAsset;
   final ContractType contractType; // Ajouté
   final String department;
+  final String? city;
+  final String? location;
+  final String? scheduleLabel;
+  final double? latitude;
+  final double? longitude;
   final DateTime postedAt;
   final JobStatus status;
   final int candidateCount;
@@ -27,6 +34,7 @@ class JobEntity {
   const JobEntity({
     required this.id,
     required this.title,
+    this.description = '',
     required this.companyName,
     this.recruiterId = 'recruiter_1',
     this.recruiterName = 'Ahmed Bensalem',
@@ -34,6 +42,11 @@ class JobEntity {
     this.recruiterAvatarAsset = 'assets/images/pdp_1.png',
     required this.contractType, // Ajouté
     this.department = 'IT',
+    this.city,
+    this.location,
+    this.scheduleLabel,
+    this.latitude,
+    this.longitude,
     required this.postedAt,
     required this.status,
     required this.candidateCount,
@@ -101,6 +114,8 @@ class CreateJobForm {
   final DateTime? startDate;
   final double? salary;
   final String? imageAsset;
+  final Uint8List? imageBytes;
+  final String? imageFileName;
 
   const CreateJobForm({
     this.title = '',
@@ -112,6 +127,8 @@ class CreateJobForm {
     this.startDate,
     this.salary,
     this.imageAsset,
+    this.imageBytes,
+    this.imageFileName,
   });
 
   bool get isValid => title.trim().isNotEmpty;
@@ -126,6 +143,8 @@ class CreateJobForm {
     DateTime? startDate,
     double? salary,
     String? imageAsset,
+    Uint8List? imageBytes,
+    String? imageFileName,
   }) =>
       CreateJobForm(
         title: title ?? this.title,
@@ -137,6 +156,8 @@ class CreateJobForm {
         startDate: startDate ?? this.startDate,
         salary: salary ?? this.salary,
         imageAsset: imageAsset ?? this.imageAsset,
+        imageBytes: imageBytes ?? this.imageBytes,
+        imageFileName: imageFileName ?? this.imageFileName,
       );
 }
 
@@ -151,6 +172,8 @@ class EditJobForm {
   final TimeOfDay? endTime;
   final DateTime? startDate;
   final String? imageAsset;
+  final Uint8List? imageBytes;
+  final String? imageFileName;
   final bool isPrivate;
 
   const EditJobForm({
@@ -164,6 +187,8 @@ class EditJobForm {
     this.endTime,
     this.startDate,
     this.imageAsset,
+    this.imageBytes,
+    this.imageFileName,
     this.isPrivate = false,
   });
 
@@ -178,6 +203,8 @@ class EditJobForm {
         candidateCount: entity.candidateCount,
         salary: null,
         imageAsset: entity.logoAsset,
+        imageBytes: null,
+        imageFileName: null,
         isPrivate: !entity.isPublished,
       );
 
@@ -191,6 +218,8 @@ class EditJobForm {
     TimeOfDay? endTime,
     DateTime? startDate,
     String? imageAsset,
+    Uint8List? imageBytes,
+    String? imageFileName,
     bool? isPrivate,
   }) =>
       EditJobForm(
@@ -204,6 +233,8 @@ class EditJobForm {
         endTime: endTime ?? this.endTime,
         startDate: startDate ?? this.startDate,
         imageAsset: imageAsset ?? this.imageAsset,
+        imageBytes: imageBytes ?? this.imageBytes,
+        imageFileName: imageFileName ?? this.imageFileName,
         isPrivate: isPrivate ?? this.isPrivate,
       );
 }

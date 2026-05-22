@@ -143,7 +143,11 @@ class JobsController {
       viewCount: 0,
       isPublished: false,
     );
-    return _repository.saveJob(job);
+    return _repository.saveJob(
+      job,
+      imageBytes: form.imageBytes,
+      imageFileName: form.imageFileName,
+    );
   }
 
   /// Publie un job
@@ -188,7 +192,11 @@ class JobsController {
       logoAsset: form.imageAsset ?? existing?.logoAsset,
       isPublished: !form.isPrivate,
     );
-    return _repository.saveJob(updated);
+    return _repository.saveJob(
+      updated,
+      imageBytes: form.imageBytes,
+      imageFileName: form.imageFileName,
+    );
   }
 
   /// Annonces publiées (feed candidat).

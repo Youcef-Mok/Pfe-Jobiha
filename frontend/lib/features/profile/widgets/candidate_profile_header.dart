@@ -117,7 +117,12 @@ class CandidateProfileHeader extends ConsumerWidget {
                     onTap: isPublicRecruiterView
                         || isPublicCandidateView
                         ? onMessageTap
-                        : () => Navigator.pushNamed(context, '/edit-profile'),
+                        : () => Navigator.pushNamed(
+                              context,
+                              isRecruiterView
+                                  ? '/edit-profile-recruiter'
+                                  : '/edit-profile',
+                            ),
                     child: Container(
                       width: 40,
                       height: 40,

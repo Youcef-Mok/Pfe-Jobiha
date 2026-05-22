@@ -262,9 +262,22 @@ class _ProfileCvSectionState extends ConsumerState<ProfileCvSection>
                                         title: exp.title,
                                         company: exp.company,
                                         location: exp.location,
-                                        date: exp.endDate ?? '',
-                                        secondaryDate: exp.period,
+                                        date: (exp.period ?? '').trim().isNotEmpty
+                                            ? exp.period!
+                                            : (exp.endDate ?? ''),
+                                        secondaryDate: null,
                                         isAppMission: exp.isAppMission,
+                                        missionId: exp.missionId,
+                                        startDate: exp.startDate,
+                                        status: exp.status,
+                                        candidateName: exp.candidateName,
+                                        recruiterName: exp.recruiterName,
+                                        recruiterRating: exp.recruiterRating,
+                                        candidateRating: exp.candidateRating,
+                                        recruiterFeedback: exp.recruiterFeedback,
+                                        candidateFeedback: exp.candidateFeedback,
+                                        description: exp.description,
+                                        imageUrl: exp.imageUrl,
                                         icon: Icons.business_center,
                                       );
                                     },
@@ -666,6 +679,17 @@ class _TimelineContent extends StatelessWidget {
   final IconData? icon;
   final bool isValidated;
   final VoidCallback? onTap;
+  final String? missionId;
+  final String? startDate;
+  final String? status;
+  final String? candidateName;
+  final String? recruiterName;
+  final double recruiterRating;
+  final double candidateRating;
+  final String? recruiterFeedback;
+  final String? candidateFeedback;
+  final String? description;
+  final String? imageUrl;
 
   const _TimelineContent({
     required this.title,
@@ -678,6 +702,17 @@ class _TimelineContent extends StatelessWidget {
     this.icon,
     this.isValidated = false,
     this.onTap,
+    this.missionId,
+    this.startDate,
+    this.status,
+    this.candidateName,
+    this.recruiterName,
+    this.recruiterRating = 0.0,
+    this.candidateRating = 0.0,
+    this.recruiterFeedback,
+    this.candidateFeedback,
+    this.description,
+    this.imageUrl,
   });
 
   @override
@@ -687,30 +722,27 @@ class _TimelineContent extends StatelessWidget {
 
     // Design spécial pour APP MISSION (comme missions terminées)
     if (isAppMission) {
-      // Créer une MissionEntity avec des données complètes pour les APP MISSION
+      final now = DateTime.now();
+      final parsedStart = DateTime.tryParse(startDate ?? '');
+      final parsedEnd = DateTime.tryParse(date);
+      final safeStart = parsedStart ?? parsedEnd ?? now;
+      final safeEnd = parsedEnd ?? parsedStart ?? now;
       final mission = MissionEntity(
-        id: 'app_mission_${title.hashCode}',
+        id: missionId ?? 'app_mission_${title.hashCode}',
         jobTitle: title,
         companyName: company,
-        startDate: DateTime.now().subtract(const Duration(days: 90)),
-        endDate: DateTime.now().subtract(const Duration(days: 30)),
+        startDate: safeStart,
+        endDate: safeEnd,
         location: location,
-        status: 'completed',
-        recruiterName: 'Sophie Laurent',
-        candidateName: 'Farouja',
-        candidateRating: 4.8,
-        candidateFeedback: 'Excellente prestation lors de cette mission.',
-        recruiterRating: 4.8,
-        recruiterFeedback: 'Professionnalisme exemplaire.',
-        imageUrl: 'assets/images/imageannonc(${(title.hashCode % 5) + 1}).jpg',
-        team: [
-          MissionMemberEntity(
-            name: 'Sophie Laurent',
-            role: 'Event Manager',
-            rating: 4.9,
-            avatarUrl: 'assets/images/pdp_1.png',
-          ),
-        ],
+        status: status ?? 'completed',
+        recruiterName: recruiterName ?? '',
+        candidateName: candidateName ?? '',
+        candidateRating: candidateRating,
+        candidateFeedback: candidateFeedback ?? '',
+        recruiterRating: recruiterRating,
+        recruiterFeedback: recruiterFeedback ?? '',
+        description: description ?? '',
+        imageUrl: (imageUrl != null && imageUrl!.isNotEmpty) ? imageUrl : null,
       );
       
       return CompletedMissionCard(

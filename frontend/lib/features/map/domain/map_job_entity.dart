@@ -6,6 +6,7 @@ class MapJobEntity {
   final String company;
   final String category;
   final String distance;
+  final String city;
   final String hours;
   final double salary;
   final String? imageAsset;
@@ -22,6 +23,7 @@ class MapJobEntity {
     required this.company,
     required this.category,
     required this.distance,
+    this.city = '',
     required this.hours,
     required this.salary,
     this.imageAsset,

@@ -7,6 +7,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.core.files.storage import default_storage
+from django.conf import settings
 from django.db.models import Count, Q
 
 from apps.jobs.models import Offre, Mission, SavedJob, Alerte, Interview
@@ -43,6 +46,7 @@ class OffreListCreateView(APIView):
     POST /offres  → only recruiters can post a job
     """
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request):
         queryset = Offre.objects.filter(
@@ -102,6 +106,10 @@ class OffreListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         model_data = serializer.to_model_data()
+        uploaded = request.FILES.get('image')
+        if uploaded:
+            path = default_storage.save(f'offres/{uploaded.name}', uploaded)
+            model_data['image_url'] = request.build_absolute_uri(settings.MEDIA_URL + path)
         model_data['date_debut'] = model_data.get('date_debut') or timezone.now().date()
         offre = Offre.objects.create(
             recruteur=request.user.recruteur,
@@ -120,6 +128,7 @@ class OffreDetailView(APIView):
     DELETE /offres/{id}  → only the recruiter who owns it can delete
     """
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_offre(self, id):
         try:
@@ -144,6 +153,10 @@ class OffreDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         for field, value in serializer.to_model_data().items():
             setattr(offre, field, value)
+        uploaded = request.FILES.get('image')
+        if uploaded:
+            path = default_storage.save(f'offres/{uploaded.name}', uploaded)
+            offre.image_url = request.build_absolute_uri(settings.MEDIA_URL + path)
         offre.save()
         return Response(OffreSerializer(offre, context={'request': request}).data)
 
@@ -404,7 +417,7 @@ class MissionListCreateView(APIView):
             date_fin=parse_datetime(end_raw) if end_raw else None,
             location=request.data.get('location', ''),
             image_url=request.data.get('image_url'),
-            summary=request.data.get('summary'),
+            summary=request.data.get('summary') or candidature.offre.description,
             statut='en_attente',
         )
         return Response(
@@ -712,6 +725,7 @@ class MapJobsView(APIView):
     def get(self, request):
         queryset = Offre.objects.filter(
             is_published=True,
+            statut='searching',
             latitude__isnull=False,
             longitude__isnull=False,
         ).select_related('recruteur')
@@ -753,9 +767,10 @@ class MapJobsView(APIView):
                 'id': str(o.id),
                 'title': o.titre,
                 'company': o.recruteur.nom_structure if o.recruteur else None,
+                'city': (o.location.split(',')[0].strip() if o.location else None),
                 'category': o.categorie,
                 'distance': dist,
-                'hours': None,
+                'hours': o.schedule_label,
                 'salary': o.salaire,
                 'contract_type': o.type_contrat,
                 'rating': float(o.recruteur.note_globale) if o.recruteur and o.recruteur.note_globale is not None else None,
@@ -963,10 +978,14 @@ class JobCommentListCreateView(APIView):
         comments = JobComment.objects.filter(offre_id=id).select_related('auteur').order_by('-date_question')
         result = []
         for c in comments:
+            prenom = ((getattr(c.auteur, 'prenom', '') or '').strip() if c.auteur else '')
+            nom = ((getattr(c.auteur, 'nom', '') or '').strip() if c.auteur else '')
+            initials = (prenom[:1] + nom[:1]).upper() if (prenom or nom) else ''
+            author_name = f"{prenom} {nom}".strip()
             result.append({
                 'id': c.id,
-                'initials': (c.auteur.prenom[:1] + c.auteur.nom[:1]).upper() if c.auteur else '',
-                'author_name': f"{c.auteur.prenom} {c.auteur.nom}" if c.auteur else '',
+                'initials': initials,
+                'author_name': author_name,
                 'date': c.date_question.isoformat() if c.date_question else '',
                 'question': c.question,
                 'recruitor_label': '',
@@ -989,8 +1008,8 @@ class JobCommentListCreateView(APIView):
         )
         return Response({
             'id': comment.id,
-            'initials': (request.user.prenom[:1] + request.user.nom[:1]).upper(),
-            'author_name': f"{request.user.prenom} {request.user.nom}",
+            'initials': (((request.user.prenom or '')[:1] + (request.user.nom or '')[:1]).upper()),
+            'author_name': f"{request.user.prenom or ''} {request.user.nom or ''}".strip(),
             'date': comment.date_question.isoformat(),
             'question': comment.question,
             'recruitor_label': '',
@@ -1018,10 +1037,12 @@ class JobCommentReplyView(APIView):
         comment.reponse = reply
         comment.date_reponse = tz.now()
         comment.save(update_fields=['reponse', 'date_reponse'])
+        prenom = ((getattr(comment.auteur, 'prenom', '') or '').strip() if comment.auteur else '')
+        nom = ((getattr(comment.auteur, 'nom', '') or '').strip() if comment.auteur else '')
         return Response({
             'id': comment.id,
-            'initials': (comment.auteur.prenom[:1] + comment.auteur.nom[:1]).upper() if comment.auteur else '',
-            'author_name': f"{comment.auteur.prenom} {comment.auteur.nom}" if comment.auteur else '',
+            'initials': (prenom[:1] + nom[:1]).upper() if (prenom or nom) else '',
+            'author_name': f"{prenom} {nom}".strip(),
             'date': comment.date_question.isoformat(),
             'question': comment.question,
             'recruitor_label': getattr(request.user.recruteur, 'titre_poste', '') or '',

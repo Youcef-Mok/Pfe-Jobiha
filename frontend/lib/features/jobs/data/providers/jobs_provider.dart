@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -119,7 +122,7 @@ final candidateAllPublishedJobsProvider = Provider<AsyncValue<List<JobEntity>>>(
 
 /// Offres proches du user — GPS live > coordonnées profil > wilaya.
 /// Réactif aux filtres actifs du candidat.
-final nearbyJobsProvider = FutureProvider<List<JobEntity>>((ref) async {
+final nearbyJobsProvider = AutoDisposeFutureProvider<List<JobEntity>>((ref) async {
   final gps = ref.watch(userGpsPositionProvider);
   final user = ref.watch(candidateCurrentUserProvider).valueOrNull;
   final filters = ref.watch(candidateFiltersProvider);
@@ -136,23 +139,116 @@ final nearbyJobsProvider = FutureProvider<List<JobEntity>>((ref) async {
     filters.contractTypes.isNotEmpty ? filters.contractTypes.first : null,
   );
 
-  return ref.read(jobsControllerProvider).fetchNearbyJobs(
+  final jobs = await ref.read(jobsControllerProvider).fetchNearbyJobs(
     lat: hasGps ? lat : null,
     lng: hasGps ? lng : null,
     location: locationParam,
     category: filters.category,
     contractType: contractType,
   );
+
+  // Apply full filter set client-side so selected homepage filters always
+  // have a visible effect, even if API supports only a subset.
+  final filtered = jobs.where((job) {
+    if (filters.category != null && filters.category!.trim().isNotEmpty) {
+      final selected = _normalizeFilterValue(filters.category!);
+      final dept = _normalizeFilterValue(job.department);
+      if (dept != selected) return false;
+    }
+
+    if (filters.contractTypes.isNotEmpty) {
+      final ok = filters.contractTypes.any((c) {
+        final v = _normalizeFilterValue(c);
+        if (v == 'cdi') return job.contractType == ContractType.cdi;
+        if (v == 'cdd' || v == 'mission') {
+          return job.contractType == ContractType.mission;
+        }
+        if (v == 'freelance') return job.contractType == ContractType.freelance;
+        return false;
+      });
+      if (!ok) return false;
+    }
+
+    if (filters.location != null && filters.location!.trim().isNotEmpty) {
+      final q = _normalizeFilterValue(filters.location!);
+      final haystack =
+          '${job.location ?? ''} ${job.companyName} ${job.department} ${job.title}'
+              .trim();
+      final normalizedHaystack = _normalizeFilterValue(haystack);
+      if (!normalizedHaystack.contains(q)) return false;
+    }
+
+    if (filters.availability.isNotEmpty) {
+      final haystack =
+          '${job.scheduleLabel ?? ''} ${job.title} ${job.department}'
+              .trim();
+      final normalizedHaystack = _normalizeFilterValue(haystack);
+      final matchesAnyAvailability =
+          filters.availability
+              .any((a) => normalizedHaystack.contains(_normalizeFilterValue(a)));
+      if (!matchesAnyAvailability) return false;
+    }
+    return true;
+  }).toList();
+
+  // Sort by proximity — closest first; jobs with no GPS go to the end.
+  if (hasGps) {
+    final refLat = lat;
+    final refLng = lng;
+    filtered.sort((a, b) {
+      final da = (a.latitude != null && a.longitude != null)
+          ? _jobDistanceKm(refLat, refLng, a.latitude!, a.longitude!)
+          : double.infinity;
+      final db = (b.latitude != null && b.longitude != null)
+          ? _jobDistanceKm(refLat, refLng, b.latitude!, b.longitude!)
+          : double.infinity;
+      return da.compareTo(db);
+    });
+  }
+  return filtered;
 });
 
 String? _mapContractTypeToApi(String? label) {
   if (label == null) return null;
-  return switch (label.toLowerCase()) {
+  return switch (_normalizeFilterValue(label)) {
     'cdi' => 'cdi',
     'cdd' || 'mission' => 'mission',
     'freelance' => 'freelance',
     _ => null,
   };
+}
+
+String _normalizeFilterValue(String value) {
+  final lower = value.trim().toLowerCase();
+  return lower
+      .replaceAll('é', 'e')
+      .replaceAll('è', 'e')
+      .replaceAll('ê', 'e')
+      .replaceAll('ë', 'e')
+      .replaceAll('à', 'a')
+      .replaceAll('â', 'a')
+      .replaceAll('ä', 'a')
+      .replaceAll('î', 'i')
+      .replaceAll('ï', 'i')
+      .replaceAll('ô', 'o')
+      .replaceAll('ö', 'o')
+      .replaceAll('ù', 'u')
+      .replaceAll('û', 'u')
+      .replaceAll('ü', 'u')
+      .replaceAll(RegExp(r'\s+'), ' ');
+}
+
+double _jobDistanceKm(double lat1, double lng1, double lat2, double lng2) {
+  const r = 6371.0;
+  final dLat = (lat2 - lat1) * math.pi / 180.0;
+  final dLng = (lng2 - lng1) * math.pi / 180.0;
+  final sinLat = math.sin(dLat / 2);
+  final sinLng = math.sin(dLng / 2);
+  final a = sinLat * sinLat +
+      math.cos(lat1 * math.pi / 180.0) *
+          math.cos(lat2 * math.pi / 180.0) *
+          sinLng * sinLng;
+  return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 }
 
 final filteredJobsProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
@@ -209,7 +305,7 @@ final recruiterFilteredMissionsByNameProvider =
 final candidateJobSearchQueryProvider = StateProvider<String>((ref) => '');
 
 // Server-side search: fires GET /jobs?q=...&category=...&contract_type=...
-final jobSearchProvider = FutureProvider<List<JobEntity>>((ref) async {
+final jobSearchProvider = AutoDisposeFutureProvider<List<JobEntity>>((ref) async {
   final query = ref.watch(candidateJobSearchQueryProvider);
   if (query.trim().isEmpty) return [];
   final filters = ref.watch(candidateFiltersProvider);
@@ -360,6 +456,8 @@ class CreateJobFormNotifier extends StateNotifier<CreateJobForm> {
   void updateEndTime(TimeOfDay v) => state = state.copyWith(endTime: v);
   void updateStartDate(DateTime v) => state = state.copyWith(startDate: v);
   void updateSalary(double? v) => state = state.copyWith(salary: v);
+  void updateImage(Uint8List bytes, String fileName) =>
+      state = state.copyWith(imageBytes: bytes, imageFileName: fileName);
 
   void reset() => state = const CreateJobForm();
 
@@ -421,6 +519,8 @@ class EditJobFormNotifier extends StateNotifier<EditJobForm> {
   void updateEndTime(TimeOfDay v) => state = state.copyWith(endTime: v);
   void updateStartDate(DateTime v) => state = state.copyWith(startDate: v);
   void togglePrivate() => state = state.copyWith(isPrivate: !state.isPrivate);
+  void updateImage(Uint8List bytes, String fileName) =>
+      state = state.copyWith(imageBytes: bytes, imageFileName: fileName);
 
   Future<JobEntity?> save() async {
     if (!state.isValid) return null;

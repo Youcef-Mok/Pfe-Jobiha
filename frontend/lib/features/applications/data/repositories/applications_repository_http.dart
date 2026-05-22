@@ -23,10 +23,17 @@ class ApplicationsRepositoryHttp implements ApplicationsRepository {
   }
 
   @override
-  Future<ApplicationEntity> applyToJob(String jobId) async {
+  Future<ApplicationEntity> applyToJob(
+    String jobId, {
+    String? motivationLetter,
+  }) async {
     final resp = await _dio.post(
       ApiEndpoints.appliedJobs,
-      data: {'job_id': jobId},
+      data: {
+        'job_id': jobId,
+        if (motivationLetter != null && motivationLetter.trim().isNotEmpty)
+          'motivation_letter': motivationLetter.trim(),
+      },
     );
     return ApplicationModel.fromJson(resp.data as Map<String, dynamic>).toEntity();
   }

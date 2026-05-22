@@ -145,7 +145,7 @@ class CompletedMissionCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'Pas encore de reviews',
+                            'Évaluer votre recruteur',
                             style: GoogleFonts.plusJakartaSans(
                               fontWeight: FontWeight.w500,
                               fontSize: 11,

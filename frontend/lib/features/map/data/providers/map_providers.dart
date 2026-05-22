@@ -27,7 +27,7 @@ final mapControllerProvider = Provider<MapController>(
 // ─────────────────────────────────────────────
 // 3. Map Jobs State — reactive to GPS, user profile, and active filters
 // ─────────────────────────────────────────────
-final allMapJobsProvider = FutureProvider<List<MapJobEntity>>((ref) async {
+final allMapJobsProvider = AutoDisposeFutureProvider<List<MapJobEntity>>((ref) async {
   final gps = ref.watch(userGpsPositionProvider);
   final user = ref.watch(candidateCurrentUserProvider).valueOrNull;
   final mapFilters = ref.watch(mapFiltersProvider);
@@ -36,16 +36,8 @@ final allMapJobsProvider = FutureProvider<List<MapJobEntity>>((ref) async {
 
   final lat = gps?.lat ?? user?.latitude;
   final lng = gps?.lng ?? user?.longitude;
-  final location = user?.location;
-  double? maxDistanceKm;
   String? category;
   String? contractType;
-  if (mapFilters.containsKey('Emplacement')) {
-    final raw = mapFilters['Emplacement']!;
-    maxDistanceKm = double.tryParse(
-      raw.replaceAll('<', '').replaceAll('km', '').trim(),
-    );
-  }
   if (mapFilters.containsKey('Domaine')) {
     category = mapFilters['Domaine'];
   } else if (candidateFilters.category != null &&
@@ -62,19 +54,37 @@ final allMapJobsProvider = FutureProvider<List<MapJobEntity>>((ref) async {
     lat: lat,
     lng: lng,
     query: query,
-    location: location,
     category: category,
     contractType: contractType,
-    maxDistanceKm: maxDistanceKm,
   );
 });
 
-String? _contractFilterToApi(String label) => switch (label.toLowerCase()) {
+String? _contractFilterToApi(String label) => switch (_normalize(label)) {
       'cdi' => 'cdi',
       'cdd' || 'mission' => 'mission',
       'freelance' => 'freelance',
       _ => null,
     };
+
+String _normalize(String value) {
+  final lower = value.trim().toLowerCase();
+  return lower
+      .replaceAll('é', 'e')
+      .replaceAll('è', 'e')
+      .replaceAll('ê', 'e')
+      .replaceAll('ë', 'e')
+      .replaceAll('à', 'a')
+      .replaceAll('â', 'a')
+      .replaceAll('ä', 'a')
+      .replaceAll('î', 'i')
+      .replaceAll('ï', 'i')
+      .replaceAll('ô', 'o')
+      .replaceAll('ö', 'o')
+      .replaceAll('ù', 'u')
+      .replaceAll('û', 'u')
+      .replaceAll('ü', 'u')
+      .replaceAll(RegExp(r'\s+'), ' ');
+}
 
 // ─────────────────────────────────────────────
 // 4. Search & Filter State
@@ -88,6 +98,14 @@ final filteredMapJobsProvider = Provider<List<MapJobEntity>>((ref) {
   final refLat = gps?.lat ?? user?.latitude;
   final refLng = gps?.lng ?? user?.longitude;
 
+  return _sortByProximity(jobsAsync, refLat: refLat, refLng: refLng);
+});
+
+List<MapJobEntity> _sortByProximity(
+  AsyncValue<List<MapJobEntity>> jobsAsync, {
+  double? refLat,
+  double? refLng,
+}) {
   return jobsAsync.when(
     data: (jobs) {
       final filtered = jobs;
@@ -103,7 +121,7 @@ final filteredMapJobsProvider = Provider<List<MapJobEntity>>((ref) {
     loading: () => [],
     error: (_, __) => [],
   );
-});
+}
 
 double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
   const double r = 6371.0;
@@ -145,7 +163,7 @@ class RecentSearchesNotifier extends StateNotifier<List<String>> {
 }
 
 final recentSearchesProvider =
-    StateNotifierProvider<RecentSearchesNotifier, List<String>>((ref) {
+    AutoDisposeStateNotifierProvider<RecentSearchesNotifier, List<String>>((ref) {
   return RecentSearchesNotifier(ref.watch(mapControllerProvider));
 });
 

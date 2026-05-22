@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -784,11 +785,53 @@ class _messageBubble extends StatelessWidget {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.file(
-                            File(message.content),
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
+                          child: (message.content.startsWith('http://') ||
+                                  message.content.startsWith('https://') ||
+                                  message.content.startsWith('blob:') ||
+                                  message.content.startsWith('data:image') ||
+                                  kIsWeb)
+                              ? Image.network(
+                                  message.content,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: isMine
+                                            ? const Color(0xFF401E66)
+                                            : const Color(0xFFF6F3F8),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.image,
+                                            color: isMine ? Colors.white : const Color(0xFF401E66),
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '📷 Image',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontWeight: FontWeight.w400,
+                                              fontSize: 14,
+                                              color: isMine
+                                                  ? Colors.white
+                                                  : const Color(0xFF1D1B1F),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                )
+                              : Image.file(
+                                  File(message.content),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: isMine

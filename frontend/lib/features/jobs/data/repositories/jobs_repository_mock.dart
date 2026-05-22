@@ -4,6 +4,7 @@ import 'package:job_app/features/jobs/domain/create_mission_params.dart';
 import 'package:job_app/features/jobs/data/models/job_model.dart';
 import 'package:job_app/features/jobs/data/models/mission_model.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
+import 'dart:typed_data';
 
 /// Implémentation mock du repository.
 /// Simule des appels réseau avec des délais artificiels.
@@ -435,7 +436,11 @@ class JobsRepositoryMock implements JobsRepository {
   }
 
   @override
-  Future<JobEntity> saveJob(JobEntity job) async {
+  Future<JobEntity> saveJob(
+    JobEntity job, {
+    Uint8List? imageBytes,
+    String? imageFileName,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 400));
     final model = JobModel.fromEntity(job);
     final index = _jobs.indexWhere((j) => j.id == job.id);

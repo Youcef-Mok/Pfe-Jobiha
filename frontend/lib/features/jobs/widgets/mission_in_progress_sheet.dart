@@ -357,11 +357,35 @@ class _MissionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final recruiterMember = MissionMemberEntity(
+      name: mission.recruiterName,
+      role: mission.companyName,
+      rating: mission.recruiterRating,
+      avatarUrl: null,
+    );
+
+    final visibleTeam = isRecruiterView ? mission.team : <MissionMemberEntity>[recruiterMember];
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'Description de la mission',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _MissionSummaryCard(
+            description: mission.description,
+            summary: mission.summary,
+          ),
+          const SizedBox(height: 14),
           Text(
             isRecruiterView ? 'Employés' : 'Recruteur',
             style: const TextStyle(
@@ -372,11 +396,108 @@ class _MissionBody extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          ...mission.team.map((m) => Padding(
+          ...visibleTeam.map((m) => Padding(
                 padding: const EdgeInsets.only(bottom: 0),
                 child: _RecruiterCard(member: m),
               )),
           const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionSummaryCard extends StatelessWidget {
+  final String description;
+  final String? summary;
+
+  const _MissionSummaryCard({
+    required this.description,
+    this.summary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final raw = description.trim().isNotEmpty
+        ? description.trim()
+        : (summary ?? '').trim();
+    final hasContent = raw.isNotEmpty;
+    final objectives = raw
+        .split(RegExp(r'[\n•\-]+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .take(3)
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hasContent ? raw : 'Aucune description fournie pour cette mission.',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w400,
+              fontSize: 13,
+              height: 1.45,
+              color: Color(0xFF475569),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Objectifs',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (objectives.isEmpty)
+            const Text(
+              'Objectifs non renseignés.',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w400,
+                fontSize: 13,
+                color: Color(0xFF64748B),
+              ),
+            )
+          else
+            ...objectives.map(
+              (objective) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Icon(Icons.circle, size: 6, color: Color(0xFF401E66)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        objective,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w400,
+                          fontSize: 13,
+                          height: 1.4,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -506,17 +627,6 @@ class _RecruiterCard extends ConsumerWidget {
                         color: Color(0xFF1D1B1F),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '(42 reviews)',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w400,
-                        fontSize: 12,
-                        height: 1.33,
-                        color: Color(0xFF7C7580),
-                      ),
-                    ),
                   ],
                 ),
               ],
@@ -599,7 +709,7 @@ class CompletedMissionSheet extends StatelessWidget {
                 child: SingleChildScrollView(
                   padding: EdgeInsets.only(
                     top: 30, 
-                    bottom: mission.candidateRating == 0.0 ? 96 : 16,
+                    bottom: mission.recruiterRating == 0.0 ? 96 : 16,
                   ),
                   child: _CompletedMissionView(
                     mission: mission,
@@ -608,14 +718,21 @@ class CompletedMissionSheet extends StatelessWidget {
                 ),
               ),
               // Fixed bottom button - only show if candidate hasn't rated yet
-              if (mission.candidateRating == 0.0)
+              if (mission.recruiterRating == 0.0)
                 Padding(
                   padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom + 16),
                   child: SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EndMissionScreen(mission: mission),
+                          ),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF401E66),
                         foregroundColor: Colors.white,
@@ -821,7 +938,14 @@ class _CompletedMissionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasTeam = mission.team.isNotEmpty;
+    final recruiterMember = MissionMemberEntity(
+      name: mission.recruiterName,
+      role: mission.companyName,
+      rating: mission.recruiterRating,
+      avatarUrl: null,
+    );
+    final visibleTeam = isRecruiterView ? mission.team : <MissionMemberEntity>[recruiterMember];
+    final hasTeam = visibleTeam.isNotEmpty;
     final hasCandidateReview = mission.candidateRating > 0 || mission.candidateFeedback.isNotEmpty;
     final hasRecruiterReview = mission.recruiterRating > 0 || mission.recruiterFeedback.isNotEmpty;
     final hasAnyReview = hasCandidateReview || hasRecruiterReview;
@@ -857,13 +981,13 @@ class _CompletedMissionBody extends StatelessWidget {
                   if (hasCandidateReview) ...[
                     _EvaluationCard(
                       title: 'Évaluation Candidat',
-                      subtitle: 'Feedback en cours',
+                      subtitle: 'Par ${mission.companyName}',
                       rating: mission.candidateRating,
                       feedback: mission.candidateFeedback,
                       bgColor: const Color(0xFFEFEDF4),
                       isRecruiter: false,
-                      candidateAvatar: 'assets/images/pdp_3.png',
-                      candidateName: 'Farouja',
+                      candidateAvatar: null,
+                      candidateName: mission.candidateName,
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -885,6 +1009,22 @@ class _CompletedMissionBody extends StatelessWidget {
             ),
             const SizedBox(height: 24),
           ],
+
+          const Text(
+            'Description de la mission',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _MissionSummaryCard(
+            description: mission.description,
+            summary: mission.summary,
+          ),
+          const SizedBox(height: 14),
           
           // Recruteur - afficher après les évaluations
           if (hasTeam) ...[
@@ -898,7 +1038,7 @@ class _CompletedMissionBody extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            ...mission.team.map((m) => Padding(
+            ...visibleTeam.map((m) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _RecruiterCard(member: m),
                 )),
@@ -915,7 +1055,7 @@ class _CompletedMissionBody extends StatelessWidget {
                     const Icon(Icons.rate_review_outlined, size: 48, color: Color(0xFF401E66)),
                     const SizedBox(height: 12),
                     const Text(
-                      'Pas encore de reviews',
+                      'Évaluer votre recruteur',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 14,

@@ -51,6 +51,23 @@ def send_otp_email(email, code):
     )
 
 
+def _as_bool(value, default=False):
+    """Convert common HTTP payload boolean shapes to Python bool."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in ('true', '1', 'yes', 'on'):
+            return True
+        if v in ('false', '0', 'no', 'off', ''):
+            return False
+    return default
+
+
 # ===========================================================================
 # Auth endpoints
 # ===========================================================================
@@ -1022,6 +1039,55 @@ class UserCvView(APIView):
             }
             for e in candidat.experiences.all()
         ]
+        from apps.jobs.models.mission import Mission
+        completed_missions = Mission.objects.filter(
+            candidature__candidat=candidat,
+            statut='terminee',
+        ).select_related(
+            'candidature__offre__recruteur',
+            'candidature__candidat',
+        )
+
+        for m in completed_missions:
+            recruteur = m.candidature.offre.recruteur
+            recruiter_rating_ev = Evaluation.objects.filter(
+                mission=m,
+                evalue=candidat,
+            ).first()
+            candidate_rating_ev = Evaluation.objects.filter(
+                mission=m,
+                evaluateur=candidat,
+                evalue=recruteur,
+            ).first()
+
+            period = ''
+            if m.date_debut and m.date_fin:
+                period = f"{m.date_debut.date().isoformat()} - {m.date_fin.date().isoformat()}"
+
+            experiences.append({
+                'title': m.candidature.offre.titre or '',
+                'company': recruteur.nom_structure or '',
+                'location': m.location or '',
+                'period': period,
+                'end_date': m.date_fin.date().isoformat() if m.date_fin else '',
+                'is_app_mission': True,
+                'is_active': True,
+                'mission_id': str(m.id),
+                'status': 'completed',
+                'start_date': m.date_debut.isoformat() if m.date_debut else '',
+                'candidate_name': f"{candidat.prenom} {candidat.nom}".strip(),
+                'recruiter_name': f"{recruteur.prenom} {recruteur.nom}".strip(),
+                'recruiter_rating': float(recruiter_rating_ev.note) if recruiter_rating_ev else 0.0,
+                'candidate_rating': float(candidate_rating_ev.note) if candidate_rating_ev else 0.0,
+                'recruiter_feedback': recruiter_rating_ev.commentaire if recruiter_rating_ev and recruiter_rating_ev.commentaire else '',
+                'candidate_feedback': candidate_rating_ev.commentaire if candidate_rating_ev and candidate_rating_ev.commentaire else '',
+                'description': (
+                    getattr(m.candidature.offre, 'description_annonce', None)
+                    or m.summary
+                    or ''
+                ),
+                'image_url': m.image_url or '',
+            })
         languages = [
             {'name': l.name, 'proficiency': l.proficiency}
             for l in candidat.languages.all()
@@ -1174,7 +1240,7 @@ class SettingsLanguageView(APIView):
 # ===========================================================================
 
 class RecentSearchListView(APIView):
-    """GET /searches/recent"""
+    """GET /users/me/recent-searches  |  DELETE /users/me/recent-searches[?query=...]"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -1182,6 +1248,14 @@ class RecentSearchListView(APIView):
             user=request.user
         ).order_by('-searched_at')[:10]
         return Response({'searches': [s.query for s in searches]})
+
+    def delete(self, request):
+        query = request.query_params.get('query', '').strip()
+        if query:
+            RecentSearch.objects.filter(user=request.user, query=query).delete()
+        else:
+            RecentSearch.objects.filter(user=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RecentSearchCreateView(APIView):
@@ -1612,15 +1686,22 @@ class CandidateCvFormationsView(APIView):
             if not request.data.get(field):
                 return Response({'detail': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
         from apps.users.models.cv_formation import CvFormation
+        uploaded = request.FILES.get('file')
+        file_name = request.data.get('file_name')
+        file_path = request.data.get('file_path')
+        if uploaded:
+            saved_path = default_storage.save(f'cv_formations/{uploaded.name}', uploaded)
+            file_name = uploaded.name
+            file_path = default_storage.url(saved_path)
         f = CvFormation.objects.create(
             candidat=request.user.candidat,
             title=request.data['title'],
             institution=request.data['institution'],
             location=request.data['location'],
             year=int(request.data['year']),
-            is_active=request.data.get('is_active', False),
-            file_name=request.data.get('file_name'),
-            file_path=request.data.get('file_path'),
+            is_active=_as_bool(request.data.get('is_active', False)),
+            file_name=file_name,
+            file_path=file_path,
         )
         return Response({
             'id': f.id, 'title': f.title, 'institution': f.institution,
@@ -1641,9 +1722,16 @@ class CandidateCvFormationDetailView(APIView):
             f = CvFormation.objects.get(pk=id, candidat=request.user.candidat)
         except CvFormation.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-        for field in ['title', 'institution', 'location', 'year', 'is_active', 'file_name', 'file_path']:
+        for field in ['title', 'institution', 'location', 'year', 'file_name', 'file_path']:
             if field in request.data:
                 setattr(f, field, request.data[field])
+        if 'is_active' in request.data:
+            f.is_active = _as_bool(request.data.get('is_active'))
+        uploaded = request.FILES.get('file')
+        if uploaded:
+            saved_path = default_storage.save(f'cv_formations/{uploaded.name}', uploaded)
+            f.file_name = uploaded.name
+            f.file_path = default_storage.url(saved_path)
         f.save()
         return Response({
             'id': f.id, 'title': f.title, 'institution': f.institution,

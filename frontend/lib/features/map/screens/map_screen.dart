@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
@@ -9,6 +10,7 @@ import 'package:job_app/core/widgets/candidate_nav_bar.dart';
 import 'package:job_app/features/map/domain/map_job_entity.dart';
 import 'package:job_app/features/map/data/providers/map_providers.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart' hide recentSearchesProvider;
 import 'package:job_app/features/jobs/screens/candidate_filters_screen.dart';
 import 'package:job_app/features/jobs/widgets/candidate_job_card.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
@@ -67,6 +69,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _sheetController.addListener(_onSheetScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        ref.invalidate(allMapJobsProvider);
         setState(() => _ready = true);
         _checkAndRequestLocation();
       }
@@ -79,7 +82,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _selectJob(MapJobEntity job) {
     ref.read(selectedMapJobProvider.notifier).state = job;
-    ref.read(recentSearchesProvider.notifier).addSearch(job.title);
 
     // Smoothly animate map to center on job icon, with offset to avoid overlay
     _animatedMapMove(LatLng(job.lat - 0.0038, job.lng), 15.5);
@@ -115,10 +117,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _moveController.forward();
   }
 
-  void _openSearch() => setState(() => _showSearch = true);
+  void _openSearch() {
+    ref.invalidate(allMapJobsProvider);
+    setState(() => _showSearch = true);
+  }
   void _closeSearch() => setState(() => _showSearch = false);
   void _submitSearch(String q) {
     ref.read(mapSearchQueryProvider.notifier).state = q;
+    ref.read(candidateJobSearchQueryProvider.notifier).state = q;
+    ref.invalidate(allMapJobsProvider);
     ref.read(recentSearchesProvider.notifier).addSearch(q);
     setState(() {
       _showSearch = false;
@@ -128,6 +135,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _clearResults() {
     ref.read(mapSearchQueryProvider.notifier).state = '';
+    ref.read(candidateJobSearchQueryProvider.notifier).state = '';
     setState(() {
       _showResults = false;
     });
@@ -197,6 +205,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
         lng: pos.longitude,
       );
       _animatedMapMove(LatLng(pos.latitude, pos.longitude), 14.0);
+      _reverseGeocodeAndSave(pos.latitude, pos.longitude);
+    } catch (_) {}
+  }
+
+  Future<void> _reverseGeocodeAndSave(double lat, double lng) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lng);
+      if (placemarks.isEmpty) return;
+      final city = placemarks.first.locality?.trim() ??
+          placemarks.first.administrativeArea?.trim() ??
+          '';
+      if (city.isEmpty || !mounted) return;
+
+      final user = ref.read(candidateCurrentUserProvider).valueOrNull;
+      if (user == null || user.location.trim().isNotEmpty) return;
+
+      // Update local state immediately
+      ref.read(candidateCurrentUserProvider.notifier).updateProfileInfo(location: city);
+
+      // Persist to backend (fire and forget)
+      final controller = ref.read(profileControllerProvider);
+      await controller.updateProfile(user.copyWith(location: city));
     } catch (_) {}
   }
 
@@ -224,6 +254,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final searchQuery = ref.watch(mapSearchQueryProvider);
     final selectedJob = ref.watch(selectedMapJobProvider);
     final filtered = ref.watch(filteredMapJobsProvider);
+    final searchResults = ref.watch(jobSearchProvider);
     final gps = ref.watch(userGpsPositionProvider);
     final userEntity = ref.watch(candidateCurrentUserProvider).valueOrNull;
     final userLat = gps?.lat ?? userEntity?.latitude ?? _defaultLat;
@@ -371,11 +402,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
               top: MediaQuery.of(context).padding.top + 132,
               child: _SearchResultsSheet(
                 query: searchQuery,
-                jobs: filtered,
+                jobs: searchResults.valueOrNull ?? const [],
                 onClose: _clearResults,
                 onJobTap: (j) {
                   _clearResults();
-                  _selectJob(j);
+                  if (j.latitude != null && j.longitude != null) {
+                    _animatedMapMove(
+                        LatLng(j.latitude! - 0.0038, j.longitude!), 15.5);
+                  }
                 },
               ),
             ),
@@ -1455,7 +1489,7 @@ class _BottomSheet extends StatelessWidget {
 }
 
 // ─── Bottom sheet content (scroll-aware) ───────────────────────────────────────
-class _BottomSheetContent extends StatefulWidget {
+class _BottomSheetContent extends ConsumerStatefulWidget {
   final ScrollController scrollController;
   final MapJobEntity? selectedJob;
   final List<MapJobEntity> allJobs;
@@ -1469,10 +1503,10 @@ class _BottomSheetContent extends StatefulWidget {
   });
 
   @override
-  State<_BottomSheetContent> createState() => _BottomSheetContentState();
+  ConsumerState<_BottomSheetContent> createState() => _BottomSheetContentState();
 }
 
-class _BottomSheetContentState extends State<_BottomSheetContent> {
+class _BottomSheetContentState extends ConsumerState<_BottomSheetContent> {
   bool _isExpanded = false;
 
   @override
@@ -1481,10 +1515,7 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
     widget.scrollController.addListener(_onScroll);
   }
 
-  void _onScroll() {
-    // When user scrolls the sheet controller, check if we're at max
-    // We use the DraggableScrollableSheet notification instead
-  }
+  void _onScroll() {}
 
   @override
   void dispose() {
@@ -1494,9 +1525,10 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
 
   @override
   Widget build(BuildContext context) {
+    final nearbyAsync = ref.watch(nearbyJobsProvider);
+
     return NotificationListener<DraggableScrollableNotification>(
       onNotification: (n) {
-        // Only show 'Nearby jobs' list when clearly expanded
         final expanded = n.extent >= 0.70;
         if (expanded != _isExpanded) {
           setState(() => _isExpanded = expanded);
@@ -1505,7 +1537,6 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
       },
       child: CustomScrollView(
         controller: widget.scrollController,
-        // Using ClampingScrollPhysics allows the sheet to drag properly
         physics: const ClampingScrollPhysics(),
         slivers: [
           // Header + Suggestions (visible in both states)
@@ -1538,18 +1569,26 @@ class _BottomSheetContentState extends State<_BottomSheetContent> {
               child: Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 40),
                 decoration: BoxDecoration(
-                  border:
-                      Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
+                  border: Border.all(color: const Color(0xFFEEEBF4), width: 1.5),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: widget.allJobs
-                      .map((job) => CandidateJobCard(
-                            job: _mapJobToEntity(job),
-                            onTap: () => widget.onJobTap(job),
-                          ))
-                      .toList(),
+                child: nearbyAsync.when(
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF401E66),
+                        strokeWidth: 2.5,
+                      ),
+                    ),
+                  ),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (jobs) => Column(
+                    children: jobs
+                        .map((job) => CandidateJobCard(job: job))
+                        .toList(),
+                  ),
                 ),
               ),
             ),
@@ -1712,7 +1751,7 @@ class _SuggestionCard extends StatelessWidget {
                               size: 10, color: Colors.white),
                           const SizedBox(width: 4),
                           Text(
-                            job.distance,
+                            job.city.isNotEmpty ? job.city : 'Ville non precisee',
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontWeight: FontWeight.w700,
@@ -1832,12 +1871,21 @@ class _SuggestionCard extends StatelessWidget {
   }
 }
 
+ContractType _parseContractType(String raw) {
+  final ct = raw.trim().toLowerCase();
+  if (ct == 'cdi') return ContractType.cdi;
+  if (ct == 'freelance') return ContractType.freelance;
+  return ContractType.mission;
+}
+
 JobEntity _mapJobToEntity(MapJobEntity mapJob) {
   return JobEntity(
     id: mapJob.id,
     title: mapJob.title,
     companyName: mapJob.company,
-    contractType: ContractType.mission,
+    contractType: _parseContractType(mapJob.contractType),
+    location: mapJob.city.isNotEmpty ? mapJob.city : null,
+    scheduleLabel: mapJob.hours.isNotEmpty ? mapJob.hours : null,
     postedAt: DateTime.now(),
     status: JobStatus.searching,
     candidateCount: 0,
@@ -2081,7 +2129,7 @@ class _SelectedJobDetail extends StatelessWidget {
                           size: 14, color: Color(0xFF545665)),
                       const SizedBox(width: 6),
                       Text(
-                        job.distance,
+                        job.city.isNotEmpty ? job.city : 'Ville non precisee',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontWeight: FontWeight.w700,
@@ -2310,7 +2358,7 @@ class _MapJobDetailsOverlayState extends State<_MapJobDetailsOverlay> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${job.company} • Lyon, FR',
+                      '${job.company} • ${job.city.isNotEmpty ? job.city : 'Ville non precisee'}',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w500,
@@ -2494,7 +2542,8 @@ class _MapJobDetailsOverlayState extends State<_MapJobDetailsOverlay> {
               _StaticTag('REMOTE'),
               _StaticTagWithIcon(label: job.hours, icon: Icons.access_time),
               _StaticTagWithIcon(
-                  label: job.distance, icon: Icons.near_me_outlined),
+                  label: job.city.isNotEmpty ? job.city : 'Ville non precisee',
+                  icon: Icons.near_me_outlined),
             ],
           ),
         ],
@@ -2959,7 +3008,7 @@ class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
                           onTap: () => widget.onSubmit(s),
                         )),
 
-                    // Job suggestions from API /jobs/map
+                    // Job suggestions from all nearby jobs
                     ...jobSuggestions.map((j) => _SearchItem(
                           icon: j.categoryIcon,
                           iconBg: const Color(0xFFEFEDF2),
@@ -3074,8 +3123,8 @@ class _SearchItem extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────────────────
 class _SearchResultsSheet extends StatelessWidget {
   final String query;
-  final List<MapJobEntity> jobs;
-  final Function(MapJobEntity) onJobTap;
+  final List<JobEntity> jobs;
+  final Function(JobEntity) onJobTap;
   final VoidCallback? onClose;
 
   const _SearchResultsSheet({
@@ -3148,7 +3197,7 @@ class _SearchResultsSheet extends StatelessWidget {
                 itemCount: jobs.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (ctx, i) => CandidateJobCard(
-                  job: _mapJobToEntity(jobs[i]),
+                  job: jobs[i],
                   onTap: () => onJobTap(jobs[i]),
                 ),
               ),

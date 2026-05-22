@@ -18,6 +18,7 @@ class OffreSerializer(serializers.ModelSerializer):
     """
     id = serializers.SerializerMethodField()
     title = serializers.CharField(source='titre', read_only=True)
+    description = serializers.CharField(read_only=True)
     company_name = serializers.SerializerMethodField()
     contract_type = serializers.CharField(source='type_contrat', read_only=True)
     posted_at = serializers.SerializerMethodField()
@@ -27,8 +28,11 @@ class OffreSerializer(serializers.ModelSerializer):
     recruiter_name = serializers.SerializerMethodField()
     recruiter_avatar_asset = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
+    city = serializers.SerializerMethodField()
     location = serializers.SerializerMethodField()
     schedule_label = serializers.SerializerMethodField()
+    latitude = serializers.FloatField(read_only=True)
+    longitude = serializers.FloatField(read_only=True)
     salary = serializers.FloatField(source='salaire', read_only=True)
     candidates = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
@@ -36,11 +40,11 @@ class OffreSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Offre
         fields = [
-            'id', 'title', 'company_name', 'contract_type', 'posted_at',
+            'id', 'title', 'description', 'company_name', 'contract_type', 'posted_at',
             'status', 'candidate_count', 'view_count', 'logo_asset',
             'is_published', 'salary',
             'recruiter_id', 'recruiter_name', 'recruiter_avatar_asset',
-            'department', 'location', 'schedule_label',
+            'department', 'city', 'location', 'schedule_label', 'latitude', 'longitude',
             'candidates', 'comments',
         ]
 
@@ -59,7 +63,7 @@ class OffreSerializer(serializers.ModelSerializer):
         return getattr(obj.recruteur, 'nom_structure', None) or ''
 
     def get_logo_asset(self, obj):
-        return getattr(obj.recruteur, 'logo_url', None)
+        return getattr(obj, 'image_url', None) or getattr(obj.recruteur, 'logo_url', None)
 
     def get_recruiter_id(self, obj):
         return str(obj.recruteur_id)
@@ -76,9 +80,13 @@ class OffreSerializer(serializers.ModelSerializer):
         return obj.categorie or None
 
     def get_location(self, obj):
-        if obj.latitude is not None and obj.longitude is not None:
-            return f"{obj.latitude}, {obj.longitude}"
         return getattr(obj, 'location', None)
+
+    def get_city(self, obj):
+        loc = (getattr(obj, 'location', None) or '').strip()
+        if not loc:
+            return None
+        return loc.split(',')[0].strip()
 
     def get_schedule_label(self, obj):
         return getattr(obj, 'schedule_label', None) or obj.type_contrat or None
@@ -107,10 +115,14 @@ class OffreSerializer(serializers.ModelSerializer):
         comments = JobComment.objects.filter(offre=obj).select_related('auteur')
         result = []
         for c in comments:
+            prenom = ((getattr(c.auteur, 'prenom', '') or '').strip() if c.auteur else '')
+            nom = ((getattr(c.auteur, 'nom', '') or '').strip() if c.auteur else '')
+            initials = (prenom[:1] + nom[:1]).upper() if (prenom or nom) else ''
+            author_name = f"{prenom} {nom}".strip()
             result.append({
                 'id': c.id,
-                'initials': (c.auteur.prenom[:1] + c.auteur.nom[:1]).upper() if c.auteur else '',
-                'author_name': f"{c.auteur.prenom} {c.auteur.nom}" if c.auteur else '',
+                'initials': initials,
+                'author_name': author_name,
                 'date': c.date_question.isoformat() if c.date_question else '',
                 'question': c.question,
                 'recruitor_label': '',
@@ -214,6 +226,7 @@ class MissionSerializer(serializers.ModelSerializer):
     recruiter_rating = serializers.SerializerMethodField()
     candidate_feedback = serializers.SerializerMethodField()
     recruiter_feedback = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
     summary = serializers.SerializerMethodField()
     team = serializers.SerializerMethodField()
 
@@ -224,7 +237,7 @@ class MissionSerializer(serializers.ModelSerializer):
             'location', 'recruiter_name', 'candidate_name',
             'candidate_rating', 'recruiter_rating',
             'candidate_feedback', 'recruiter_feedback',
-            'status', 'summary', 'image_url', 'team',
+            'status', 'description', 'summary', 'image_url', 'team',
         ]
 
     _STATUS_MAP = {
@@ -279,8 +292,7 @@ class MissionSerializer(serializers.ModelSerializer):
         Flutter casts as (num).toDouble() — must not be null.
         """
         recruteur = obj.candidature.offre.recruteur
-        ev = obj.evaluations.filter(evalue=recruteur).first()
-        return float(ev.note) if ev else 0.0
+        return float(recruteur.note_globale) if recruteur.note_globale is not None else 0.0
 
     def get_candidate_feedback(self, obj):
         """Textual feedback left by the candidate.
@@ -301,6 +313,9 @@ class MissionSerializer(serializers.ModelSerializer):
 
     def get_summary(self, obj):
         return getattr(obj, 'summary', None)
+
+    def get_description(self, obj):
+        return getattr(obj.candidature.offre, 'description', '') or ''
 
     def get_team(self, obj):
         """

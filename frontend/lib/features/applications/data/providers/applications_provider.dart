@@ -43,9 +43,9 @@ class ApplicationsNotifier
     }
   }
 
-  Future<void> apply(String jobId) async {
+  Future<void> apply(String jobId, {String? motivationLetter}) async {
     try {
-      await _controller.apply(jobId);
+      await _controller.apply(jobId, motivationLetter: motivationLetter);
       await fetch();
     } catch (_) {}
   }
@@ -160,7 +160,9 @@ final savedJobsFilterValuesProvider = StateProvider<Map<String, List<String>>>(
 // ─────────────────────────────────────────────
 class SavedJobsNotifier extends StateNotifier<Set<String>> {
   final JobsRepository _repository;
-  SavedJobsNotifier(this._repository) : super({}) {
+  final Ref _ref;
+
+  SavedJobsNotifier(this._repository, this._ref) : super({}) {
     Future.microtask(_load);
   }
 
@@ -178,6 +180,7 @@ class SavedJobsNotifier extends StateNotifier<Set<String>> {
       state = {...state}..remove(jobId);
       try {
         await _repository.unsaveJobById(jobId);
+        _ref.invalidate(savedJobsRemoteProvider);
       } catch (_) {
         state = prev;
       }
@@ -186,6 +189,7 @@ class SavedJobsNotifier extends StateNotifier<Set<String>> {
       state = {...state, jobId};
       try {
         await _repository.saveJobById(jobId);
+        _ref.invalidate(savedJobsRemoteProvider);
       } catch (_) {
         state = prev;
       }
@@ -197,7 +201,7 @@ class SavedJobsNotifier extends StateNotifier<Set<String>> {
 
 final savedJobsProvider =
     StateNotifierProvider<SavedJobsNotifier, Set<String>>(
-  (ref) => SavedJobsNotifier(ref.watch(jobsRepositoryProvider)),
+  (ref) => SavedJobsNotifier(ref.watch(jobsRepositoryProvider), ref),
 );
 
 // ─────────────────────────────────────────────
@@ -276,6 +280,7 @@ final recentApplicationsProvider = Provider<AsyncValue<List<ApplicationEntity>>>
 });
 
 /// Jobs enregistrés côté backend (GET /candidats/me/saved).
+/// Invalidated explicitly by SavedJobsNotifier.toggle() after each API call.
 final savedJobsRemoteProvider = FutureProvider<List<JobEntity>>((ref) async {
   return ref.read(jobsRepositoryProvider).getSavedJobs();
 });

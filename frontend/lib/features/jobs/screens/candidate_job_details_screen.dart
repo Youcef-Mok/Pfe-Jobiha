@@ -149,7 +149,7 @@ class _DetailsContentState extends ConsumerState<_DetailsContent>
                 _MinimalistHeader(
                   width: constraints.maxWidth,
                   title: widget.job.title,
-                  subtitle: '${widget.job.companyName} • Lyon, FR',
+                  subtitle: widget.job.companyName,
                   showApplyButton: widget.application == null,
                   job: widget.job,
                   application: widget.application,
@@ -286,8 +286,8 @@ class _MinimalistHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (application != null && application!.status != ApplicationStatus.pending)
-                  _statusBadge(application!.status)
+                if (application != null)
+                  _WithdrawApplicationButton(applicationId: application!.id)
                 else if (showApplyButton)
                   _InlineApplyButton(job: job),
               ],
@@ -439,7 +439,9 @@ class _DescriptionTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'We are seeking a visionary Senior Product Designer to join our core product team. You will be responsible for defining the user experience of our next-generation creative platform.',
+                  job.description.trim().isNotEmpty
+                      ? job.description
+                      : 'Description non precisee.',
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w400,
                     fontSize: 15,
@@ -448,20 +450,17 @@ class _DescriptionTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.only(left: 20), // Padding from list CSS
-                  child: _BulletList(items: [
-                    'Drive the design process from discovery through delivery.',
-                    'Collaborate with engineers to ensure high-fidelity implementation.',
-                    'Maintain and evolve our internal design system.',
-                  ]),
-                ),
-                const SizedBox(height: 12),
                 // Tags
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
-                  children: [contractLabel, 'Part-time', 'Remote']
+                  children: [
+                    contractLabel,
+                    if ((job.scheduleLabel ?? '').trim().isNotEmpty)
+                      job.scheduleLabel!,
+                    if ((job.city ?? '').trim().isNotEmpty)
+                      job.city!,
+                  ]
                       .map((t) => Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 20, vertical: 8),
@@ -491,7 +490,15 @@ class _DescriptionTab extends StatelessWidget {
           const SizedBox(height: 9),
           _HiringManagerCard(job: job),
           const SizedBox(height: 12), // Gap 12px
-          _MapPreview(),
+          _MapPreview(
+            placeName: (job.city ?? '').trim().isNotEmpty
+                ? job.city!
+                : ((job.location ?? '').trim().isNotEmpty
+                    ? job.location!
+                    : job.companyName),
+            lat: job.latitude,
+            lng: job.longitude,
+          ),
         ],
       ),
     );
@@ -734,6 +741,11 @@ class _BulletList extends StatelessWidget {
 }
 
 class _MapPreview extends StatefulWidget {
+  final String placeName;
+  final double? lat;
+  final double? lng;
+  const _MapPreview({required this.placeName, this.lat, this.lng});
+
   @override
   State<_MapPreview> createState() => _MapPreviewState();
 }
@@ -762,14 +774,16 @@ class _MapPreviewState extends State<_MapPreview> with SingleTickerProviderState
   
   @override
   Widget build(BuildContext context) {
-    const lat = 45.7578;
-    const lng = 4.8320;
-    const placeName = '2e Arrondissement, Lyon';
+    final lat = widget.lat ?? 36.762;
+    final lng = widget.lng ?? 3.040;
+    final placeName = widget.placeName.trim().isEmpty
+        ? 'Emplacement non precise'
+        : widget.placeName;
     
     return GestureDetector(
       onTap: () async {
         // Ouvrir Google Maps avec les coordonnées
-        final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng&query_place_id=$placeName');
+        final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
         if (await canLaunchUrl(url)) {
           await launchUrl(url, mode: LaunchMode.externalApplication);
         }
@@ -786,10 +800,10 @@ class _MapPreviewState extends State<_MapPreview> with SingleTickerProviderState
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: FlutterMap(
-                options: const MapOptions(
+                options: MapOptions(
                   initialCenter: LatLng(lat, lng),
                   initialZoom: 12.6,
-                  interactionOptions: InteractionOptions(
+                  interactionOptions: const InteractionOptions(
                     flags: InteractiveFlag.none,
                   ),
                 ),
@@ -1388,14 +1402,20 @@ class _InlineApplyButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
-      onTap: () {
-        ref.read(applicationsNotifierProvider.notifier).apply(job.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Candidature envoyee !'),
-            backgroundColor: AppColors.violet,
-          ),
-        );
+      onTap: () async {
+        final motivationLetter = await _showMotivationLetterOverlay(context);
+        if (motivationLetter == null) return;
+        ref
+            .read(applicationsNotifierProvider.notifier)
+            .apply(job.id, motivationLetter: motivationLetter);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Candidature envoyee !'),
+              backgroundColor: AppColors.violet,
+            ),
+          );
+        }
       },
       child: Container(
         width: 86,
@@ -1423,4 +1443,115 @@ class _InlineApplyButton extends ConsumerWidget {
       ),
     );
   }
+
+  Future<String?> _showMotivationLetterOverlay(BuildContext context) async {
+    final controller = TextEditingController();
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          MediaQuery.of(ctx).viewInsets.bottom + 16,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lettre de motivation',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: controller,
+                minLines: 4,
+                maxLines: 8,
+                decoration: InputDecoration(
+                  hintText: 'Ecrivez votre motivation...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () =>
+                      Navigator.of(ctx).pop(controller.text.trim()),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.violet,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Envoyer candidature'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return result;
+  }
 }
+
+class _WithdrawApplicationButton extends ConsumerWidget {
+  final String applicationId;
+  const _WithdrawApplicationButton({required this.applicationId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onTap: () async {
+        await ref
+            .read(applicationsNotifierProvider.notifier)
+            .cancel(applicationId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Candidature retiree'),
+              backgroundColor: AppColors.violet,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      },
+      child: Container(
+        width: 86,
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFEDF2),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFD1C9DA)),
+        ),
+        child: const Text(
+          'Retirer',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            height: 20 / 12,
+            color: Color(0xFF401E66),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -139,11 +139,13 @@
 | POST | `/candidates/me/cv/formations` | `{ id, title, institution, location, year, is_active, file_name, file_path }` 201 |
 | PUT | `/candidates/me/cv/formations/:id` | `{ id, title, institution, location, year, is_active, file_name, file_path }` |
 | DELETE | `/candidates/me/cv/formations/:id` | 204 |
+| Alias | `/candidats/me/cv/formations` | Alias FR compatible (`GET/POST/PUT/DELETE`, avec et sans trailing slash) |
 | GET | `/candidates/me/cv/experiences` | `[{ id, title, company, location, period, end_date, is_app_mission, is_active }]` |
 | POST | `/candidates/me/cv/experiences` | `{ id, title, company, location, period, end_date, is_app_mission, is_active }` 201 |
 | PUT | `/candidates/me/cv/experiences/:id` | `{ id, title, company, location, period, end_date, is_app_mission, is_active }` |
 | DELETE | `/candidates/me/cv/experiences/:id` | 204 |
 | POST | `/candidates/me/cv/skills` | `{ id, name, level }` 201 — auto-creates "Compétences" group if needed (body: `{ name, level }`) |
+| Alias | `/candidats/me/cv/experiences`, `/candidats/me/cv/skills` | Alias FR compatibles (avec et sans trailing slash) |
 
 **Valeurs `level` pour CandidateSkill :** `debutant | intermediaire | avance | expert`
 
@@ -357,7 +359,7 @@
 | GET/POST | `/candidats/me/portfolio` | `[MediaResponse]` / 201 |
 | DELETE | `/candidats/me/portfolio/:id` | 204 |
 | GET | `/candidats/me/historique` | `PaginatedResponse<MissionResponse>` |
-| GET/POST | `/candidats/me/saved` | Offres sauvegardées (anciennes routes) |
+| GET/POST/DELETE | `/candidats/me/saved` | Offres sauvegardées — DELETE prend `?offre_id=` en query param |
 | GET/POST | `/candidats/me/alertes` | `[AlerteResponse]` / 201 |
 | PATCH/DELETE | `/candidats/me/alertes/:id` | `AlerteResponse` / 204 |
 
@@ -440,3 +442,143 @@ Notes d’alignement:
 ## Update 2026-05-22 (Create Job stability) 
 - POST /jobs: start_date accepte cote backend (fallback date du jour si absent). 
 - Frontend create job: start_date envoye et description non vide; durcissement UI contre RenderFlex overflow sur JobCard.
+
+## Update 2026-05-22 (Edit Profile wiring candidat/recruteur)
+- Ecran `Modifier profil` candidat: bouton `Modifier` de la section competences branche vers l'ecran de completion candidat pour modifier CV/competences (flows `/users/me`, `/candidates/me/cv/*`, `/candidates/me/languages`).
+- Ecran `Modifier profil` recruteur ajoute et relie depuis le header recruteur; le bouton `Modifier` des informations entreprise ouvre l'ecran de completion recruteur.
+- Endpoints verifies/branches pour modification profil:
+  - Base profil (commun): `PATCH /users/me`
+  - Profil recruteur (structure): `PATCH /recruteurs/me`
+
+## Update 2026-05-22 (Saved Jobs affichage)
+- Frontend Saved Jobs aligne sur la vraie reponse paginee de `GET /candidats/me/saved`:
+  chaque item est un `SavedJob` avec l'offre dans `offre`.
+- Mapping frontend corrige pour parser `item.offre` (et fallback ancien format direct).
+- Rafraichissement auto de la page Saved Jobs apres bookmark/unbookmark via dependance sur `savedJobsProvider`.
+
+## Update 2026-05-22 (Saved Jobs bug fix)
+- Corrige race condition: `savedJobsRemoteProvider` re-fetchait depuis le backend AVANT que l'appel API POST/DELETE soit termine, retournant l'ancienne liste.
+- Fix: suppression du `ref.watch(savedJobsProvider)` dans `savedJobsRemoteProvider`; `SavedJobsNotifier.toggle()` appelle desormais `ref.invalidate(savedJobsRemoteProvider)` apres chaque appel API reussi.
+- Fix: `JobModel.fromJson` — `posted_at` null (possible si ni `created_at` ni `date_debut` n'est renseignee sur le backend) ne crash plus (fallback `DateTime.now()`).
+- Aucun changement backend.
+
+## Update 2026-05-22 (Candidature overlay motivation)
+- Ecran detail annonce candidat: ajout d'un overlay pour saisir la lettre de motivation avant envoi.
+- Envoi backend branche sur `POST /applications` avec payload:
+  - `job_id`
+  - `motivation_letter` (si renseignee)
+- Ajustement UI: suppression des libelles de localisation hardcodes dans le detail annonce.
+
+## Update 2026-05-22 (Retrait candidature depuis detail offre)
+- Ecran detail offre candidat: quand une candidature existe, le bouton en haut a droite devient `Retirer` (remplace `Candidater`).
+- Action branchee sur l'endpoint existant `DELETE /applications/:id` (frontend: `cancelApplication`).
+
+## Update 2026-05-22 (Homepage filtres => recherche)
+- Homepage candidat: validation des filtres declenche explicitement le rafraichissement de la recherche jobs (`nearbyJobsProvider`).
+- Filtrage frontend renforce pour appliquer tous les filtres selectionnes (contrat multi-valeurs, localisation, disponibilite) sur les resultats de `GET /jobs`.
+
+## Update 2026-05-22 (Stabilite affichage homepage jobs)
+- Homepage candidat: fallback automatique sur `GET /jobs` (jobs publies) quand la requete "nearby" est en loading/erreur/vide au demarrage.
+- Objectif: eviter l'affichage vide intermittent au lancement avant que les donnees de localisation/profil soient resolues.
+
+## Update 2026-05-22 (Home jobs + filtres data-driven)
+- Homepage candidat: invalidation automatique de la recherche jobs (`nearbyJobsProvider`) quand le profil candidat ou la position GPS change, pour eviter le cas "les jobs apparaissent seulement apres passage par la map".
+- Cartes d'annonces (home/liste): suppression des valeurs hardcodees de localisation/horaires; affichage branche sur les champs API `location` et `schedule_label`.
+- Mapping frontend `OffreResponse` aligne: `JobModel/JobEntity` expose maintenant `location` et `schedule_label`.
+- Filtres candidat alignes avec les types de contrat supportes par l'API jobs: `CDI`, `Mission`, `Freelance` (suppression des options hors scope `CDD`, `Stage`).
+- Filtrage client des annonces renforce pour utiliser les vrais champs annonces:
+  - localisation => match sur `job.location`
+  - horaires/disponibilite => match sur `job.schedule_label`
+
+## Update 2026-05-22 (Stabilite auth 401 frontend)
+- Interceptor HTTP frontend durci pour eviter les 401 intermittents:
+  - serialisation des erreurs via `QueuedInterceptor`
+  - refresh token mutualise (une seule tentative partagee entre requetes concurrentes)
+  - retry unique par requete (`__retried__`) pour eviter les boucles
+  - exclusion des routes auth (`/auth/*`) du mecanisme de refresh automatique
+- Impact: reduction des cas ou certaines requetes partent sans session valide apres un pic de 401.
+
+## Update 2026-05-22 (Map jobs parsing fix)
+- Frontend map: parsing de `GET /jobs/map` rendu tolerant aux deux formats backend:
+  - liste directe `[...]`
+  - reponse paginee `{ results: [...] }`
+- Mapping des champs map aligne avec variantes backend:
+  - `company` ou `company_name`
+  - `hours` ou `schedule_label`
+  - `lat/lng` ou `latitude/longitude`
+  - `image_asset` ou `logo_asset`
+  - `recruiter_avatar` ou `recruiter_avatar_asset`
+- Les items sans coordonnees valides sont ignores pour eviter le crash silencieux et la liste vide.
+
+## Update 2026-05-22 (Map city display + nearest-first sorting)
+- Affichage carte annonces: la ville est affichee (`location/city/wilaya`) a la place d'une valeur de distance/coordonnees dans les cartes map.
+- Conversion map->job detail alignee: `location` et `schedule_label` sont propages vers l'entite job.
+- Requete `GET /jobs/map`: suppression de la limitation serveur `max_distance_km` dans l'appel frontend pour ne pas tronquer la liste.
+- Tri proximity preserve cote frontend: les annonces sont ordonnees par distance croissante depuis la position utilisateur (plus proches en premier).
+
+## Update 2026-05-22 (Attribut city sur annonces frontend)
+- Modele d'annonce frontend enrichi avec l'attribut `city`:
+  - `JobModel.city` parse `city` (ou `ville`) depuis la reponse API jobs
+  - `JobEntity.city` expose cet attribut au domaine/UI
+- Fallback automatique: si `city` absent, derive depuis `location` (premiere partie avant virgule).
+- Affichage UI annonces candidat priorise `city` puis fallback `location`.
+
+## Update 2026-05-22 (Affichage ville strict depuis BDD)
+- Suppression des fallbacks UI qui affichaient `location` (pouvant contenir des coordonnees GPS).
+- Affichage annonces (home + cards) force sur `city` uniquement; si absent => `Ville non precisee`.
+- Map parsing aligne: `city` map prend uniquement `city/wilaya` (plus de fallback sur `location`).
+
+## Update 2026-05-22 (Jobs data normalization + homepage filter results)
+- Backend `OffreSerializer` aligne:
+  - `location` renvoie uniquement le champ texte BDD (plus de fallback `latitude,longitude`).
+  - ajout du champ `city` derive de `offre.location` (prefixe avant la virgule).
+- Backend `GET /jobs/map`: ajout de `city` dans chaque item, `hours` aligne sur `schedule_label`.
+- Donnees BDD `offre` normalisees pour les tests filtres:
+  - `type_contrat` force dans l'ensemble `cdi|mission|freelance`
+  - `schedule_label` force dans l'ensemble `Temps plein|Temps partiel|Flexible`
+  - `location` forcee en texte ville (`<Ville>, Algerie`) pour toutes les offres existantes.
+- Homepage candidat: selection d'un filtre ouvre l'ecran de resultats (comme la map) et affiche les annonces correspondantes meme sans texte dans la barre de recherche.
+
+## Update 2026-05-22 (Details posts: donnees reelles + map preview reel)
+- Backend `OffreResponse` enrichi pour la page detail:
+  - ajout de `description`, `latitude`, `longitude` dans le serializer read jobs.
+  - `location` renvoie le texte BDD (plus de coordonnees stringifiees).
+- Frontend detail annonce candidat:
+  - suppression du texte description hardcode.
+  - tags caracteristiques alimentes par les vraies donnees annonce (`contract_type`, `schedule_label`, `city`).
+  - preview map utilise maintenant les vraies coordonnees annonce (`latitude`, `longitude`) pour le marker et l'ouverture Google Maps.
+- Frontend detail annonce/map:
+  - suppression d'un libelle localisation hardcode (`Lyon, FR`) remplace par `job.city`.
+
+## Update 2026-05-22 (CV Formation bool parsing fix)
+- Endpoint `POST/PUT /candidates/me/cv/formations`: normalisation backend du champ `is_active` pour accepter les formats HTTP usuels (`true/false`, `1/0`, bool natif) et eviter l'erreur 500 due a un string non converti.
+
+## Update 2026-05-22 (Frontend certificat formation preview/download)
+- Frontend overlay certificat (page profil):
+  - resolution de `file_path` relatif (`/media/...`) vers URL absolue backend.
+  - affichage image certificat actif quand le fichier est `png/jpg/jpeg`.
+  - bouton `Télécharger le certificat (PDF)` branche pour ouvrir/telecharger le vrai fichier (URL backend) au lieu d'un snackbar mock.
+
+## Update 2026-05-22 (Map stale data refresh)
+- Frontend Map:
+  - `allMapJobsProvider` passe en `AutoDisposeFutureProvider` pour eviter la conservation de donnees perimees entre navigations.
+  - `recentSearchesProvider` map passe en `AutoDisposeStateNotifierProvider` pour recharger l'historique recemment.
+  - `MapScreen` invalide explicitement `allMapJobsProvider` au montage de l'ecran, a l'ouverture de la recherche map et a la soumission d'une recherche.
+- Impact: la section "emplois a proximite" et la page de recherche map affichent des donnees fraiches.
+
+## Update 2026-05-22 (Map unified base + separate search logic)
+- Refactor providers map pour unifier les sources:
+  - `baseMapJobsProvider`: dataset de base (suggestions + proximite), sans query texte.
+  - `searchedMapJobsProvider`: dataset recherche map, avec `mapSearchQueryProvider`.
+  - `filteredMapJobsProvider`: tri proximity sur la base.
+  - `filteredMapSearchResultsProvider`: tri proximity sur les resultats recherche.
+- `MapScreen` aligne l'UI:
+  - suggestions / proximite / overlay suggestions utilisent la base unifiee.
+  - feuille "resultat" utilise les resultats de recherche (logique query conservee).
+  - filtres restent appliques des deux cotes via la meme construction de requete map.
+
+## Update 2026-05-22 (Map rollback + map endpoint freshness)
+- Rollback frontend map recherche a la logique precedente:
+  - retour au provider unique `allMapJobsProvider` pour suggestions/proximite/recherche map (comme avant le dernier refactor).
+- Verification backend endpoint `GET /jobs/map`:
+  - ajout du filtre `statut='searching'` en plus de `is_published=True` pour eviter de remonter des offres publiees mais non actives (source potentielle de jobs outdated).

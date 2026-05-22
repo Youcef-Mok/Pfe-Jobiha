@@ -1,12 +1,16 @@
-/// Entité pour une formation académique dans le CV
+import 'dart:typed_data';
+
+/// Entite pour une formation academique dans le CV
 class CvFormationEntity {
   final String title;
   final String institution;
   final String location;
   final int year;
-  final bool isActive; // true → point violet, false → point gris
-  final String? fileName; // nom du fichier du certificat uploadé
-  final String? filePath; // chemin du fichier du certificat uploadé
+  final bool isActive;
+  final String? fileName;
+  final String? filePath;
+  final Uint8List? fileBytes;
+  final String? fileMimeType;
 
   const CvFormationEntity({
     required this.title,
@@ -16,18 +20,31 @@ class CvFormationEntity {
     this.isActive = false,
     this.fileName,
     this.filePath,
+    this.fileBytes,
+    this.fileMimeType,
   });
 }
 
-/// Entité pour une expérience professionnelle dans le CV
+/// Entite pour une experience professionnelle dans le CV
 class CvExperienceEntity {
   final String title;
   final String company;
   final String location;
-  final String? period; // ex: "Sep 2021 - Aug 2023"
-  final String? endDate; // ex: "Aug 2021" (affiché à droite si app mission)
+  final String? period;
+  final String? endDate;
   final bool isAppMission;
-  final bool isActive; // true → point violet, false → point gris
+  final bool isActive;
+  final String? missionId;
+  final String? status;
+  final String? startDate;
+  final String? candidateName;
+  final String? recruiterName;
+  final double recruiterRating;
+  final double candidateRating;
+  final String? recruiterFeedback;
+  final String? candidateFeedback;
+  final String? description;
+  final String? imageUrl;
 
   const CvExperienceEntity({
     required this.title,
@@ -37,13 +54,24 @@ class CvExperienceEntity {
     this.endDate,
     this.isAppMission = false,
     this.isActive = false,
+    this.missionId,
+    this.status,
+    this.startDate,
+    this.candidateName,
+    this.recruiterName,
+    this.recruiterRating = 0.0,
+    this.candidateRating = 0.0,
+    this.recruiterFeedback,
+    this.candidateFeedback,
+    this.description,
+    this.imageUrl,
   });
 }
 
-/// Entité pour une langue dans le CV
+/// Entite pour une langue dans le CV
 class CvLanguageEntity {
   final String name;
-  final String level; // ex: "Courant (C1)"
+  final String level;
 
   const CvLanguageEntity({
     required this.name,
@@ -51,11 +79,11 @@ class CvLanguageEntity {
   });
 }
 
-/// Entité pour un skill dans le CV
+/// Entite pour un skill dans le CV
 class CvSkillEntity {
   final String name;
-  final String? levelLabel; // "Expert" | "Avancé" | null
-  final double progress; // 0.0 à 1.0
+  final String? levelLabel;
+  final double progress;
 
   const CvSkillEntity({
     required this.name,
@@ -64,7 +92,7 @@ class CvSkillEntity {
   });
 }
 
-/// Entité regroupant toutes les données CV
+/// Entite regroupant toutes les donnees CV
 class CvEntity {
   final List<CvFormationEntity> formations;
   final List<CvExperienceEntity> experiences;

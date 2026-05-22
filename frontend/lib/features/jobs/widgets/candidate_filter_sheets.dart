@@ -4,9 +4,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
+import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 
-void showAvailabilitySheet(BuildContext context) {
-  showModalBottomSheet(
+Future<void> showAvailabilitySheet(BuildContext context) {
+  return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
@@ -17,8 +18,8 @@ void showAvailabilitySheet(BuildContext context) {
   );
 }
 
-void showContractTypeSheet(BuildContext context) {
-  showModalBottomSheet(
+Future<void> showContractTypeSheet(BuildContext context) {
+  return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
@@ -29,8 +30,8 @@ void showContractTypeSheet(BuildContext context) {
   );
 }
 
-void showLocationSheet(BuildContext context) {
-  showModalBottomSheet(
+Future<void> showLocationSheet(BuildContext context) {
+  return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
@@ -125,10 +126,9 @@ class _AvailabilitySheet extends ConsumerWidget {
                   spacing: 12,
                   runSpacing: 12,
                   children: [
-                    'Soirée',
-                    'Week-end',
-                    'Vacances',
+                    'Temps plein',
                     'Temps partiel',
+                    'Flexible',
                   ].map((label) {
                     final isSelected = filters.availability.contains(label);
                     return GestureDetector(
@@ -239,13 +239,8 @@ class _ContractTypeSheet extends ConsumerWidget {
                     ),
                     GestureDetector(
                       onTap: () {
-                        for (final type in [
-                          'CDI',
-                          'CDD',
-                          'Stage',
-                          'Mission',
-                          'Freelance'
-                        ]) {
+                        for (final type
+                            in ['CDI', 'Mission', 'Freelance']) {
                           if (filters.contractTypes.contains(type)) {
                             notifier.toggleContractType(type);
                           }
@@ -267,7 +262,7 @@ class _ContractTypeSheet extends ConsumerWidget {
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
-                  children: ['CDI', 'CDD', 'Stage', 'Mission', 'Freelance']
+                  children: ['CDI', 'Mission', 'Freelance']
                       .map((label) {
                     final isSelected = filters.contractTypes.contains(label);
                     return GestureDetector(
@@ -306,7 +301,10 @@ class _ContractTypeSheet extends ConsumerWidget {
                   width: double.infinity,
                   height: 44,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      ref.invalidate(nearbyJobsProvider);
+                      Navigator.pop(context);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3A1B5E),
                       shape: RoundedRectangleBorder(
@@ -800,24 +798,16 @@ class _AvailabilitySheetV2State extends ConsumerState<_AvailabilitySheetV2> {
                         children: [
                           ...[
                             {
-                              'label': 'Matin (6h-12h)',
-                              'icon': Icons.wb_sunny_outlined
+                              'label': 'Temps plein',
+                              'icon': Icons.work_outline
                             },
                             {
-                              'label': 'Après-midi (12h-18h)',
-                              'icon': Icons.wb_twilight
+                              'label': 'Temps partiel',
+                              'icon': Icons.access_time_outlined
                             },
                             {
-                              'label': 'Soir (18h-23h)',
-                              'icon': Icons.nights_stay_outlined
-                            },
-                            {
-                              'label': 'Week-end',
-                              'icon': Icons.weekend_outlined
-                            },
-                            {
-                              'label': 'Vacances',
-                              'icon': Icons.beach_access_outlined
+                              'label': 'Flexible',
+                              'icon': Icons.tune
                             },
                           ].map<Widget>((item) {
                             final label = item['label'] as String;
@@ -904,7 +894,10 @@ class _AvailabilitySheetV2State extends ConsumerState<_AvailabilitySheetV2> {
                   width: double.infinity,
                   height: 44,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      ref.invalidate(nearbyJobsProvider);
+                      Navigator.pop(context);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3A1B5E),
                       shape: RoundedRectangleBorder(

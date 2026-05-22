@@ -1,6 +1,5 @@
 // lib/features/auth/screens/signup_form_screen.dart
-
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -30,7 +29,8 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
   bool _isLocalLoading  = false;
 
   // ── Profile photo ──────────────────────────────────────────────────────────
-  File? _profileImage;
+  Uint8List? _profileImageBytes;
+  String? _profileImageName;
   final ImagePicker _picker = ImagePicker();
 
   Map<String, String?> _errors = {
@@ -100,7 +100,13 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                   imageQuality: 80,
                   maxWidth: 512,
                 );
-                if (photo != null) setState(() => _profileImage = File(photo.path));
+                if (photo != null) {
+                  final bytes = await photo.readAsBytes();
+                  setState(() {
+                    _profileImageBytes = bytes;
+                    _profileImageName = photo.name;
+                  });
+                }
               },
             ),
             ListTile(
@@ -113,16 +119,25 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                   imageQuality: 80,
                   maxWidth: 512,
                 );
-                if (photo != null) setState(() => _profileImage = File(photo.path));
+                if (photo != null) {
+                  final bytes = await photo.readAsBytes();
+                  setState(() {
+                    _profileImageBytes = bytes;
+                    _profileImageName = photo.name;
+                  });
+                }
               },
             ),
-            if (_profileImage != null)
+            if (_profileImageBytes != null)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
                 title: const Text('Supprimer la photo', style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(ctx);
-                  setState(() => _profileImage = null);
+                  setState(() {
+                    _profileImageBytes = null;
+                    _profileImageName = null;
+                  });
                 },
               ),
             const SizedBox(height: 8),
@@ -309,14 +324,14 @@ class _SignupFormScreenState extends ConsumerState<SignupFormScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: Colors.grey.shade200,
-                                image: _profileImage != null
+                                image: _profileImageBytes != null
                                     ? DecorationImage(
-                                        image: FileImage(_profileImage!),
+                                        image: MemoryImage(_profileImageBytes!),
                                         fit: BoxFit.cover,
                                       )
                                     : null,
                               ),
-                              child: _profileImage == null
+                              child: _profileImageBytes == null
                                   ? const Icon(Icons.person, size: 40, color: Colors.grey)
                                   : null,
                             ),

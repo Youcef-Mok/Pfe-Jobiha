@@ -15,6 +15,7 @@ import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
 import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/candidate_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/edit_profile_screen.dart';
+import 'package:job_app/features/profile/screens/recruiter_edit_profile_screen.dart';
 import 'package:job_app/features/profile/screens/report_comment_screen.dart';
 
 // Enables mouse drag scrolling on web
@@ -46,6 +47,7 @@ class App extends StatelessWidget {
     '/recruiter-public-profile': (_) => const RecruiterPublicProfileScreen(),
     '/candidate-public-profile': (_) => const CandidatePublicProfileScreen(),
     '/edit-profile':      (_) => const EditProfileScreen(),
+    '/edit-profile-recruiter': (_) => const RecruiterEditProfileScreen(),
     '/candidate-home':    (_) => const CandidateHomeScreen(),
     '/recruiter-home':    (_) => const JobsListScreen(),
   };

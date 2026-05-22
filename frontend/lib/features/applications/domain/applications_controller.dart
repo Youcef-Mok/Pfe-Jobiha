@@ -22,8 +22,11 @@ class ApplicationsController {
   Future<List<ApplicationEntity>> fetchApplications() =>
       _repository.getMyApplications();
 
-  Future<ApplicationEntity> apply(String jobId) =>
-      _repository.applyToJob(jobId);
+  Future<ApplicationEntity> apply(
+    String jobId, {
+    String? motivationLetter,
+  }) =>
+      _repository.applyToJob(jobId, motivationLetter: motivationLetter);
 
   Future<void> cancel(String applicationId) =>
       _repository.cancelApplication(applicationId);

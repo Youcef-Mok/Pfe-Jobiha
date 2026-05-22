@@ -63,13 +63,7 @@ class CandidateJobCard extends ConsumerWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: job.logoAsset != null
-                        ? Image.asset(
-                            job.logoAsset!,
-                            width: 68,
-                            height: 68,
-                            fit: BoxFit.cover,
-                            cacheWidth: 136,
-                          )
+                        ? _buildLogo(job.logoAsset!)
                         : Container(
                             width: 68,
                             height: 68,
@@ -154,7 +148,9 @@ class CandidateJobCard extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                '10H-17H',
+                                job.scheduleLabel?.trim().isNotEmpty == true
+                                    ? job.scheduleLabel!
+                                    : 'Horaire non precise',
                                 style: AppTextStyles.badge.copyWith(
                                   color: const Color(0xFF401E66),
                                 ),
@@ -170,7 +166,9 @@ class CandidateJobCard extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 2),
                                 Text(
-                                  'Alger, Birkhadem',
+                                  job.city?.trim().isNotEmpty == true
+                                      ? job.city!
+                                      : 'Ville non precisee',
                                   style: AppTextStyles.badge.copyWith(
                                     color: AppColors.violet,
                                   ),
@@ -235,6 +233,26 @@ class CandidateJobCard extends ConsumerWidget {
         ContractType.mission => 'MISSION',
         ContractType.freelance => 'FREELANCE',
       };
+
+  Widget _buildLogo(String source) {
+    if (source.startsWith('http://') || source.startsWith('https://')) {
+      return Image.network(
+        source,
+        width: 68,
+        height: 68,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+    return Image.asset(
+      source,
+      width: 68,
+      height: 68,
+      fit: BoxFit.cover,
+      cacheWidth: 136,
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+    );
+  }
 }
 
 

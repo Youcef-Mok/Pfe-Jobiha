@@ -66,14 +66,7 @@ class JobCard extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: job.logoAsset != null
-                          ? Image.asset(
-                              job.logoAsset!,
-                              width: 64,
-                              height: 64,
-                              fit: BoxFit.cover,
-                              cacheWidth: 112,
-                              errorBuilder: (_, __, ___) => _logoFallback(),
-                            )
+                          ? _buildLogo(job.logoAsset!)
                           : _logoFallback(),
                     ),
                     const SizedBox(width: 12),
@@ -214,6 +207,26 @@ class JobCard extends StatelessWidget {
           fontSize: 24,
         ),
       ),
+    );
+  }
+
+  Widget _buildLogo(String source) {
+    if (source.startsWith('http://') || source.startsWith('https://')) {
+      return Image.network(
+        source,
+        width: 64,
+        height: 64,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _logoFallback(),
+      );
+    }
+    return Image.asset(
+      source,
+      width: 64,
+      height: 64,
+      fit: BoxFit.cover,
+      cacheWidth: 112,
+      errorBuilder: (_, __, ___) => _logoFallback(),
     );
   }
 

@@ -4,10 +4,6 @@ import 'package:dio/dio.dart';
 import '../storage/token_storage.dart';
 import 'api_endpoints.dart';
 
-/// Singleton Dio instance.
-/// - Attaches Bearer token to every request automatically.
-/// - On 401, silently refreshes the token and retries once.
-/// - On refresh failure, clears the session (forces re-login).
 class ApiClient {
   ApiClient._();
 
@@ -19,31 +15,30 @@ class ApiClient {
       sendTimeout: const Duration(seconds: 30),
       headers: {'Content-Type': 'application/json'},
     ),
-  )..interceptors.add(_AuthInterceptor()); 
+  )..interceptors.add(_AuthInterceptor());
 
   static Dio get instance => _dio;
 }
 
-// ── Interceptor ───────────────────────────────────────────────────────────────
+class _AuthInterceptor extends QueuedInterceptor {
+  Future<bool>? _refreshFuture;
 
-class _AuthInterceptor extends Interceptor {
-  /// Attach access token before every request.
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
     final token = await TokenStorage.getAccessToken();
-    if (token != null) {
+    if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-    // Debug-only: print the full URL before every request so you can
-    // immediately spot mismatched paths in the console.
+
     assert(() {
       // ignore: avoid_print
       print('[ApiClient] ${options.method.toUpperCase()} ${options.uri}');
       return true;
     }());
+
     handler.next(options);
   }
 
@@ -54,13 +49,12 @@ class _AuthInterceptor extends Interceptor {
   ) async {
     final status = err.response?.statusCode;
 
-    // 403 Forbidden — permission error, not a token issue.
-    // Return a clean, human-readable error so the UI can display it.
     if (status == 403) {
       return handler.next(
         DioException(
           requestOptions: err.requestOptions,
-          error: 'Accès refusé. Vous n\'avez pas les droits nécessaires pour cette action.',
+          error:
+              'Acces refuse. Vous n\'avez pas les droits necessaires pour cette action.',
           type: DioExceptionType.badResponse,
           response: err.response,
         ),
@@ -68,38 +62,65 @@ class _AuthInterceptor extends Interceptor {
     }
 
     if (status == 401) {
-      final refreshed = await _tryRefreshToken();
+      final alreadyRetried = err.requestOptions.extra['__retried__'] == true;
+      if (alreadyRetried || _isAuthRoute(err.requestOptions.path)) {
+        return handler.next(err);
+      }
+
+      final refreshed = await _refreshOnce();
       if (refreshed) {
-        // Retry the original request with the new token.
         try {
           final newToken = await TokenStorage.getAccessToken();
           final opts = err.requestOptions;
-          opts.headers['Authorization'] = 'Bearer $newToken';
+          opts.extra['__retried__'] = true;
+          if (newToken != null && newToken.isNotEmpty) {
+            opts.headers['Authorization'] = 'Bearer $newToken';
+          }
           final response = await ApiClient.instance.fetch(opts);
           return handler.resolve(response);
-        } catch (e) {
-          // Retry also failed — fall through to clear session.
+        } catch (_) {
+          // fall through
         }
       }
-      // Both the original request and the refresh failed.
-      await TokenStorage.clear();
-      // Propagate a clean error so the app can redirect to login.
+
+      final hadSession = await TokenStorage.hasSession();
+      if (hadSession) {
+        await TokenStorage.clear();
+      }
       return handler.next(
         DioException(
           requestOptions: err.requestOptions,
-          error: 'Session expirée. Veuillez vous reconnecter.',
+          error: 'Session expiree. Veuillez vous reconnecter.',
           type: DioExceptionType.badResponse,
           response: err.response,
         ),
       );
     }
+
     handler.next(err);
   }
 
-  /// Use a fresh Dio (no interceptor) to avoid an infinite 401 loop.
+  bool _isAuthRoute(String path) {
+    return path.contains('/auth/login') ||
+        path.contains('/auth/register') ||
+        path.contains('/auth/token/refresh') ||
+        path.contains('/auth/refresh') ||
+        path.contains('/auth/google');
+  }
+
+  Future<bool> _refreshOnce() async {
+    if (_refreshFuture != null) return _refreshFuture!;
+    _refreshFuture = _tryRefreshToken();
+    try {
+      return await _refreshFuture!;
+    } finally {
+      _refreshFuture = null;
+    }
+  }
+
   Future<bool> _tryRefreshToken() async {
     final refresh = await TokenStorage.getRefreshToken();
-    if (refresh == null) return false;
+    if (refresh == null || refresh.isEmpty) return false;
 
     try {
       final response = await Dio().post(
@@ -115,18 +136,12 @@ class _AuthInterceptor extends Interceptor {
   }
 }
 
-// ── Error helper (used by repositories + screens) ────────────────────────────
-
-/// Parses DRF error responses into a human-readable string.
-/// Handles both {"detail": "..."} and {"field": ["msg", ...]} formats.
 String parseDioError(DioException e) {
   final data = e.response?.data;
-  if (data == null) return 'Erreur réseau. Vérifiez votre connexion.';
+  if (data == null) return 'Erreur reseau. Verifiez votre connexion.';
 
   if (data is Map) {
     if (data.containsKey('detail')) return data['detail'] as String;
-
-    // Field-level validation errors
     final messages = <String>[];
     data.forEach((key, value) {
       if (value is List) {

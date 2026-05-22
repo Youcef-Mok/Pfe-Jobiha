@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/providers/jobs_provider.dart';
 import '../domain/job_entity.dart';
@@ -614,9 +615,10 @@ class _DateField extends ConsumerWidget {
 // ─────────────────────────────────────────────
 // Image Upload Field
 // ─────────────────────────────────────────────
-class _ImageUploadField extends StatelessWidget {
+class _ImageUploadField extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final form = ref.watch(createJobFormProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -637,8 +639,12 @@ class _ImageUploadField extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         GestureDetector(
-          onTap: () {
-            // TODO: implémenter le sélecteur d'image (image_picker)
+          onTap: () async {
+            final picker = ImagePicker();
+            final image = await picker.pickImage(source: ImageSource.gallery);
+            if (image == null) return;
+            final bytes = await image.readAsBytes();
+            ref.read(createJobFormProvider.notifier).updateImage(bytes, image.name);
           },
           child: Container(
             height: 168,
@@ -650,33 +656,61 @@ class _ImageUploadField extends StatelessWidget {
                   width: 2,
                   style: BorderStyle.solid),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: AppColors.uploadIconBg,
-                    shape: BoxShape.circle,
+            child: form.imageBytes == null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: AppColors.uploadIconBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.cloud_upload_outlined,
+                            size: 22, color: AppColors.violet),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Cliquez pour télécharger',
+                        style: AppTextStyles.fieldLabel,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'PNG, JPG, GIF jusqu\'à 10 MB',
+                        style: AppTextStyles.captionLight,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.memory(form.imageBytes!, fit: BoxFit.cover),
+                        Positioned(
+                          left: 10,
+                          right: 10,
+                          bottom: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              form.imageFileName ?? 'Image sélectionnée',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
                   ),
-                  child: const Icon(Icons.cloud_upload_outlined,
-                      size: 22, color: AppColors.violet),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Cliquez pour télécharger',
-                  style: AppTextStyles.fieldLabel,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'PNG, JPG, GIF jusqu\'à 10 MB',
-                  style: AppTextStyles.captionLight,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
           ),
         ),
       ],

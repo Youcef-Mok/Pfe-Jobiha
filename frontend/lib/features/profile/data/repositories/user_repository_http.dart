@@ -49,7 +49,13 @@ class UserRepositoryHttp implements UserRepository {
 
   @override
   Future<UserEntity> updateProfile(UserEntity user) async {
+    final trimmed = user.name.trim();
+    final parts = trimmed.isEmpty ? const <String>[] : trimmed.split(RegExp(r'\s+'));
+    final prenom = parts.isNotEmpty ? parts.first : '';
+    final nom = parts.length > 1 ? parts.sublist(1).join(' ') : '';
     final resp = await _dio.patch(ApiEndpoints.me, data: {
+      'prenom': prenom,
+      'nom': nom,
       'avatar_url': user.avatarUrl,
       'location': user.location,
       'bio': user.bio,
@@ -66,15 +72,21 @@ class UserRepositoryHttp implements UserRepository {
     final data = resp.data as Map<String, dynamic>;
 
     final formations = (data['formations'] as List<dynamic>? ?? [])
-        .map((f) => CvFormationEntity(
-              title: f['title'] as String? ?? '',
-              institution: f['institution'] as String? ?? '',
-              location: f['location'] as String? ?? '',
-              year: f['year'] as int? ?? 0,
-              isActive: f['is_active'] as bool? ?? false,
-              fileName: f['file_name'] as String?,
-              filePath: f['file_path'] as String?,
-            ))
+        .map((f) {
+          final rawYear = f['year'];
+          final year = rawYear is int
+              ? rawYear
+              : int.tryParse((rawYear ?? '').toString()) ?? 0;
+          return CvFormationEntity(
+            title: f['title'] as String? ?? '',
+            institution: f['institution'] as String? ?? '',
+            location: f['location'] as String? ?? '',
+            year: year,
+            isActive: f['is_active'] as bool? ?? false,
+            fileName: f['file_name'] as String?,
+            filePath: f['file_path'] as String?,
+          );
+        })
         .toList();
 
     final experiences = (data['experiences'] as List<dynamic>? ?? [])
@@ -86,6 +98,17 @@ class UserRepositoryHttp implements UserRepository {
               endDate: e['end_date'] as String?,
               isAppMission: e['is_app_mission'] as bool? ?? false,
               isActive: e['is_active'] as bool? ?? false,
+              missionId: e['mission_id']?.toString(),
+              status: e['status'] as String?,
+              startDate: e['start_date'] as String?,
+              candidateName: e['candidate_name'] as String?,
+              recruiterName: e['recruiter_name'] as String?,
+              recruiterRating: (e['recruiter_rating'] as num?)?.toDouble() ?? 0.0,
+              candidateRating: (e['candidate_rating'] as num?)?.toDouble() ?? 0.0,
+              recruiterFeedback: e['recruiter_feedback'] as String?,
+              candidateFeedback: e['candidate_feedback'] as String?,
+              description: e['description'] as String?,
+              imageUrl: e['image_url'] as String?,
             ))
         .toList();
 
@@ -138,7 +161,7 @@ class UserRepositoryHttp implements UserRepository {
 
   @override
   Future<CvFormationEntity> addFormation(CvFormationEntity formation) async {
-    final resp = await _dio.post(ApiEndpoints.cvFormations, data: {
+    final data = <String, dynamic>{
       'title': formation.title,
       'institution': formation.institution,
       'location': formation.location,
@@ -146,7 +169,17 @@ class UserRepositoryHttp implements UserRepository {
       'is_active': formation.isActive,
       if (formation.fileName != null) 'file_name': formation.fileName,
       if (formation.filePath != null) 'file_path': formation.filePath,
-    });
+    };
+    if (formation.fileBytes != null && formation.fileName != null) {
+      data['file'] = MultipartFile.fromBytes(
+        formation.fileBytes!,
+        filename: formation.fileName!,
+      );
+    }
+    final resp = await _dio.post(
+      ApiEndpoints.cvFormations,
+      data: FormData.fromMap(data),
+    );
     final d = resp.data as Map<String, dynamic>;
     return CvFormationEntity(
       title: d['title'] as String,

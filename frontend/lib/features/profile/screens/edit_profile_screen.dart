@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
-import 'dart:io';
+import 'package:job_app/features/auth/screens/signup_profile_screen.dart';
+import 'dart:typed_data';
 
 // Constantes de couleur
 const Color _kViolet = Color(0xFF401E66);
@@ -26,6 +27,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String _selectedDomain = 'Restauration';
   IconData _selectedDomainIcon = Icons.restaurant;
   bool _isSaving = false;
+  Uint8List? _avatarPreviewBytes;
 
   @override
   void initState() {
@@ -80,8 +82,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     
     if (image != null) {
+      final bytes = await image.readAsBytes();
+      final fileName = image.name;
+      setState(() => _avatarPreviewBytes = bytes);
       // Update the profile photo in the state
-      ref.read(candidateCurrentUserProvider.notifier).updateProfilePhoto(image.path);
+      ref.read(candidateCurrentUserProvider.notifier).updateProfilePhoto(fileName);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -163,9 +168,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Widget _buildProfileImage(String? avatarUrl, String initials) {
-    // Local file picked from gallery
-    if (avatarUrl != null && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('assets/') && File(avatarUrl).existsSync()) {
-      return Image.file(File(avatarUrl), fit: BoxFit.cover, width: 96, height: 96);
+    if (_avatarPreviewBytes != null) {
+      return Image.memory(_avatarPreviewBytes!, fit: BoxFit.cover, width: 96, height: 96);
     }
 
     // Network image from server
@@ -486,36 +490,44 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
           ),
           
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment(-0.26, -0.97),
-                end: Alignment(0.26, 0.97),
-                colors: [Color(0xFF331554), Color(0xFF4A2D6B)],
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SignupProfileScreen()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment(-0.26, -0.97),
+                  end: Alignment(0.26, 0.97),
+                  colors: [Color(0xFF331554), Color(0xFF4A2D6B)],
+                ),
+                borderRadius: BorderRadius.circular(8),
               ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  'Modifier',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+              child: Row(
+                children: [
+                  Text(
+                    'Modifier',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 5),
-                Transform.rotate(
-                  angle: 0.67, // 38.49 degrees in radians
-                  child: const Icon(
-                    Icons.arrow_upward,
-                    size: 16,
-                    color: Colors.white,
+                  const SizedBox(width: 5),
+                  Transform.rotate(
+                    angle: 0.67, // 38.49 degrees in radians
+                    child: const Icon(
+                      Icons.arrow_upward,
+                      size: 16,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

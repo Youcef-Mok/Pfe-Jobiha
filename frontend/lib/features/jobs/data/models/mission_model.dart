@@ -15,6 +15,7 @@ class MissionModel {
   final double recruiterRating;
   final String candidateFeedback;
   final String recruiterFeedback;
+  final String description;
   final String status;
   final String? summary;
   final String? imageUrl;
@@ -35,6 +36,7 @@ class MissionModel {
     required this.recruiterRating,
     required this.candidateFeedback,
     required this.recruiterFeedback,
+    this.description = '',
     required this.status,
     required this.team,
     this.summary,
@@ -56,6 +58,7 @@ class MissionModel {
         recruiterRating: (json['recruiter_rating'] as num).toDouble(),
         candidateFeedback: json['candidate_feedback'] as String,
         recruiterFeedback: json['recruiter_feedback'] as String,
+        description: json['description'] as String? ?? '',
         status: json['status'] as String,
         summary: json['summary'] as String?,
         imageUrl: json['image_url'] as String?,
@@ -80,6 +83,7 @@ class MissionModel {
         'recruiter_rating': recruiterRating,
         'candidate_feedback': candidateFeedback,
         'recruiter_feedback': recruiterFeedback,
+        'description': description,
         'status': status,
         'summary': summary,
         'image_url': imageUrl,
@@ -101,6 +105,7 @@ class MissionModel {
         recruiterRating: recruiterRating,
         candidateFeedback: candidateFeedback,
         recruiterFeedback: recruiterFeedback,
+        description: description,
         status: status,
         summary: summary,
         imageUrl: imageUrl,
@@ -122,6 +127,7 @@ class MissionModel {
         recruiterRating: entity.recruiterRating,
         candidateFeedback: entity.candidateFeedback,
         recruiterFeedback: entity.recruiterFeedback,
+        description: entity.description,
         status: entity.status,
         summary: entity.summary,
         imageUrl: entity.imageUrl,

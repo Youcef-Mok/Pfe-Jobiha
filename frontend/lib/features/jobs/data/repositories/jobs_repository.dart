@@ -1,6 +1,7 @@
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/domain/mission_entity.dart';
 import 'package:job_app/features/jobs/domain/create_mission_params.dart';
+import 'dart:typed_data';
 // features/candidates/data/repositories/candidates_repository.dart
 
 /// Interface abstraite du repository.
@@ -20,7 +21,11 @@ abstract class JobsRepository {
   });
 
   /// Sauvegarde (création ou mise à jour) d'un job
-  Future<JobEntity> saveJob(JobEntity job);
+  Future<JobEntity> saveJob(
+    JobEntity job, {
+    Uint8List? imageBytes,
+    String? imageFileName,
+  });
 
   /// Supprime un job par son ID
   Future<void> deleteJob(String jobId);
@@ -48,6 +53,9 @@ abstract class JobsRepository {
 
   /// Enregistre une nouvelle recherche récente
   Future<void> addRecentSearch(String query);
+
+  /// Supprime une seule recherche récente
+  Future<void> removeRecentSearch(String query);
 
   /// Efface toutes les recherches récentes
   Future<void> clearRecentSearches();

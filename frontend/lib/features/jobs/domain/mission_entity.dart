@@ -14,6 +14,7 @@ class MissionEntity {
   final double recruiterRating;
   final String candidateFeedback;
   final String recruiterFeedback;
+  final String description;
   final String? summary;
   final String? imageUrl;
   final List<MissionMemberEntity> team;
@@ -34,6 +35,7 @@ class MissionEntity {
     this.recruiterRating = 0.0,
     this.candidateFeedback = '',
     this.recruiterFeedback = '',
+    this.description = '',
     this.summary,
     this.imageUrl,
     this.team = const [],

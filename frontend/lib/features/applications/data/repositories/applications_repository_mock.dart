@@ -193,7 +193,10 @@ class ApplicationsRepositoryMock implements ApplicationsRepository {
   }
 
   @override
-  Future<ApplicationEntity> applyToJob(String jobId) async {
+  Future<ApplicationEntity> applyToJob(
+    String jobId, {
+    String? motivationLetter,
+  }) async {
     // TODO(API): POST /api/v1/jobs/:jobId/apply
     await Future.delayed(const Duration(milliseconds: 400));
     final model = ApplicationModel(
@@ -205,6 +208,7 @@ class ApplicationsRepositoryMock implements ApplicationsRepository {
       appliedAt: DateTime.now().toIso8601String(),
       location: 'Alger',
       contractType: 'cdi',
+      motivationLetter: motivationLetter,
     );
     _applications.add(model);
     return model.toEntity();

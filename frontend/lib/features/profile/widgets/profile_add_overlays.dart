@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:job_app/core/api/api_endpoints.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/domain/cv_entity.dart';
 import 'package:job_app/core/widgets/searchable_dropdown.dart';
-import 'dart:io';
+import 'dart:typed_data';
 
 // Constantes de style basées sur le CSS fourni
 const Color _kViolet = Color(0xFF401E66);
@@ -293,6 +295,8 @@ class _AddFormationOverlayState extends ConsumerState<AddFormationOverlay> {
   final _dateController = TextEditingController();
   String? _uploadedFileName;
   String? _uploadedFilePath;
+  Uint8List? _uploadedFileBytes;
+  String? _uploadedFileMimeType;
   String? _dateError;
   bool _isSaving = false;
 
@@ -395,6 +399,8 @@ class _AddFormationOverlayState extends ConsumerState<AddFormationOverlay> {
       isActive: _uploadedFileName != null,
       fileName: _uploadedFileName,
       filePath: _uploadedFilePath,
+      fileBytes: _uploadedFileBytes,
+      fileMimeType: _uploadedFileMimeType,
     );
 
     setState(() => _isSaving = true);
@@ -496,48 +502,42 @@ class _AddFormationOverlayState extends ConsumerState<AddFormationOverlay> {
                           FilePickerResult? result = await FilePicker.platform.pickFiles(
                             type: FileType.custom,
                             allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+                            withData: true,
                           );
                           
                           if (result != null) {
                             final file = result.files.single;
                             print('Fichier sélectionné: ${file.name}');
-                            print('Chemin du fichier: ${file.path}');
                             print('Taille du fichier: ${file.size} bytes');
                             
-                            if (file.path != null) {
-                              // Vérifier si le fichier existe
-                              final fileExists = File(file.path!).existsSync();
-                              print('Le fichier existe: $fileExists');
-                              
-                              if (fileExists) {
-                                setState(() {
-                                  _uploadedFileName = file.name;
-                                  _uploadedFilePath = file.path;
-                                });
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Fichier "${file.name}" sélectionné avec succès'),
-                                      backgroundColor: const Color(0xFF401E66),
-                                    ),
-                                  );
-                                }
-                              } else {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Le fichier sélectionné n\'est pas accessible'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
+                            if (file.bytes != null && file.bytes!.isNotEmpty) {
+                              final ext = (file.extension ?? '').toLowerCase();
+                              final mime = ext == 'pdf'
+                                  ? 'application/pdf'
+                                  : (ext == 'png'
+                                      ? 'image/png'
+                                      : (ext == 'jpg' || ext == 'jpeg')
+                                          ? 'image/jpeg'
+                                          : 'application/octet-stream');
+                              setState(() {
+                                _uploadedFileName = file.name;
+                                _uploadedFilePath = null;
+                                _uploadedFileBytes = file.bytes;
+                                _uploadedFileMimeType = mime;
+                              });
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Fichier "${file.name}" sélectionné avec succès'),
+                                    backgroundColor: const Color(0xFF401E66),
+                                  ),
+                                );
                               }
                             } else {
-                              // Path is null (peut arriver sur web ou certaines plateformes)
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Impossible d\'accéder au fichier sur cette plateforme'),
+                                    content: Text('Impossible de lire le fichier sélectionné'),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -1406,12 +1406,13 @@ class CertificateViewerOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Vérifier si le fichier existe avant de tenter de l'afficher
-    final bool fileExists = filePath != null && File(filePath!).existsSync();
-    final bool isImage = filePath != null && 
-        (filePath!.toLowerCase().endsWith('.png') || 
-         filePath!.toLowerCase().endsWith('.jpg') || 
-         filePath!.toLowerCase().endsWith('.jpeg'));
+    final String? resolvedUrl = _resolveFileUrl(filePath);
+    final bool fileExists = resolvedUrl != null;
+    final String pathForExt = ((fileName ?? '') + ' ' + (filePath ?? '')).toLowerCase();
+    final bool isImage = pathForExt.contains('.png') ||
+        pathForExt.contains('.jpg') ||
+        pathForExt.contains('.jpeg');
+    final bool isPdf = pathForExt.contains('.pdf');
     
     return _BaseModal(
       title: 'Certificat de formation',
@@ -1429,14 +1430,10 @@ class CertificateViewerOverlay extends StatelessWidget {
             child: fileExists && isImage
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(filePath!),
+                    child: Image.network(
+                      resolvedUrl!,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        print('Erreur lors du chargement de l\'image: $error');
-                        print('Chemin du fichier: $filePath');
-                        return _buildPlaceholder();
-                      },
+                      errorBuilder: (_, __, ___) => _buildPlaceholder(),
                     ),
                   )
                 : _buildPlaceholder(),
@@ -1453,13 +1450,25 @@ class CertificateViewerOverlay extends StatelessWidget {
           ),
         const SizedBox(height: 24),
         OutlinedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Téléchargement du certificat lancé...')),
-            );
-          },
-          icon: const Icon(Icons.download),
-          label: const Text('Télécharger le certificat (PDF)'),
+          onPressed: resolvedUrl == null
+              ? null
+              : () async {
+                  final ok = await launchUrl(
+                    Uri.parse(resolvedUrl),
+                    mode: LaunchMode.externalApplication,
+                  );
+                  if (!ok && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Impossible d\'ouvrir le certificat.')),
+                    );
+                  }
+                },
+          icon: Icon(isPdf ? Icons.picture_as_pdf_outlined : Icons.download),
+          label: Text(
+            isPdf
+                ? 'Ouvrir / télécharger le certificat (PDF)'
+                : 'Ouvrir le fichier du certificat',
+          ),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),
             foregroundColor: _kViolet,
@@ -1469,6 +1478,17 @@ class CertificateViewerOverlay extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String? _resolveFileUrl(String? rawPath) {
+    if (rawPath == null || rawPath.trim().isEmpty) return null;
+    final p = rawPath.trim();
+    if (p.startsWith('http://') || p.startsWith('https://')) return p;
+
+    final base = Uri.parse(ApiEndpoints.me);
+    final origin = '${base.scheme}://${base.host}${base.hasPort ? ':${base.port}' : ''}';
+    if (p.startsWith('/')) return '$origin$p';
+    return '$origin/$p';
   }
 
   Widget _buildPlaceholder() {

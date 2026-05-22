@@ -27,10 +27,23 @@ class MapRepositoryHttp implements MapRepository {
     }
     if (category != null) params['category'] = category;
     if (contractType != null) params['contract_type'] = contractType;
-    if (maxDistanceKm != null) params['max_distance_km'] = maxDistanceKm;
-    final resp = await _dio.get(ApiEndpoints.mapJobs, queryParameters: params.isEmpty ? null : params);
-    final list = resp.data as List<dynamic>;
-    return list.map((j) => _parseMapJob(j as Map<String, dynamic>)).toList();
+    // Do not limit by distance server-side; we sort client-side by proximity.
+    final resp =
+        await _dio.get(ApiEndpoints.mapJobs, queryParameters: params.isEmpty ? null : params);
+    final list = _results(resp.data);
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(_parseMapJob)
+        .whereType<MapJobEntity>()
+        .toList();
+  }
+
+  List<dynamic> _results(dynamic data) {
+    if (data is List) return data;
+    if (data is Map<String, dynamic> && data['results'] is List) {
+      return data['results'] as List<dynamic>;
+    }
+    return const [];
   }
 
   @override
@@ -52,28 +65,41 @@ class MapRepositoryHttp implements MapRepository {
     await _dio.delete(ApiEndpoints.recentSearches);
   }
 
-  MapJobEntity _parseMapJob(Map<String, dynamic> j) {
-    final category = j['category'] as String? ?? '';
-    final raw = j['distance'];
-    final distanceStr = raw == null || raw == 'N/A'
+  MapJobEntity? _parseMapJob(Map<String, dynamic> j) {
+    final lat = _asDouble(j['lat'] ?? j['latitude']);
+    final lng = _asDouble(j['lng'] ?? j['longitude']);
+    if (lat == null || lng == null) return null;
+
+    final category = (j['category'] ?? j['department'] ?? '') as String;
+    final rawDistance = j['distance'];
+    final distanceStr = rawDistance == null || rawDistance == 'N/A'
         ? ''
-        : '${raw.toString()} km';
+        : '${rawDistance.toString()} km';
+
     return MapJobEntity(
-      id: j['id'] as String,
-      title: j['title'] as String? ?? '',
-      company: j['company'] as String? ?? '',
+      id: (j['id'] ?? '').toString(),
+      title: (j['title'] ?? '') as String,
+      company: (j['company'] ?? j['company_name'] ?? '') as String,
       category: category,
       distance: distanceStr,
-      hours: j['hours'] as String? ?? '',
-      salary: (j['salary'] as num?)?.toDouble() ?? 0.0,
-      contractType: j['contract_type'] as String? ?? '',
-      rating: (j['rating'] as num?)?.toDouble() ?? 0.0,
-      imageAsset: j['image_asset'] as String?,
-      recruiterAvatar: j['recruiter_avatar'] as String?,
-      lat: (j['lat'] as num).toDouble(),
-      lng: (j['lng'] as num).toDouble(),
+      city: (j['city'] ?? j['wilaya'] ?? '') as String,
+      hours: (j['hours'] ?? j['schedule_label'] ?? '') as String,
+      salary: _asDouble(j['salary']) ?? 0.0,
+      contractType: (j['contract_type'] ?? '') as String,
+      rating: _asDouble(j['rating']) ?? 0.0,
+      imageAsset: (j['image_asset'] ?? j['logo_asset']) as String?,
+      recruiterAvatar:
+          (j['recruiter_avatar'] ?? j['recruiter_avatar_asset']) as String?,
+      lat: lat,
+      lng: lng,
       categoryIcon: _iconForCategory(category),
     );
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   static IconData _iconForCategory(String category) {

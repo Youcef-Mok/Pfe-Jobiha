@@ -128,12 +128,8 @@ class _CandidateFiltersScreenState
                     child: Wrap(
                       spacing: 10,
                       runSpacing: 10,
-                      children: [
-                        'Soirée',
-                        'Week-end',
-                        'Vacances',
-                        'Temps partiel'
-                      ].map((label) {
+                      children: ['Temps plein', 'Temps partiel', 'Flexible']
+                          .map((label) {
                         final selected = filters.availability.contains(label);
                         return GestureDetector(
                           onTap: () => notifier.toggleAvailability(label),
@@ -407,7 +403,7 @@ class _CandidateFiltersScreenState
                     child: Wrap(
                       spacing: 10,
                       runSpacing: 10,
-                      children: ['CDI', 'CDD', 'Stage', 'Mission', 'Freelance']
+                      children: ['CDI', 'Mission', 'Freelance']
                           .map((label) {
                         final selected = filters.contractTypes.contains(label);
                         return GestureDetector(

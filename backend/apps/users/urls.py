@@ -97,10 +97,27 @@ urlpatterns = [
 
     # --- Candidate CV ---
     path('candidates/me/cv/formations', views.CandidateCvFormationsView.as_view(), name='cv-formations'),
+    path('candidates/me/cv/formations/', views.CandidateCvFormationsView.as_view(), name='cv-formations-slash'),
     path('candidates/me/cv/formations/<int:id>', views.CandidateCvFormationDetailView.as_view(), name='cv-formation-detail'),
+    path('candidates/me/cv/formations/<int:id>/', views.CandidateCvFormationDetailView.as_view(), name='cv-formation-detail-slash'),
     path('candidates/me/cv/experiences', views.CandidateCvExperiencesView.as_view(), name='cv-experiences'),
+    path('candidates/me/cv/experiences/', views.CandidateCvExperiencesView.as_view(), name='cv-experiences-slash'),
     path('candidates/me/cv/experiences/<int:id>', views.CandidateCvExperienceDetailView.as_view(), name='cv-experience-detail'),
+    path('candidates/me/cv/experiences/<int:id>/', views.CandidateCvExperienceDetailView.as_view(), name='cv-experience-detail-slash'),
     path('candidates/me/cv/skills', views.CandidateCvSkillsView.as_view(), name='cv-skills'),
+    path('candidates/me/cv/skills/', views.CandidateCvSkillsView.as_view(), name='cv-skills-slash'),
+
+    # --- Candidate CV (FR aliases for frontend compatibility) ---
+    path('candidats/me/cv/formations', views.CandidateCvFormationsView.as_view(), name='cv-formations-fr'),
+    path('candidats/me/cv/formations/', views.CandidateCvFormationsView.as_view(), name='cv-formations-fr-slash'),
+    path('candidats/me/cv/formations/<int:id>', views.CandidateCvFormationDetailView.as_view(), name='cv-formation-detail-fr'),
+    path('candidats/me/cv/formations/<int:id>/', views.CandidateCvFormationDetailView.as_view(), name='cv-formation-detail-fr-slash'),
+    path('candidats/me/cv/experiences', views.CandidateCvExperiencesView.as_view(), name='cv-experiences-fr'),
+    path('candidats/me/cv/experiences/', views.CandidateCvExperiencesView.as_view(), name='cv-experiences-fr-slash'),
+    path('candidats/me/cv/experiences/<int:id>', views.CandidateCvExperienceDetailView.as_view(), name='cv-experience-detail-fr'),
+    path('candidats/me/cv/experiences/<int:id>/', views.CandidateCvExperienceDetailView.as_view(), name='cv-experience-detail-fr-slash'),
+    path('candidats/me/cv/skills', views.CandidateCvSkillsView.as_view(), name='cv-skills-fr'),
+    path('candidats/me/cv/skills/', views.CandidateCvSkillsView.as_view(), name='cv-skills-fr-slash'),
 
     # --- Review reply ---
     path('users/<int:user_id>/reviews/<int:review_id>/reply', views.ReviewReplyView.as_view(), name='review-reply'),

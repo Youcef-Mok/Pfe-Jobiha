@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'dart:typed_data';
 import 'package:job_app/core/api/api_client.dart';
 import 'package:job_app/core/api/api_endpoints.dart';
 import 'package:job_app/features/jobs/data/models/job_model.dart';
@@ -77,31 +78,46 @@ class JobsRepositoryHttp implements JobsRepository {
   }
 
   @override
-  Future<JobEntity> saveJob(JobEntity job) async {
+  Future<JobEntity> saveJob(
+    JobEntity job, {
+    Uint8List? imageBytes,
+    String? imageFileName,
+  }) async {
     if (_isTempId(job.id)) {
       final today = DateTime.now().toIso8601String().split('T').first;
       final safeDescription =
           (job.title.trim().isEmpty ? 'Annonce' : 'Annonce: ${job.title}');
       // Create
-      final resp = await _dio.post(ApiEndpoints.offres, data: {
+      final payload = <String, dynamic>{
         'title': job.title,
         'contract_type': _contractTypeToApi(job.contractType),
         'description': safeDescription,
         'category': job.department,
         'start_date': today,
         'status': job.isPublished ? 'searching' : 'draft',
-      });
+      };
+      if (imageBytes != null && imageFileName != null) {
+        payload['image'] = MultipartFile.fromBytes(imageBytes, filename: imageFileName);
+      }
+      final resp = await _dio.post(
+        ApiEndpoints.offres,
+        data: FormData.fromMap(payload),
+      );
       return JobModel.fromJson(resp.data as Map<String, dynamic>).toEntity();
     } else {
       // Update
+      final payload = <String, dynamic>{
+        'title': job.title,
+        'contract_type': _contractTypeToApi(job.contractType),
+        'status': job.isPublished ? 'searching' : 'draft',
+        'category': job.department,
+      };
+      if (imageBytes != null && imageFileName != null) {
+        payload['image'] = MultipartFile.fromBytes(imageBytes, filename: imageFileName);
+      }
       final resp = await _dio.patch(
         ApiEndpoints.offreDetail(int.parse(job.id)),
-        data: {
-          'title': job.title,
-          'contract_type': _contractTypeToApi(job.contractType),
-          'status': job.isPublished ? 'searching' : 'draft',
-          'category': job.department,
-        },
+        data: FormData.fromMap(payload),
       );
       return JobModel.fromJson(resp.data as Map<String, dynamic>).toEntity();
     }
@@ -194,8 +210,16 @@ class JobsRepositoryHttp implements JobsRepository {
   }
 
   @override
+  Future<void> removeRecentSearch(String query) async {
+    await _dio.delete(
+      ApiEndpoints.recentSearches,
+      queryParameters: {'query': query},
+    );
+  }
+
+  @override
   Future<void> clearRecentSearches() async {
-    await _dio.delete(ApiEndpoints.recentSearchClear);
+    await _dio.delete(ApiEndpoints.recentSearches);
   }
 
   @override
@@ -213,7 +237,13 @@ class JobsRepositoryHttp implements JobsRepository {
   Future<List<JobEntity>> getSavedJobs() async {
     final resp = await _dio.get(ApiEndpoints.savedJobs);
     return _results(resp.data)
-        .map((j) => JobModel.fromJson(j as Map<String, dynamic>).toEntity())
+        .map((j) {
+          final item = j as Map<String, dynamic>;
+          final rawJob = item['offre'] is Map<String, dynamic>
+              ? item['offre'] as Map<String, dynamic>
+              : item;
+          return JobModel.fromJson(rawJob).toEntity();
+        })
         .toList();
   }
 

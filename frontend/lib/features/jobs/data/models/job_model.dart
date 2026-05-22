@@ -5,6 +5,7 @@ import 'package:job_app/features/jobs/domain/job_entity.dart';
 class JobModel {
   final String id;
   final String title;
+  final String description;
   final String companyName;
   final String recruiterId;
   final String recruiterName;
@@ -12,6 +13,11 @@ class JobModel {
   final String? recruiterAvatarAsset;
   final String department;
   final String contractType; // "cdi" | "mission" | "freelance"
+  final String? city;
+  final String? location;
+  final String? scheduleLabel;
+  final double? latitude;
+  final double? longitude;
   final String postedAt; // ISO 8601 depuis l'API
   final String status; // "active" | "draft" | "closed"
   final int candidateCount;
@@ -24,6 +30,7 @@ class JobModel {
   const JobModel({
     required this.id,
     required this.title,
+    this.description = '',
     required this.companyName,
     this.recruiterId = 'recruiter_1',
     this.recruiterName = 'Ahmed Bensalem',
@@ -31,6 +38,11 @@ class JobModel {
     this.recruiterAvatarAsset = 'assets/images/pdp_1.png',
     this.department = 'IT',
     required this.contractType,
+    this.city,
+    this.location,
+    this.scheduleLabel,
+    this.latitude,
+    this.longitude,
     required this.postedAt,
     required this.status,
     required this.candidateCount,
@@ -45,6 +57,7 @@ class JobModel {
   factory JobModel.fromJson(Map<String, dynamic> json) => JobModel(
         id: json['id'] as String,
         title: json['title'] as String,
+        description: json['description'] as String? ?? '',
         companyName: json['company_name'] as String,
         recruiterId: json['recruiter_id'] as String? ?? 'recruiter_1',
         recruiterName: json['recruiter_name'] as String? ?? 'Ahmed Bensalem',
@@ -52,7 +65,12 @@ class JobModel {
         recruiterAvatarAsset: json['recruiter_avatar_asset'] as String?,
         department: json['department'] as String? ?? 'IT',
         contractType: json['contract_type'] as String? ?? 'cdi',
-        postedAt: json['posted_at'] as String,
+        city: json['city'] as String? ?? json['ville'] as String?,
+        location: json['location'] as String?,
+        scheduleLabel: json['schedule_label'] as String?,
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+        postedAt: json['posted_at'] as String? ?? DateTime.now().toIso8601String(),
         status: json['status'] as String,
         candidateCount: json['candidate_count'] as int? ?? 0,
         viewCount: json['view_count'] as int? ?? 0,
@@ -74,6 +92,7 @@ class JobModel {
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,
+        'description': description,
         'company_name': companyName,
         'recruiter_id': recruiterId,
         'recruiter_name': recruiterName,
@@ -81,6 +100,11 @@ class JobModel {
         'recruiter_avatar_asset': recruiterAvatarAsset,
         'department': department,
         'contract_type': contractType,
+        'city': city,
+        'location': location,
+        'schedule_label': scheduleLabel,
+        'latitude': latitude,
+        'longitude': longitude,
         'posted_at': postedAt,
         'status': status,
         'candidate_count': candidateCount,
@@ -95,6 +119,7 @@ class JobModel {
   JobEntity toEntity() => JobEntity(
         id: id,
         title: title,
+        description: description,
         companyName: companyName,
         recruiterId: recruiterId,
         recruiterName: recruiterName,
@@ -102,6 +127,11 @@ class JobModel {
         recruiterAvatarAsset: recruiterAvatarAsset,
         department: department,
         contractType: _parseContract(contractType),
+        city: city,
+        location: location,
+        scheduleLabel: scheduleLabel,
+        latitude: latitude,
+        longitude: longitude,
         postedAt: DateTime.parse(postedAt),
         status: _parseStatus(status),
         candidateCount: candidateCount,
@@ -116,6 +146,7 @@ class JobModel {
   factory JobModel.fromEntity(JobEntity entity) => JobModel(
         id: entity.id,
         title: entity.title,
+        description: entity.description,
         companyName: entity.companyName,
         recruiterId: entity.recruiterId,
         recruiterName: entity.recruiterName,
@@ -123,6 +154,11 @@ class JobModel {
         recruiterAvatarAsset: entity.recruiterAvatarAsset,
         department: entity.department,
         contractType: entity.contractType.name,
+        city: entity.city,
+        location: entity.location,
+        scheduleLabel: entity.scheduleLabel,
+        latitude: entity.latitude,
+        longitude: entity.longitude,
         postedAt: entity.postedAt.toIso8601String(),
         status: entity.status.name,
         candidateCount: entity.candidateCount,
@@ -136,20 +172,27 @@ class JobModel {
             entity.comments.map((e) => JobCommentModel.fromEntity(e)).toList(),
       );
 
-  static JobStatus _parseStatus(String value) => switch (value) {
-        'active' => JobStatus.searching,
-        'draft' => JobStatus.draft,
-        'closed' => JobStatus.closed,
-        'searching' => JobStatus.searching,
-        _ => JobStatus.draft,
-      };
+  static JobStatus _parseStatus(String value) {
+    final v = value.trim().toLowerCase();
+    return switch (v) {
+      'active' => JobStatus.searching,
+      'searching' => JobStatus.searching,
+      'draft' => JobStatus.draft,
+      'closed' => JobStatus.closed,
+      _ => JobStatus.draft,
+    };
+  }
 
-  static ContractType _parseContract(String value) => switch (value) {
-        'cdi' => ContractType.cdi,
-        'mission' => ContractType.mission,
-        'freelance' => ContractType.freelance,
-        _ => ContractType.cdi,
-      };
+  static ContractType _parseContract(String value) {
+    final v = value.trim().toLowerCase();
+    return switch (v) {
+      'cdi' => ContractType.cdi,
+      'mission' => ContractType.mission,
+      'freelance' => ContractType.freelance,
+      _ => ContractType.cdi,
+    };
+  }
+
 }
 
 class JobCandidateModel {

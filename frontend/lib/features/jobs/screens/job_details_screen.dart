@@ -215,7 +215,10 @@ class _HeroSection extends StatelessWidget {
               color: const Color(0xFF334155),
               image: job.logoAsset != null
                   ? DecorationImage(
-                      image: AssetImage(job.logoAsset!),
+                      image: job.logoAsset!.startsWith('http://') ||
+                              job.logoAsset!.startsWith('https://')
+                          ? NetworkImage(job.logoAsset!)
+                          : AssetImage(job.logoAsset!) as ImageProvider,
                       fit: BoxFit.cover,
                     )
                   : null,
@@ -266,7 +269,7 @@ class _HeroSection extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '${job.companyName} • $contractLabel 6 mois',
+                      '${job.companyName} • ${job.city ?? job.location ?? 'Ville non precisee'} • $contractLabel',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w400,
