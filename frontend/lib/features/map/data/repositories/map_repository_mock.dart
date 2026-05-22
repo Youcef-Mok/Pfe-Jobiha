@@ -78,10 +78,38 @@ class MapRepositoryMock implements MapRepository {
   ];
 
   @override
-  Future<List<MapJobEntity>> getAllMapJobs() async {
+  Future<List<MapJobEntity>> getAllMapJobs({
+    double? lat,
+    double? lng,
+    String? query,
+    String? location,
+    String? category,
+    String? contractType,
+    double? maxDistanceKm,
+  }) async {
     // TODO(API): GET /api/v1/jobs/map?lat=&lng=&radius=  (retourne les offres géolocalisées)
     await Future.delayed(const Duration(milliseconds: 300));
-    return _mockJobs;
+    var result = List<MapJobEntity>.from(_mockJobs);
+    if (query != null && query.trim().isNotEmpty) {
+      final q = query.toLowerCase();
+      result = result
+          .where((j) =>
+              j.title.toLowerCase().contains(q) ||
+              j.company.toLowerCase().contains(q))
+          .toList();
+    }
+    if (category != null && category.trim().isNotEmpty) {
+      final cat = category.toLowerCase();
+      result =
+          result.where((j) => j.category.toLowerCase().contains(cat)).toList();
+    }
+    if (contractType != null && contractType.trim().isNotEmpty) {
+      result = result
+          .where((j) =>
+              j.contractType.toLowerCase() == contractType.toLowerCase())
+          .toList();
+    }
+    return result;
   }
 
   @override

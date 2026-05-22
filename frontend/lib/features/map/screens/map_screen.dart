@@ -1,6 +1,7 @@
 ﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
@@ -10,12 +11,13 @@ import 'package:job_app/features/map/data/providers/map_providers.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/screens/candidate_filters_screen.dart';
 import 'package:job_app/features/jobs/widgets/candidate_job_card.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// User location (Cheraga, Algiers)
-const _userLat = 36.762;
-const _userLng = 3.040;
+// Default fallback (Alger-Centre) used when user has no location set
+const _defaultLat = 36.762;
+const _defaultLng = 3.040;
 
 // ─── Screen ─────────────────────────────────────────────────────────────
 class MapScreen extends ConsumerStatefulWidget {
@@ -64,7 +66,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
     _sheetController.addListener(_onSheetScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _ready = true);
+      if (mounted) {
+        setState(() => _ready = true);
+        _checkAndRequestLocation();
+      }
     });
   }
 
@@ -130,7 +135,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _recenterMap() {
     ref.read(selectedMapJobProvider.notifier).state = null;
-    _animatedMapMove(const LatLng(_userLat, _userLng), 14.0);
+    final gps = ref.read(userGpsPositionProvider);
+    final user = ref.read(candidateCurrentUserProvider).valueOrNull;
+    final lat = gps?.lat ?? user?.latitude ?? _defaultLat;
+    final lng = gps?.lng ?? user?.longitude ?? _defaultLng;
+    _animatedMapMove(LatLng(lat, lng), 14.0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_sheetController.isAttached) {
         _sheetController.animateTo(
@@ -153,6 +162,42 @@ class _MapScreenState extends ConsumerState<MapScreen>
         );
       }
     });
+  }
+
+  Future<void> _checkAndRequestLocation() async {
+    var permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      final shouldRequest = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _LocationPermissionDialog(),
+      );
+      if (shouldRequest != true) { return; }
+
+      if (permission == LocationPermission.deniedForever) {
+        await Geolocator.openLocationSettings();
+        return;
+      }
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) { return; }
+    }
+
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (!mounted) return;
+      ref.read(userGpsPositionProvider.notifier).state = (
+        lat: pos.latitude,
+        lng: pos.longitude,
+      );
+      _animatedMapMove(LatLng(pos.latitude, pos.longitude), 14.0);
+    } catch (_) {}
   }
 
   @override
@@ -179,6 +224,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final searchQuery = ref.watch(mapSearchQueryProvider);
     final selectedJob = ref.watch(selectedMapJobProvider);
     final filtered = ref.watch(filteredMapJobsProvider);
+    final gps = ref.watch(userGpsPositionProvider);
+    final userEntity = ref.watch(candidateCurrentUserProvider).valueOrNull;
+    final userLat = gps?.lat ?? userEntity?.latitude ?? _defaultLat;
+    final userLng = gps?.lng ?? userEntity?.longitude ?? _defaultLng;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -190,7 +239,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: const LatLng(_userLat, _userLng),
+                  initialCenter: LatLng(userLat, userLng),
                   initialZoom: 14.0,
                   minZoom: 10,
                   maxZoom: 18,
@@ -215,7 +264,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     rotate: false,
                     markers: [
                       Marker(
-                        point: const LatLng(_userLat, _userLng),
+                        point: LatLng(userLat, userLng),
                         width: 22,
                         height: 22,
                         child: _UserLocationDot(),
@@ -356,20 +405,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
               );
             }(),
 
-          // SearchResultsTopBar LAST -> z-index max
-          if (false && !_showSearch && _showResults)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: _SearchResultsTopBar(
-                query: searchQuery.isNotEmpty
-                    ? searchQuery
-                    : ref.watch(mapFiltersProvider).values.join(' - '),
-                onBack: _clearResults,
-                onClear: _clearResults,
-              ),
-            ),
         ],
       ),
       bottomNavigationBar: const CandidateNavBar(currentIndex: 1),
@@ -809,15 +844,16 @@ class _ActiveFilterChip extends StatelessWidget {
 }
 
 // ─── Emplacement Filter Sheet ───────────────────────────────────────────────
-class _LocationFilterSheet extends StatefulWidget {
+class _LocationFilterSheet extends ConsumerStatefulWidget {
   final Function(String) onSelect;
   const _LocationFilterSheet({required this.onSelect});
 
   @override
-  State<_LocationFilterSheet> createState() => _LocationFilterSheetState();
+  ConsumerState<_LocationFilterSheet> createState() =>
+      _LocationFilterSheetState();
 }
 
-class _LocationFilterSheetState extends State<_LocationFilterSheet> {
+class _LocationFilterSheetState extends ConsumerState<_LocationFilterSheet> {
   String _selectedCity = '';
   double _radius = 10.0;
 
@@ -832,6 +868,10 @@ class _LocationFilterSheetState extends State<_LocationFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(candidateCurrentUserProvider).valueOrNull;
+    final candidateLocation = (user?.location ?? '').trim().isEmpty
+        ? 'Localisation inconnue'
+        : user!.location!.trim();
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
       decoration: const BoxDecoration(
@@ -1031,7 +1071,7 @@ class _LocationFilterSheetState extends State<_LocationFilterSheet> {
                       ),
                     ),
                   ),
-                  // Scale indicator
+                  // Candidate location indicator
                   Positioned(
                     right: 16,
                     bottom: 16,
@@ -1044,14 +1084,25 @@ class _LocationFilterSheetState extends State<_LocationFilterSheet> {
                         border: Border.all(
                             color: Colors.white.withValues(alpha: 0.5)),
                       ),
-                      child: const Text(
-                        'Secteur Actif',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
-                          color: Color(0xFF3A1B5E),
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 12,
+                            color: Color(0xFF3A1B5E),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            candidateLocation,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                              color: Color(0xFF3A1B5E),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1207,6 +1258,94 @@ class _DropdownPanel extends StatelessWidget {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+// ─── Location permission dialog ───────────────────────────────────────────────
+class _LocationPermissionDialog extends StatelessWidget {
+  const _LocationPermissionDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEE6F6),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.location_on_outlined,
+                  size: 28, color: Color(0xFF401E66)),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Activer la localisation',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                color: Color(0xFF1D1B1F),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Pour afficher les emplois les plus proches de vous et centrer la carte sur votre position exacte.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w400,
+                fontSize: 14,
+                height: 1.5,
+                color: Color(0xFF4A454F),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF401E66),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Activer',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Plus tard',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: Color(0xFF7C7580),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2658,11 +2797,6 @@ class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
 
-  static const _jobSuggestions = [
-    ('Serveur en salle', 'TechCorp Solutions', Icons.restaurant_outlined),
-    ('Livreur pizzeria', 'TechCorp Solutions', Icons.delivery_dining_outlined),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -2678,6 +2812,19 @@ class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    final allJobs = ref.watch(allMapJobsProvider).maybeWhen(
+          data: (jobs) => jobs,
+          orElse: () => const <MapJobEntity>[],
+        );
+    final q = _controller.text.trim().toLowerCase();
+    final jobSuggestions = allJobs
+        .where((j) =>
+            q.isEmpty ||
+            j.title.toLowerCase().contains(q) ||
+            j.company.toLowerCase().contains(q))
+        .take(6)
+        .toList();
+
     return Material(
       color: Colors.white,
       child: SafeArea(
@@ -2816,15 +2963,15 @@ class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
                           onTap: () => widget.onSubmit(s),
                         )),
 
-                    // Job suggestions
-                    ..._jobSuggestions.map((j) => _SearchItem(
-                          icon: j.$3,
+                    // Job suggestions from API /jobs/map
+                    ...jobSuggestions.map((j) => _SearchItem(
+                          icon: j.categoryIcon,
                           iconBg: const Color(0xFFEFEDF2),
                           iconColor: const Color(0xFF401E66),
-                          title: j.$1,
-                          subtitle: j.$2,
+                          title: j.title,
+                          subtitle: j.company,
                           titleColor: const Color(0xFF401E66),
-                          onTap: () => widget.onSubmit(j.$1),
+                          onTap: () => widget.onSubmit(j.title),
                         )),
 
                     // Voir plus
@@ -2927,92 +3074,6 @@ class _SearchItem extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────
-class _MapFilterChip extends StatelessWidget {
-  final String label;
-  const _MapFilterChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFEDF2),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: Color(0xFF401E66),
-        ),
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-class _SearchResultsTopBar extends ConsumerWidget {
-  final String query;
-  final VoidCallback onBack;
-  final VoidCallback onClear;
-
-  const _SearchResultsTopBar({
-    required this.query,
-    required this.onBack,
-    required this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(100),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back,
-                    size: 22, color: Color(0xFF1D1B1F)),
-              ),
-              Expanded(
-                child: Text(
-                  query,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
-                    color: Color(0xFF1D1B1F),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: onClear,
-                icon: const Icon(Icons.cancel,
-                    size: 18, color: Color(0xFF94A3B8)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ──────────────────────────────────────────────────────────────────────────
 class _SearchResultsSheet extends StatelessWidget {

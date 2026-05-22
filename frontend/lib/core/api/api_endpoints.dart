@@ -4,7 +4,7 @@ class ApiEndpoints {
   // Use 10.0.2.2 for Android emulator (maps to host machine's localhost).
   // Switch to your real IP / production URL for physical devices / release.
  // static const String _base = 'http://10.0.2.2:8000/api/v1'; // virtual device
-   static const String _base = 'http://192.168.100.9:8000/api/v1'; // physical device - PC IPV4
+   static const String _base = 'http://192.168.100.9:8000/api/v1'; //phisical phone
   // static const String _base = 'https://api.petitsjobs.dz/v1';   // production
 
   // ── WebSocket base ─────────────────────────────────────────────────────────
@@ -65,11 +65,13 @@ class ApiEndpoints {
 
   // ── Settings ─────────────────────────────────────────────────────────────
   static const String settings          = '$_base/settings';
+  static const String settingsNotifs    = '$_base/settings/notifications';
   static const String settingsNotifications = '$_base/settings/notifications';
   static const String settingsTheme     = '$_base/settings/theme';
   static const String settingsLanguage  = '$_base/settings/language';
   static const String deleteAccount     = '$_base/account';
   static const String savedJobs         = '$_base/candidats/me/saved';
+  static String savedJobIds             = '$_base/candidats/me/saved/ids';
   static const String notifications     = '$_base/notifications';
   static String notificationRead(int id) => '$_base/notifications/$id/read';
   static String notificationDelete(int id) => '$_base/notifications/$id';
@@ -84,8 +86,6 @@ class ApiEndpoints {
   static String applicationDetail(int id) => '$_base/applications/$id';
   static String acceptApplication(int id) => '$_base/applications/$id/accept';
   static String rejectApplication(int id) => '$_base/applications/$id/reject';
-
-
 
   // ── Offres (Jobs) ────────────────────────────────────────────────────────
   static const String jobs              = '$_base/jobs';
@@ -149,13 +149,16 @@ class ApiEndpoints {
   static String acceptConversation(int convId)   => '$_base/conversations/$convId/accept';
   static String declineConversation(int convId)  => '$_base/conversations/$convId/decline';
   static const String deleteConversations        = '$_base/conversations';
+
   // ── Reports ──────────────────────────────────────────────────────────────
   static const String reports              = '$_base/reports';
-  
+
   // ── Notifications ────────────────────────────────────────────────────────
-  static const String notifCount           = '$_base/notifications/non-lues/count';
-  static String marquerNotifLue(int id)    => '$_base/notifications/$id/lire';
-  static const String marquerToutesLues    = '$_base/notifications/lire-tout';
+  static const String notifCount              = '$_base/notifications/non-lues/count';
+  static const String notificationsReadAll    = '$_base/notifications/read-all';
+  // Legacy aliases (kept for any existing call sites)
+  static String marquerNotifLue(int id)       => '$_base/notifications/$id/read';
+  static const String marquerToutesLues       = '$_base/notifications/read-all';
 
   // ── Evaluations ──────────────────────────────────────────
   static const String evaluations          = '$_base/evaluations';
@@ -172,10 +175,19 @@ class ApiEndpoints {
   static String candidatPublic(int id)     => '$_base/candidats/$id';
   static String recruteurPublic(int id)    => '$_base/recruteurs/$id';
 
-  // __ Job alerts ______________________________________________
+  // __ Candidate CV (write) ______________________________________
+  static const String cvExperiences  = '$_base/candidates/me/cv/experiences';
+  static const String cvFormations   = '$_base/candidates/me/cv/formations';
+  static const String cvSkills       = '$_base/candidates/me/cv/skills';
+  static const String cvLanguages    = '$_base/candidates/me/languages';
 
+  // __ Job alerts ______________________________________________
   static const String alertes = '$_base/candidats/me/alertes';
   static String alerteDetail(int id) => '$_base/candidats/me/alertes/$id';
 
-
+  // __ Map ________________________________________________________
+  static const String mapJobs             = '$_base/jobs/map';
+  static const String recentSearches      = '$_base/users/me/recent-searches';
+  static const String recentSearchCreate  = '$_base/searches';
+  static const String recentSearchClear   = '$_base/users/me/recent-searches/clear';
 }

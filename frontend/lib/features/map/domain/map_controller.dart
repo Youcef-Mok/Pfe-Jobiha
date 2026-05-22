@@ -6,8 +6,24 @@ class MapController {
 
   MapController(this._repository);
 
-  Future<List<MapJobEntity>> fetchMapJobs() {
-    return _repository.getAllMapJobs();
+  Future<List<MapJobEntity>> fetchMapJobs({
+    double? lat,
+    double? lng,
+    String? query,
+    String? location,
+    String? category,
+    String? contractType,
+    double? maxDistanceKm,
+  }) {
+    return _repository.getAllMapJobs(
+      lat: lat,
+      lng: lng,
+      query: query,
+      location: location,
+      category: category,
+      contractType: contractType,
+      maxDistanceKm: maxDistanceKm,
+    );
   }
 
   Future<List<String>> fetchRecentSearches() {

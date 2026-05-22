@@ -38,8 +38,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
 
     def get_context_image_url(self, obj):
-        # No context_image_url field on model yet — return None
-        return None
+        return obj.context_image_url
 
 
 class PaginatedNotificationsSerializer(serializers.Serializer):

@@ -14,6 +14,5 @@ urlpatterns = [
     # PUT /applications/<id>/reject
     path('applications/<int:id>/reject', views.RejectApplicationView.as_view(), name='reject-application'),
 
-    # PUT /candidates/<id>/status
-    path('candidates/<int:id>/status', views.UpdateCandidateStatusView.as_view(), name='update-candidate-status'),
+
 ]

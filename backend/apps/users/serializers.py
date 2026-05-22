@@ -230,6 +230,8 @@ class UserMeSerializer(serializers.Serializer):
     domain = serializers.SerializerMethodField()
     company = serializers.SerializerMethodField()
     location = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
     bio = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
@@ -253,12 +255,24 @@ class UserMeSerializer(serializers.Serializer):
         return f"{obj.prenom} {obj.nom}"
 
     def get_role(self, obj):
-        return obj.role
-
-    def get_domain(self, obj):
+        # 'role' in the spec = job title / domain (not account type)
         p = self._profile(obj)
         if isinstance(p, Candidat):
-            return p.domain or None
+            return getattr(p, 'titre_poste', None) or p.experience or ''
+        if isinstance(p, Recruteur):
+            return getattr(p, 'titre_poste', None) or p.type_structure or ''
+        return ''
+
+    def get_domain(self, obj):
+        # Use explicit domain field first; fall back to first competence, then experience
+        p = self._profile(obj)
+        if p and getattr(p, 'domain', None):
+            return p.domain
+        if isinstance(p, Candidat):
+            comps = getattr(p, 'competences', None)
+            if comps:
+                return comps[0] if isinstance(comps, list) else str(comps)
+            return p.experience or None
         if isinstance(p, Recruteur):
             return p.type_structure or None
         return None
@@ -270,14 +284,23 @@ class UserMeSerializer(serializers.Serializer):
         return ''
 
     def get_location(self, obj):
-        # Return the location text field if available, otherwise fall back to lat/long
-        if obj.location:
-            return obj.location
+        # Return text location if available, else GPS coords, else empty
+        loc = getattr(obj, 'location', None)
+        if loc:
+            return loc
         if obj.latitude is not None and obj.longitude is not None:
             return f"{obj.latitude}, {obj.longitude}"
         return ''
 
+    def get_latitude(self, obj):
+        return obj.latitude
+
+    def get_longitude(self, obj):
+        return obj.longitude
+
     def get_bio(self, obj):
+        if getattr(obj, 'bio', None):
+            return obj.bio
         p = self._profile(obj)
         if isinstance(p, Recruteur):
             return p.description or ''
@@ -286,7 +309,7 @@ class UserMeSerializer(serializers.Serializer):
         return ''
 
     def get_avatar_url(self, obj):
-        return obj.avatar_url if obj.avatar_url else None
+        return getattr(obj, 'avatar_url', None)
 
     def get_followers_count(self, obj):
         return 0
@@ -300,10 +323,11 @@ class UserMeSerializer(serializers.Serializer):
     def get_rating(self, obj):
         p = self._profile(obj)
         if p and hasattr(p, 'note_globale'):
-            return p.note_globale
+            return float(p.note_globale) if p.note_globale is not None else 0.0
         return 0.0
 
     def get_account_type(self, obj):
+        # 'account_type' = 'candidat' or 'recruteur' (the actual account role)
         return obj.role
 
 
@@ -353,10 +377,11 @@ class ReviewSerializer(serializers.ModelSerializer):
         return obj.commentaire or ''
 
     def get_recruiter_reply(self, obj):
-        # No reply field on Evaluation yet; return None.
-        return None
+        return obj.recruiter_reply
 
     def get_recruiter_name(self, obj):
+        if obj.recruiter_name:
+            return obj.recruiter_name
         try:
             recruteur = obj.mission.candidature.offre.recruteur
             return f"{recruteur.prenom} {recruteur.nom}"
@@ -364,7 +389,9 @@ class ReviewSerializer(serializers.ModelSerializer):
             return None
 
     def get_recruiter_reply_date(self, obj):
-        return None
+        if obj.recruiter_reply_date is None:
+            return None
+        return obj.recruiter_reply_date.isoformat()
 
 
 # ---------------------------------------------------------------------------

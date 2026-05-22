@@ -490,43 +490,56 @@ class _RecruiterProfileScreenState extends ConsumerState<RecruiterProfileScreen>
 
             // ── Bottom CTA
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: isSaving ? null : () async {
-                    if (_companyName == null || _industry == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nom et secteur sont obligatoires')),
-                      );
-                      return;
-                    }
-                    final success = await ref.read(profileProvider.notifier).saveRecruteurProfile(
-                      nomStructure:  _companyName!,
-                      typeStructure: _industry!,
-                      description:   _aboutUs,
-                      localisation:  _location,
-                    );
-                    if (success && mounted) {
-                      Navigator.pushReplacementNamed(context, '/home-recruteur');
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
-                    elevation: 0,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: isSaving ? null : () async {
+                        if (_companyName == null || _industry == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Nom et secteur sont obligatoires')),
+                          );
+                          return;
+                        }
+                        final navigator = Navigator.of(context);
+                        final success = await ref.read(profileProvider.notifier).saveRecruteurProfile(
+                          nomStructure:  _companyName!,
+                          typeStructure: _industry!,
+                          description:   _aboutUs,
+                          localisation:  _location,
+                        );
+                        if (success && mounted) {
+                          navigator.pushNamedAndRemoveUntil('/recruiter-home', (r) => false);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                        elevation: 0,
+                      ),
+                      child: isSaving
+                          ? const SizedBox(
+                              width: 22, height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('Enregistrer mon profil',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
                   ),
-                  child: isSaving
-                      ? const SizedBox(
-                          width: 22, height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Enregistrer mon profil',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                ),
+                  TextButton(
+                    onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                        context, '/recruiter-home', (r) => false),
+                    child: const Text(
+                      'Passer pour l\'instant',
+                      style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

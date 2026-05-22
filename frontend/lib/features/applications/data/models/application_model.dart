@@ -41,8 +41,8 @@ class ApplicationModel {
   });
 
   factory ApplicationModel.fromJson(Map<String, dynamic> json) => ApplicationModel(
-        id: json['id']?.toString() ?? '',
-        jobId: json['job_id']?.toString() ?? '',
+        id: json['id']?.toString() ?? '',           // HEAD: safe for int or String IDs
+        jobId: json['job_id']?.toString() ?? '',    // HEAD: same safe pattern
         jobTitle: json['job_title'] as String? ?? '',
         companyName: json['company_name'] as String? ?? '',
         department: json['department'] as String? ?? 'IT',

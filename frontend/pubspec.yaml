@@ -28,6 +28,7 @@ dependencies:
 
   # Fonts
   google_fonts: ^6.2.1
+  font_awesome_flutter: ^10.7.0
 
   # Media & file pickers
   image_picker: ^1.1.2
@@ -43,23 +44,26 @@ dependencies:
   flutter_map_cancellable_tile_provider: ^3.0.2
   url_launcher: ^6.3.1
 
+  # Location / GPS
+  geolocator: ^13.0.2
+
   # SVG support
   flutter_svg: ^2.0.10
-
-  # UI / utilities
-  font_awesome_flutter: ^10.7.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Code generation Riverpod (optionnel, pour la v2 avec annotations)
   riverpod_generator: ^2.4.0
   build_runner: ^2.4.9
+
   flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true
 
+  # Assets
   assets:
     - assets/
     - assets/images/

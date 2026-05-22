@@ -103,6 +103,8 @@ class JobCard extends StatelessWidget {
                               height: 1.3,
                               color: const Color(0xFF5B5B5C),
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 5),
                           Wrap(
@@ -286,12 +288,16 @@ class _ActionButton extends StatelessWidget {
               Icon(icon, size: 14, color: color),
               const SizedBox(width: 6),
             ],
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontWeight: fontWeight,
-                fontSize: 12,
-                color: color,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontWeight: fontWeight,
+                  fontSize: 12,
+                  color: color,
+                ),
               ),
             ),
           ],

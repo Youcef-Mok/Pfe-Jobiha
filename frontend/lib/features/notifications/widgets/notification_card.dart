@@ -62,7 +62,7 @@ class NotificationCard extends StatelessWidget {
   }
 
   Widget _buildContent(NotificationEntity n) {
-    final time = _formatTime(n.timestamp);
+    final time = _formatTime(n.dateCreation);
     final isUnread = !n.isRead;
 
     switch (n.type) {

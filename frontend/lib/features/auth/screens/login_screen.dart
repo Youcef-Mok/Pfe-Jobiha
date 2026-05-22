@@ -74,29 +74,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
-
-
-
-
-final authState  = ref.watch(authProvider);
-// Only show loading spinner if the user pressed a button.
-// During _restoreSession() the screen isn't even visible (AuthGate handles it),
-// but as a safety net we only spin when we know login was triggered.
-final isLoading  = authState.status == AuthStatus.loading &&
-                   (_emailController.text.isNotEmpty ||
-                    _passwordController.text.isNotEmpty);
-
-
-
-
-
+    final authState  = ref.watch(authProvider);
+    // Only show loading spinner if the user pressed a button.
+    // During _restoreSession() the screen isn't even visible (AuthGate handles it),
+    // but as a safety net we only spin when we know login was triggered.
+    final isLoading  = authState.status == AuthStatus.loading &&
+                       (_emailController.text.isNotEmpty ||
+                        _passwordController.text.isNotEmpty);
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Use the reusable AuthHeader widget (from Feriel) ──────────
+            // ── Use the reusable AuthHeader widget ────────────────────────
             AuthHeader(onBackPressed: () => Navigator.pop(context)),
             Expanded(
               child: SingleChildScrollView(
@@ -201,41 +192,41 @@ final isLoading  = authState.status == AuthStatus.loading &&
                         Expanded(child: Divider()),
                       ],
                     ),
-const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-SizedBox(
-  width: double.infinity,
-  height: 52,
-  child: OutlinedButton(
-    onPressed: isLoading
-        ? null
-        : () => ref.read(authProvider.notifier).loginWithGoogle(),
-    style: OutlinedButton.styleFrom(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(30),
-      ),
-      backgroundColor: Colors.white,
-      side: const BorderSide(color: Colors.grey),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Image.asset('assets/google_logo.png', height: 20),
-        const SizedBox(width: 12),
-        const Text(
-          'Continuer avec Google',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-          ),
-        ),
-      ],
-    ),
-  ),
-),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => ref.read(authProvider.notifier).loginWithGoogle(),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.grey),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset('assets/google_logo.png', height: 20),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Continuer avec Google',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
-const SizedBox(height: 32),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -288,8 +279,7 @@ const SizedBox(height: 32),
           prefixIcon: Icon(icon, color: Colors.grey, size: 20),
           suffixIcon: suffixIcon,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16)),
       ),
     );
   }

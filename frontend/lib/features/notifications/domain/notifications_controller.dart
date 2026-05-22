@@ -96,7 +96,7 @@ class NotificationsController extends StateNotifier<NotificationsState> {
         systemItems.add(n);
         continue;
       }
-      final msgDay = DateTime(n.timestamp.year, n.timestamp.month, n.timestamp.day);
+      final msgDay = DateTime(n.dateCreation.year, n.dateCreation.month, n.dateCreation.day);
       String key;
       if (msgDay == today) {
         key = 'Today';
@@ -104,7 +104,7 @@ class NotificationsController extends StateNotifier<NotificationsState> {
         key = 'Hier';
       } else {
         final months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-        key = '${n.timestamp.day} ${months[n.timestamp.month - 1]}';
+        key = '${n.dateCreation.day} ${months[n.dateCreation.month - 1]}';
       }
       grouped.putIfAbsent(key, () => []).add(n);
     }

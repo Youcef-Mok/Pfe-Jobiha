@@ -10,6 +10,8 @@ class Candidat(Utilisateur):
     competences = models.JSONField(default=list)          # List<String>
     experience = models.TextField(blank=True, null=True)
     note_globale = models.FloatField(default=0.0)
+    titre_poste = models.CharField(max_length=200, blank=True, null=True)
+    domain = models.CharField(max_length=100, blank=True, null=True)
     disponibilites = models.ManyToManyField(
         Disponibilite, blank=True, related_name="candidats"
     )

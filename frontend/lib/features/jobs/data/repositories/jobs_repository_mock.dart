@@ -12,6 +12,9 @@ import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 /// Appelle le backend Django REST via Dio.
 class JobsRepositoryMock implements JobsRepository {
   final Dio _dio = ApiClient.instance;
+  
+  // Mock data for testing
+  final List<JobModel> _jobs = [];
   @override
   Future<List<JobEntity>> getMyJobs({
     String? status,
@@ -33,6 +36,44 @@ class JobsRepositoryMock implements JobsRepository {
     return data
         .map((json) => JobModel.fromJson(json as Map<String, dynamic>).toEntity())
         .toList();
+  }
+
+  @override
+  Future<List<JobEntity>> getAllJobs({
+    double? lat,
+    double? lng,
+    double? maxDistanceKm,
+    String? location,
+    String? category,
+    String? contractType,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    return _jobs.map((m) => m.toEntity()).toList();
+  }
+
+  @override
+  Future<List<JobEntity>> searchJobs(String query, {String? category, List<String>? contractTypes}) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _jobs
+        .where((j) => j.title.toLowerCase().contains(query.toLowerCase()))
+        .map((j) => j.toEntity())
+        .toList();
+  }
+
+  @override
+  Future<List<String>> getRecentSearches() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return [];
+  }
+
+  @override
+  Future<void> addRecentSearch(String query) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+
+  @override
+  Future<void> clearRecentSearches() async {
+    await Future.delayed(const Duration(milliseconds: 100));
   }
 
   @override
@@ -117,6 +158,35 @@ class JobsRepositoryMock implements JobsRepository {
       },
     );
     return MissionModel.fromJson(response.data as Map<String, dynamic>).toEntity();
+  }
+
+  final Set<String> _savedJobIds = {'4', '5'};
+
+  @override
+  Future<Set<String>> getSavedJobIds() async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    return Set<String>.from(_savedJobIds);
+  }
+
+  @override
+  Future<List<JobEntity>> getSavedJobs() async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    return _jobs
+        .where((j) => _savedJobIds.contains(j.id))
+        .map((j) => j.toEntity())
+        .toList();
+  }
+
+  @override
+  Future<void> saveJobById(String jobId) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    _savedJobIds.add(jobId);
+  }
+
+  @override
+  Future<void> unsaveJobById(String jobId) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    _savedJobIds.remove(jobId);
   }
 }
 

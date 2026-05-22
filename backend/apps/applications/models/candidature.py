@@ -11,7 +11,7 @@ class Candidature(models.Model):
         ("acceptee",   "Accepted"),
         ("refusee",    "Rejected"),
     ]
-    
+
     candidat = models.ForeignKey(
         "users.Candidat", on_delete=models.CASCADE, related_name="candidatures"
     )

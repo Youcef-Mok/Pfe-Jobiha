@@ -46,13 +46,13 @@ class ApplicationsView(APIView):
         if status_param:
             # Map API status names back to DB values
             api_to_db = {
-                'pending': 'en_attente',
-                'accepted': 'acceptee',
-                'rejected': 'refusee',
+                'pending':    'en_attente',
+                'accepted':   'acceptee',
+                'rejected':   'refusee',
                 # Also support French UI labels
                 'En attente': 'en_attente',
-                'Acceptée': 'acceptee',
-                'Refusée': 'refusee',
+                'Acceptée':   'acceptee',
+                'Refusée':    'refusee',
             }
             db_val = api_to_db.get(status_param, status_param)
             queryset = queryset.filter(statut=db_val)
@@ -62,7 +62,7 @@ class ApplicationsView(APIView):
         if applied_within:
             from datetime import timedelta
             now = timezone.now()
-            
+
             if applied_within == 'today':
                 start = now.replace(hour=0, minute=0, second=0, microsecond=0)
                 queryset = queryset.filter(date_postulation__gte=start)
@@ -194,32 +194,6 @@ class RejectApplicationView(APIView):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
         candidature.statut = 'refusee'  # Fixed: was 'refuse'
-        candidature.save(update_fields=['statut'])
-        return Response(ApplicationSerializer(candidature).data)
-
-
-# ===========================================================================
-# /candidates/<id>/status  (PUT)
-# ===========================================================================
-
-class UpdateCandidateStatusView(APIView):
-    """PUT /candidates/<id>/status → update candidature status."""
-    permission_classes = [IsAuthenticated]
-
-    def put(self, request, id):
-        new_status = request.data.get('status')
-        if new_status not in ('examine', 'archive'):
-            return Response(
-                {'detail': 'status must be "examine" or "archive".'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            candidature = Candidature.objects.select_related('offre__recruteur').get(pk=id)
-        except Candidature.DoesNotExist:
-            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        candidature.statut = new_status
         candidature.save(update_fields=['statut'])
         return Response(ApplicationSerializer(candidature).data)
 

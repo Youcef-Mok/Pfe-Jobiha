@@ -1,10 +1,5 @@
 from django.db import models
 
-
-# ---------------------------------------------------------------------------
-# Notification
-# ---------------------------------------------------------------------------
-
 class Notification(models.Model):
     utilisateur = models.ForeignKey(
        "users.Utilisateur", on_delete=models.CASCADE, related_name="notifications"

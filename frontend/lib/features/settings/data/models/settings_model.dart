@@ -1,49 +1,36 @@
-// lib/features/settings/data/models/settings_model.dart
+// TODO(API): Adapter les champs à la réponse JSON de l'endpoint GET /settings
 
-class SettingsModel {
-  final bool pushNotifEnabled;
-  final List<BlockedUserModel> blockedUsers;
+class AppSettings {
+  final bool notificationsEnabled;
+  final bool darkMode;
+  final String languageCode;
 
-  const SettingsModel({
-    this.pushNotifEnabled = true,
-    this.blockedUsers = const [],
+  const AppSettings({
+    this.notificationsEnabled = true,
+    this.darkMode = false,
+    this.languageCode = 'fr',
   });
 
-  SettingsModel copyWith({
-    bool? pushNotifEnabled,
-    List<BlockedUserModel>? blockedUsers,
+  AppSettings copyWith({
+    bool? notificationsEnabled,
+    bool? darkMode,
+    String? languageCode,
   }) =>
-      SettingsModel(
-        pushNotifEnabled: pushNotifEnabled ?? this.pushNotifEnabled,
-        blockedUsers:     blockedUsers     ?? this.blockedUsers,
+      AppSettings(
+        notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+        darkMode: darkMode ?? this.darkMode,
+        languageCode: languageCode ?? this.languageCode,
       );
-}
 
-class BlockedUserModel {
-  final int id;
-  final String nom;
-  final String prenom;
-  final String? avatar;
-  final DateTime? dateBlocage;
-
-  const BlockedUserModel({
-    required this.id,
-    required this.nom,
-    required this.prenom,
-    this.avatar,
-    this.dateBlocage,
-  });
-
-  String get fullName => '$prenom $nom'.trim();
-
-  factory BlockedUserModel.fromJson(Map<String, dynamic> json) =>
-      BlockedUserModel(
-        id:          json['id'] as int,
-        nom:         json['nom']    as String,
-        prenom:      json['prenom'] as String,
-        avatar:      json['avatar'] as String?,
-        dateBlocage: json['date_blocage'] != null
-            ? DateTime.tryParse(json['date_blocage'] as String)
-            : null,
+  factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
+        notificationsEnabled: json['notifications_enabled'] as bool? ?? true,
+        darkMode: json['dark_mode'] as bool? ?? false,
+        languageCode: json['language_code'] as String? ?? 'fr',
       );
+
+  Map<String, dynamic> toJson() => {
+        'notifications_enabled': notificationsEnabled,
+        'dark_mode': darkMode,
+        'language_code': languageCode,
+      };
 }

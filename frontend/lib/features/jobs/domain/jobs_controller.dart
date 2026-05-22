@@ -43,6 +43,30 @@ class JobsController {
     );
   }
 
+  /// Récupère toutes les offres publiées (feed candidat)
+  Future<List<JobEntity>> fetchAllJobs() async {
+    return _repository.getAllJobs();
+  }
+
+  /// Récupère les offres proches de l'utilisateur (par GPS ou wilaya)
+  Future<List<JobEntity>> fetchNearbyJobs({
+    double? lat,
+    double? lng,
+    String? location,
+    String? category,
+    String? contractType,
+  }) {
+    final hasGps = lat != null && lng != null;
+    return _repository.getAllJobs(
+      lat: hasGps ? lat : null,
+      lng: hasGps ? lng : null,
+      maxDistanceKm: hasGps ? 30.0 : null,
+      location: hasGps ? null : location,
+      category: category,
+      contractType: contractType,
+    );
+  }
+
   /// Récupère toutes les missions de l'utilisateur courant (purge auto des non confirmées expirées).
   Future<List<MissionEntity>> fetchMissions() async {
     return _repository.getMissions();

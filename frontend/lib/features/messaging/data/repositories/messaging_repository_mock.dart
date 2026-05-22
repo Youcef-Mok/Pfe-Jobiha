@@ -113,6 +113,12 @@ class MessagingRepositoryMock implements MessagingRepository {
   }
 
   @override
+  Future<void> markAsRead(String conversationId) async {
+    final id = int.tryParse(conversationId) ?? 0;
+    await _dio.put(ApiEndpoints.marquerConvLue(id));
+  }
+
+  @override
   Future<Set<String>> getBlockedIds() async {
     try {
       final response = await _dio.get(ApiEndpoints.userBlocked);

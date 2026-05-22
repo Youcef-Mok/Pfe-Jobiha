@@ -10,9 +10,9 @@ class Recruteur(Utilisateur):
     type_structure = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     note_globale = models.FloatField(default=0.0)
-    # New fields from DB-CHANGES.md section 2
-    titre_poste = models.CharField(max_length=100, blank=True)
-    domain = models.CharField(max_length=100, blank=True)
+    titre_poste = models.CharField(max_length=200, blank=True, null=True)
+    logo_url = models.CharField(max_length=500, blank=True, null=True)
+    domain = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         db_table = "recruteur"

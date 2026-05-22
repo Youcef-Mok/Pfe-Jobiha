@@ -1,12 +1,16 @@
-# =========================
-# Front / Flutter
-# =========================
+# Large files
+frontend.zip
+*.zip
+*.tar.gz
+*.rar
 
 # Miscellaneous
 *.class
 *.log
 *.pyc
+*.pyo
 *.swp
+*.swo
 .DS_Store
 .atom/
 .build/
@@ -16,31 +20,27 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# IntelliJ / IDE related
 *.iml
 *.ipr
 *.iws
 .idea/
-
-#.vscode/
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
+build/
 
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio build artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release
@@ -49,29 +49,16 @@ app.*.map.json
 Thumbs.db
 Desktop.ini
 
+# Build output
 frontend/build/
 frontend/build - Copy/
 **/build/
 *.apk
 
-# =========================
-# DJANGO / PYTHON (AUTH PHASE)
-# =========================
-
+# Django / Python
 __pycache__/
-*.pyc
-*.pyo
-
-# Django database
 db.sqlite3
-
-# Environment variables
 .env
-
-# Virtual environment
 venv/
 env/
 backend/venv/
-
-# Django logs
-*.log

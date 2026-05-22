@@ -31,4 +31,15 @@ urlpatterns = [
     # ── Candidat — alertes ─────────────────────────────────────────────────
     path('candidats/me/alertes', views.AlerteListCreateView.as_view(), name='alertes-list'),
     path('candidats/me/alertes/<int:id>', views.AlerteDetailView.as_view(), name='alerte-detail'),
+
+    # Job comments
+    path('jobs/<int:id>/comments', views.JobCommentListCreateView.as_view(), name='job-comments'),
+    path('jobs/<int:job_id>/comments/<int:comment_id>/reply', views.JobCommentReplyView.as_view(), name='job-comment-reply'),
+
+    # Mission team members
+    path('missions/<int:id>/team', views.MissionTeamView.as_view(), name='mission-team'),
+    path('missions/<int:id>/team/<int:member_id>', views.MissionTeamMemberDetailView.as_view(), name='mission-team-member'),
+
+    # Job statistics
+    path('jobs/<int:id>/statistics', views.JobStatisticsView.as_view(), name='job-statistics'),
 ]

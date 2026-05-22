@@ -134,6 +134,19 @@ class MarquerNotifLueView(NotificationReadView):
         return self.put(request, id)
 
 
+class PushTokenView(APIView):
+    """POST /notifications/push/token — register FCM/APNs token"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get('token', '').strip()
+        if not token:
+            return Response({'detail': 'token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        request.user.push_token = token
+        request.user.save(update_fields=['push_token'])
+        return Response({'detail': 'Token registered.'})
+
+
 # ===========================================================================
 # Stub for not-yet-implemented endpoints
 # ===========================================================================

@@ -7,6 +7,7 @@ import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/core/utils/color_utils.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
+import 'package:job_app/features/profile/widgets/share_profile_overlay.dart';
 
 class CandidateProfileHeader extends ConsumerWidget {
   final UserEntity user;
@@ -29,66 +30,14 @@ class CandidateProfileHeader extends ConsumerWidget {
   Widget _buildProfileImage() {
     final avatarUrl = user.avatarUrl;
 
-    // Si l'avatar est null ou vide, afficher les initiales
+    // No avatar → initials
     if (avatarUrl == null || avatarUrl.isEmpty) {
-      final initials = _getInitials(user.name);
-      return Container(
-        width: 108,
-        height: 108,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.slate200,
-        ),
-        child: Center(
-          child: Text(
-            initials,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w600,
-              fontSize: 36,
-              color: Color(0xFF401E66),
-            ),
-          ),
-        ),
-      );
+      return _buildInitialsAvatar(108);
     }
 
-    // Si c'est une URL réseau
-    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
-      return ClipOval(
-        child: Image.network(
-          avatarUrl,
-          fit: BoxFit.cover,
-          width: 108,
-          height: 108,
-          errorBuilder: (context, error, stackTrace) {
-            final initials = _getInitials(user.name);
-            return Container(
-              width: 108,
-              height: 108,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.slate200,
-              ),
-              child: Center(
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 36,
-                    color: Color(0xFF401E66),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    // Si c'est un fichier local (non-web)
+    // Local file picked from gallery
     if (!kIsWeb &&
+        !avatarUrl.startsWith('http') &&
         !avatarUrl.startsWith('assets/') &&
         File(avatarUrl).existsSync()) {
       return ClipOval(
@@ -101,40 +50,55 @@ class CandidateProfileHeader extends ConsumerWidget {
       );
     }
 
-    // Si c'est un asset
+    // Network image
+    if (avatarUrl.startsWith('http://') ||
+        avatarUrl.startsWith('https://')) {
+      return ClipOval(
+        child: Image.network(
+          avatarUrl,
+          fit: BoxFit.cover,
+          width: 108,
+          height: 108,
+          errorBuilder: (_, __, ___) => _buildInitialsAvatar(108),
+        ),
+      );
+    }
+
+    // Asset image fallback
     return ClipOval(
       child: Image.asset(
         avatarUrl,
         fit: BoxFit.cover,
         width: 108,
         height: 108,
-        errorBuilder: (context, error, stackTrace) {
-          final initials = _getInitials(user.name);
-          return Container(
-            width: 108,
-            height: 108,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.slate200,
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 36,
-                  color: Color(0xFF401E66),
-                ),
-              ),
-            ),
-          );
-        },
+        errorBuilder: (_, __, ___) => _buildInitialsAvatar(108),
       ),
     );
   }
 
-  /// Extrait les initiales du nom (première lettre du prénom + première lettre du nom)
+  Widget _buildInitialsAvatar(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.slate200,
+      ),
+      child: Center(
+        child: Text(
+          _getInitials(user.name),
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w600,
+            fontSize: size * 0.33,
+            color: const Color(0xFF401E66),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Extrait les initiales du nom
   String _getInitials(String name) {
     if (name.isEmpty) return 'U';
     final parts = name.trim().split(' ');
@@ -174,8 +138,7 @@ class CandidateProfileHeader extends ConsumerWidget {
                   left: 16,
                   top: 0,
                   child: GestureDetector(
-                    onTap: isPublicRecruiterView
-                        || isPublicCandidateView
+                    onTap: isPublicRecruiterView || isPublicCandidateView
                         ? onMessageTap
                         : () => Navigator.pushNamed(context, '/edit-profile'),
                     child: Container(
@@ -186,8 +149,7 @@ class CandidateProfileHeader extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        isPublicRecruiterView
-                            || isPublicCandidateView
+                        isPublicRecruiterView || isPublicCandidateView
                             ? Icons.chat_bubble_outline
                             : Icons.edit_outlined,
                         size: 18,
@@ -196,24 +158,34 @@ class CandidateProfileHeader extends ConsumerWidget {
                     ),
                   ),
                 ),
+
                 if (!isPublicView)
                   Positioned(
                     left: 63,
                     top: 0,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFEDF2),
-                        borderRadius: BorderRadius.circular(8),
+                    child: GestureDetector(
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (_) => ShareProfileOverlay(user: user),
                       ),
-                      child: const Icon(
-                        Icons.share_outlined,
-                        size: 18,
-                        color: Color(0xFF401E66),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFEDF2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.share_outlined,
+                          size: 18,
+                          color: Color(0xFF401E66),
+                        ),
                       ),
                     ),
                   ),
+
                 Positioned(
                   right: 16,
                   top: 0,
@@ -226,8 +198,7 @@ class CandidateProfileHeader extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        isPublicRecruiterView
-                            || isPublicCandidateView
+                        isPublicRecruiterView || isPublicCandidateView
                             ? Icons.more_horiz
                             : Icons.settings_outlined,
                         size: 20,
@@ -236,6 +207,7 @@ class CandidateProfileHeader extends ConsumerWidget {
                     ),
                   ),
                 ),
+
                 Center(
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -249,7 +221,7 @@ class CandidateProfileHeader extends ConsumerWidget {
                           border: Border.all(color: Colors.white, width: 4),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withAlphaValue(0.08),
+                              color: Colors.black.withAlpha(20),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -268,8 +240,11 @@ class CandidateProfileHeader extends ConsumerWidget {
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
-                          child:
-                              const Icon(Icons.check, size: 12, color: Colors.white),
+                          child: const Icon(
+                            Icons.check,
+                            size: 12,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
@@ -278,7 +253,9 @@ class CandidateProfileHeader extends ConsumerWidget {
               ],
             ),
           ),
+
           const SizedBox(height: 12),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -294,8 +271,8 @@ class CandidateProfileHeader extends ConsumerWidget {
               if (isRecruiterView) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFF401E66),
                     borderRadius: BorderRadius.circular(6),
@@ -313,8 +290,8 @@ class CandidateProfileHeader extends ConsumerWidget {
               ] else if (hasActiveMission) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFF401E66),
                     borderRadius: BorderRadius.circular(6),
@@ -332,7 +309,7 @@ class CandidateProfileHeader extends ConsumerWidget {
               ],
             ],
           ),
-          const SizedBox(height: 0),
+
           Center(
             child: Text(
               isRecruiterView

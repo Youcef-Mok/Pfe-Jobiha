@@ -5,12 +5,10 @@ import 'package:job_app/features/candidates/domain/candidate_entity.dart';
 import 'package:job_app/features/candidates/domain/candidates_controller.dart';
 import 'package:job_app/features/candidates/data/models/candidate_model.dart';
 import 'package:job_app/features/candidates/data/repositories/candidates_repository.dart';
-import 'package:job_app/features/candidates/data/repositories/candidates_repository_mock.dart';
+import 'package:job_app/features/candidates/data/repositories/candidates_repository_http.dart';
 
-// TODO(API): Remplacer CandidatesRepositoryMock par CandidatesRepositoryHttp.
-//            Endpoint: GET /api/jobs/:jobId/candidates
 final candidatesRepositoryProvider = Provider<CandidatesRepository>((ref) {
-  return CandidatesRepositoryMock();
+  return CandidatesRepositoryHttp();
 });
 
 final candidatesTabProvider = StateProvider<CandidateStatus>((ref) {
@@ -58,7 +56,7 @@ class CandidatesNotifier
       }).toList();
       state = AsyncValue.data(updatedList);
     }
-    
+
     // Perform remote action silently in the background
     await _repository.updateCandidateStatus(candidateId, status.name);
   }

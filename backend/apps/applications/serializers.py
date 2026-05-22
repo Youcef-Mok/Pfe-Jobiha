@@ -15,19 +15,23 @@ class ApplicationSerializer(serializers.ModelSerializer):
     job_id = serializers.SerializerMethodField()
     job_title = serializers.CharField(source='offre.titre', read_only=True)
     company_name = serializers.SerializerMethodField()
-    department = serializers.CharField(source='offre.categorie', read_only=True)
+    department = serializers.SerializerMethodField()
     logo_asset = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
-    applied_at = serializers.DateTimeField(source='date_postulation', read_only=True)
+    applied_at = serializers.SerializerMethodField()
     location = serializers.SerializerMethodField()
     contract_type = serializers.CharField(source='offre.type_contrat', read_only=True)
     schedule_label = serializers.SerializerMethodField()
     interview_date = serializers.SerializerMethodField()
+    motivation_letter = serializers.CharField(
+        source='message_personnalise', read_only=True
+    )
+
+    # Candidate-derived fields
     candidate_name = serializers.SerializerMethodField()
     candidate_avatar = serializers.SerializerMethodField()
     candidate_domain = serializers.SerializerMethodField()
     candidate_rating = serializers.SerializerMethodField()
-    motivation_letter = serializers.CharField(source='message_personnalise', read_only=True)
 
     class Meta:
         model = Candidature
@@ -39,41 +43,61 @@ class ApplicationSerializer(serializers.ModelSerializer):
             'candidate_rating', 'motivation_letter',
         ]
 
-    # Status mapping: DB -> API
+    # Status mapping: DB -> API — matches actual DB values stored by the views
     _STATUS_MAP = {
         'en_attente': 'pending',
-        'acceptee': 'accepted',
-        'refusee': 'rejected',
+        'acceptee':   'accepted',
+        'refusee':    'rejected',
+        # Fallbacks for any old rows with the previous French form
+        'accepte':    'accepted',
+        'refuse':     'rejected',
     }
 
     def get_id(self, obj):
         return str(obj.id)
 
     def get_job_id(self, obj):
-        return str(obj.offre.id)
+        return str(obj.offre_id)  # avoids extra DB hit
 
     def get_status(self, obj):
         return self._STATUS_MAP.get(obj.statut, obj.statut)
+
+    def get_applied_at(self, obj):
+        if obj.date_postulation:
+            return obj.date_postulation.isoformat()
+        return None
+
+    # -- offre-derived --
 
     def get_company_name(self, obj):
         return getattr(obj.offre.recruteur, 'nom_structure', '') or ''
 
     def get_logo_asset(self, obj):
-        return getattr(obj.offre, 'logo_url', None)
+        return getattr(obj.offre.recruteur, 'logo_url', None)  # logo lives on recruteur
 
     def get_location(self, obj):
-        return getattr(obj.offre, 'location', '') or ''
+        offre = obj.offre
+        if offre.latitude is not None and offre.longitude is not None:
+            return f"{offre.latitude}, {offre.longitude}"
+        return getattr(offre, 'location', None)
 
     def get_schedule_label(self, obj):
-        return getattr(obj.offre, 'schedule_label', None)
+        return getattr(obj.offre, 'schedule_label', None) or obj.offre.type_contrat or None
+
+    def get_department(self, obj):
+        return obj.offre.categorie or None
 
     def get_interview_date(self, obj):
-        """Returns formatted interview date string or null."""
-        from apps.jobs.models import Interview
-        interview = Interview.objects.filter(candidature=obj).first()
-        if interview and interview.scheduled_date:
-            return f"Entretien prévu le {interview.scheduled_date.strftime('%d %b.')}"
+        try:
+            interview = obj.offre.interviews.filter(candidate=obj.candidat).first()
+            if interview and interview.scheduled_date:
+                d = interview.scheduled_date
+                return d.isoformat() if hasattr(d, 'isoformat') else str(d)
+        except Exception:
+            pass
         return None
+
+    # -- candidate-derived --
 
     def get_candidate_name(self, obj):
         c = obj.candidat
@@ -83,7 +107,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
         return getattr(obj.candidat, 'avatar_url', None)
 
     def get_candidate_domain(self, obj):
-        return getattr(obj.candidat, 'domain', None)
+        c = obj.candidat
+        return getattr(c, 'titre_poste', None) or getattr(c, 'experience', None)
 
     def get_candidate_rating(self, obj):
         rating = getattr(obj.candidat, 'note_globale', None)

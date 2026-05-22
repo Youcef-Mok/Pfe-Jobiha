@@ -21,12 +21,16 @@ class Offre(models.Model):
     type_contrat = models.CharField(max_length=50)
     latitude     = models.FloatField(blank=True, null=True)
     longitude    = models.FloatField(blank=True, null=True)
+    location     = models.CharField(max_length=200, blank=True, null=True)
     statut       = models.CharField(
         max_length=50, choices=STATUT_CHOICES, default="searching"
     )
     candidate_count = models.IntegerField(default=1)
     view_count      = models.IntegerField(default=0)
     is_published    = models.BooleanField(default=False)
+    created_at     = models.DateTimeField(auto_now_add=True, null=True)
+    image_url      = models.CharField(max_length=500, blank=True, null=True)
+    schedule_label = models.CharField(max_length=50, blank=True, null=True)
     recruteur    = models.ForeignKey(
         "users.Recruteur", on_delete=models.CASCADE, related_name="offres"
     )

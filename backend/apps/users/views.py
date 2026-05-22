@@ -14,11 +14,14 @@ from django.core.mail import send_mail
 from django.conf import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP, BlockedUser, RestrictedUser
+# RestrictedUser lives in its own module (feature branch); new CV models also imported
+from apps.users.models import Utilisateur, Candidat, Recruteur, Disponibilite, Administrateur, EmailOTP, BlockedUser, CandidateLanguage, CandidateSkillGroup, CandidateSkill
+from apps.users.models.restricted_user import RestrictedUser
 from apps.users.models.settings import UserSettings
 from apps.users.models.recent_search import RecentSearch
 from apps.uploads.models import Media
 from apps.reviews.models.evaluation import Evaluation
+from apps.reviews.models.signalement import Signalement
 from apps.users.serializers import (
     RegisterCandidatSerializer, RegisterRecruteurSerializer,
     LoginSerializer, ChangePasswordSerializer,
@@ -312,6 +315,18 @@ class ResendOtpView(APIView):
 # Users endpoints
 # ===========================================================================
 
+class UserByIdView(APIView):
+    """GET /users/:userId — public profile for any user."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        try:
+            utilisateur = Utilisateur.objects.get(pk=id)
+        except Utilisateur.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(UserMeSerializer(utilisateur).data)
+
+
 class UserMeView(APIView):
     """GET / PUT  /users/me"""
     permission_classes = [IsAuthenticated]
@@ -321,32 +336,45 @@ class UserMeView(APIView):
 
     def put(self, request):
         utilisateur = request.user
+        d = request.data
 
-        # Update base Utilisateur fields
-        base_fields = ['nom', 'prenom', 'telephone', 'latitude', 'longitude', 'avatar_url', 'location', 'bio']
-        for f in base_fields:
-            if f in request.data:
-                setattr(utilisateur, f, request.data[f])
+        # Core Utilisateur fields
+        for f in ['nom', 'prenom', 'telephone', 'latitude', 'longitude']:
+            if f in d:
+                setattr(utilisateur, f, d[f])
+        # Spec top-level fields mapped to model fields (explicit for clarity)
+        if 'location' in d:
+            utilisateur.location = d['location']
+        if 'bio' in d:
+            utilisateur.bio = d['bio']
+        if 'avatar_url' in d:
+            utilisateur.avatar_url = d['avatar_url']
         utilisateur.save()
 
-        # Update child profile fields
+        # Child profile fields
         if hasattr(utilisateur, 'candidat'):
             c = utilisateur.candidat
-            if 'competences' in request.data:
-                c.competences = request.data['competences']
-            if 'experience' in request.data:
-                c.experience = request.data['experience']
-            if 'domain' in request.data:
-                c.domain = request.data['domain']
+            if 'competences' in d:
+                c.competences = d['competences']
+            if 'experience' in d:
+                c.experience = d['experience']
+            if 'domain' in d:
+                c.domain = d['domain']
+            if 'role' in d:
+                c.titre_poste = d['role']
             c.save()
         elif hasattr(utilisateur, 'recruteur'):
             r = utilisateur.recruteur
-            if 'nom_structure' in request.data:
-                r.nom_structure = request.data['nom_structure']
-            if 'type_structure' in request.data:
-                r.type_structure = request.data['type_structure']
-            if 'description' in request.data:
-                r.description = request.data['description']
+            if 'nom_structure' in d or 'company' in d:
+                r.nom_structure = d.get('company') or d.get('nom_structure') or r.nom_structure
+            if 'type_structure' in d:
+                r.type_structure = d['type_structure']
+            if 'description' in d:
+                r.description = d['description']
+            if 'domain' in d:
+                r.domain = d['domain']
+            if 'role' in d:
+                r.titre_poste = d['role']
             r.save()
 
         return Response(UserMeSerializer(utilisateur).data)
@@ -495,7 +523,6 @@ class DisponibiliteDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        
         disponibilite.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -548,9 +575,6 @@ class PortfolioListCreateView(APIView):
             description=description,
         )
 
-        
-        
-
         return Response(
             MediaSerializer(media).data,
             status=status.HTTP_201_CREATED,
@@ -570,7 +594,6 @@ class PortfolioDeleteView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        
         media.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -671,8 +694,6 @@ class AdminSanctionView(APIView):
         utilisateur.save(update_fields=['statut_compte'])
 
         return Response(UtilisateurSerializer(utilisateur).data)
-
-
 
 
 class GoogleLoginView(APIView):
@@ -838,9 +859,9 @@ class ResetPasswordView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-
-# __ Blocked users ______________________________________________
-
+# ===========================================================================
+# Blocked users
+# ===========================================================================
 
 class DeactivateAccountView(APIView):
     """POST /users/me/deactivate"""
@@ -861,21 +882,12 @@ class BlockedUsersView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        blocked = BlockedUser.objects.filter(
-            bloqueur=request.user
-        ).select_related('bloque')
-        data = [
-            {
-                'id':          b.bloque.id,
-                'nom':         b.bloque.nom,
-                'prenom':      b.bloque.prenom,
-                # Flutter BlockedUserModel.fromJson reads 'avatar' as String?
-                'avatar':      None,
-                'date_blocage': b.date_blocage,
-            }
-            for b in blocked
-        ]
-        return Response(data)
+        ids = list(
+            BlockedUser.objects
+            .filter(bloqueur=request.user)
+            .values_list('bloque_id', flat=True)
+        )
+        return Response({'blocked_ids': [str(i) for i in ids]})
 
     def post(self, request):
         bloque_id = request.data.get('user_id')
@@ -910,24 +922,27 @@ class BlockedUsersView(APIView):
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-# __ Restricted users ______________________________________________
 
+# ===========================================================================
+# Restricted users
+# ===========================================================================
 
 class RestrictedUsersView(APIView):
-    """GET /users/me/restricted  — list restricted users
-       POST /users/me/restricted  — restrict a user
-       DELETE /users/me/restricted/{id} — unrestrict a user
+    """
+    GET  /users/me/restricted        — list restricted users
+    POST /users/me/restricted        — restrict a user { contact_id }
+    DELETE /users/me/restricted/:id  — remove restriction
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        restricted = RestrictedUser.objects.filter(
-            restricteur=request.user
-        ).select_related('restreint')
-        data = {
-            'restricted_ids': [str(r.restreint.id) for r in restricted]
-        }
-        return Response(data)
+        # values_list is consistent with BlockedUsersView and avoids an extra join
+        ids = list(
+            RestrictedUser.objects
+            .filter(restricteur=request.user)
+            .values_list('restreint_id', flat=True)
+        )
+        return Response({'restricted_ids': [str(i) for i in ids]})
 
     def post(self, request):
         contact_id = request.data.get('contact_id')
@@ -936,8 +951,7 @@ class RestrictedUsersView(APIView):
                 {'detail': 'contact_id is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        # Convert string to int if needed
+        # Explicit int conversion with 400 on bad input (safer than bare int())
         try:
             restreint_id = int(contact_id)
         except (ValueError, TypeError):
@@ -945,7 +959,6 @@ class RestrictedUsersView(APIView):
                 {'detail': 'contact_id must be a valid integer.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
         if restreint_id == request.user.pk:
             return Response(
                 {'detail': 'You cannot restrict yourself.'},
@@ -958,7 +971,9 @@ class RestrictedUsersView(APIView):
                 {'detail': 'User not found.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        RestrictedUser.objects.get_or_create(restricteur=request.user, restreint=restreint)
+        RestrictedUser.objects.get_or_create(
+            restricteur=request.user, restreint=restreint
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def delete(self, request, id):
@@ -973,7 +988,9 @@ class RestrictedUsersView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-#__ Push notification _____________________________________________________________
+# ===========================================================================
+# Push notification preferences
+# ===========================================================================
 
 class PushNotifPrefView(APIView):
     """GET / PATCH  /users/me/preferences"""
@@ -1046,15 +1063,50 @@ class UserCvView(APIView):
 
     def get(self, request, id):
         try:
-            candidat = Candidat.objects.get(pk=id)
+            candidat = Candidat.objects.prefetch_related(
+                'formations', 'experiences', 'languages', 'skill_groups__skills'
+            ).get(pk=id)
         except Candidat.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-        # TODO: source from dedicated CV models when they exist
+
+        formations = [
+            {
+                'title': f.title,
+                'institution': f.institution,
+                'location': f.location,
+                'year': f.year,
+                'is_active': f.is_active,
+                'file_name': f.file_name,
+                'file_path': f.file_path,
+            }
+            for f in candidat.formations.all()
+        ]
+        experiences = [
+            {
+                'title': e.title,
+                'company': e.company,
+                'location': e.location,
+                'period': e.period,
+                'end_date': e.end_date,
+                'is_app_mission': e.is_app_mission,
+                'is_active': e.is_active,
+            }
+            for e in candidat.experiences.all()
+        ]
+        languages = [
+            {'name': l.name, 'proficiency': l.proficiency}
+            for l in candidat.languages.all()
+        ]
+        skills = [
+            {'name': s.name, 'level': s.level}
+            for group in candidat.skill_groups.all()
+            for s in group.skills.all()
+        ]
         return Response({
-            'formations': [],
-            'experiences': [],
-            'languages': [],
-            'skills': candidat.competences or [],
+            'formations': formations,
+            'experiences': experiences,
+            'languages': languages,
+            'skills': skills,
         })
 
 
@@ -1230,6 +1282,560 @@ class RecentSearchCreateView(APIView):
 
 # Keep as alias
 RecentSearchClearView = RecentSearchCreateView
+
+
+# ===========================================================================
+# Saved-job IDs — GET /users/me/saved-jobs
+# ===========================================================================
+
+class SavedJobIdsView(APIView):
+    """
+    GET /users/me/saved-jobs → { saved_job_ids: ["id1", "id2"] }
+    Read-only: returns IDs so the Flutter UI can check saved state (heart icon).
+    Writes go through POST /candidats/me/saved.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'saved_job_ids': []})
+        from apps.jobs.models.saved_job import SavedJob
+        ids = list(
+            SavedJob.objects
+            .filter(candidat=request.user.candidat)
+            .values_list('offre_id', flat=True)
+        )
+        return Response({'saved_job_ids': [str(i) for i in ids]})
+
+
+class SavedJobIdDetailView(APIView):
+    """DELETE /users/me/saved-jobs/:jobId → 204"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, job_id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.jobs.models.saved_job import SavedJob
+        deleted, _ = SavedJob.objects.filter(
+            candidat=request.user.candidat, offre_id=job_id
+        ).delete()
+        if not deleted:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# Candidate public profile — GET /candidates/:candidateId/profile
+# ===========================================================================
+
+class CandidatePublicProfileView(APIView):
+    """
+    GET /candidates/:id/profile — full public profile for a candidate.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        try:
+            candidat = Candidat.objects.prefetch_related(
+                'disponibilites', 'medias',
+                'skill_groups__skills', 'languages', 'tools',
+            ).get(pk=id)
+        except Candidat.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        from apps.jobs.models.mission import Mission
+        missions_qs = Mission.objects.filter(
+            candidature__candidat=candidat
+        ).select_related('candidature__offre__recruteur')
+
+        missions = []
+        for m in missions_qs:
+            rating_ev = Evaluation.objects.filter(mission=m, evalue=candidat).first()
+            duration = ''
+            if m.date_debut and m.date_fin:
+                days = (m.date_fin - m.date_debut).days
+                duration = f"{days} jour{'s' if days != 1 else ''}"
+            missions.append({
+                'id': str(m.id),
+                'job_title': m.candidature.offre.titre,
+                'company_name': m.candidature.offre.recruteur.nom_structure or '',
+                'duration': duration,
+                'rating': float(rating_ev.note) if rating_ev else 0.0,
+                'status': m.statut,
+            })
+
+        feedbacks_qs = Evaluation.objects.filter(evalue=candidat).select_related('evaluateur')
+        feedbacks = []
+        for ev in feedbacks_qs:
+            feedbacks.append({
+                'id': str(ev.id),
+                'reviewer_name': f"{ev.evaluateur.prenom} {ev.evaluateur.nom}",
+                'reviewer_role': ev.evaluateur.role or '',
+                'reviewer_avatar': getattr(ev.evaluateur, 'avatar_url', None),
+                'star_count': ev.note,
+                'review_text': ev.commentaire or '',
+                'response': {
+                    'author_name': ev.recruiter_name or '',
+                    'response_text': ev.recruiter_reply or '',
+                } if ev.recruiter_reply else None,
+            })
+
+        skill_groups = [
+            {
+                'title': g.title,
+                'skills': [{'name': s.name, 'level': s.level} for s in g.skills.all()],
+            }
+            for g in candidat.skill_groups.all()
+        ]
+        languages = [
+            {'name': l.name, 'proficiency': l.proficiency}
+            for l in candidat.languages.all()
+        ]
+        tools = [t.name for t in candidat.tools.all()]
+        reviews_count = feedbacks_qs.count()
+
+        return Response({
+            'id': str(candidat.id),
+            'name': f"{candidat.prenom} {candidat.nom}",
+            'title': getattr(candidat, 'titre_poste', None) or candidat.experience or '',
+            'photo_url': getattr(candidat, 'avatar_url', None),
+            'location': getattr(candidat, 'location', None) or '',
+            'domain': getattr(candidat, 'domain', None) or '',
+            'missions_count': len(missions),
+            'rating': float(candidat.note_globale) if candidat.note_globale is not None else 0.0,
+            'reviews_count': reviews_count,
+            'is_top_rated': float(candidat.note_globale or 0) >= 4.5,
+            'cover_letter': candidat.experience or '',
+            'skill_groups': skill_groups,
+            'languages': languages,
+            'tools': tools,
+            'missions': missions,
+            'feedbacks': feedbacks,
+        })
+
+
+# ===========================================================================
+# Reports — POST /reports
+# ===========================================================================
+
+class ReportsView(APIView):
+    """
+    POST /reports — report a user, message, or comment.
+    Maps to Signalement model.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        target_id = request.data.get('target_id')
+        target_type = request.data.get('target_type', 'user')
+        reason = request.data.get('reason', '')
+        description = request.data.get('description', '')
+
+        if not target_id:
+            return Response({'detail': 'target_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if target_type == 'user':
+            try:
+                cible = Utilisateur.objects.get(pk=target_id)
+            except Utilisateur.DoesNotExist:
+                return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+            if cible.pk == request.user.pk:
+                return Response({'detail': 'Cannot report yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if Signalement.objects.filter(auteur=request.user, cible=cible).exists():
+                return Response({'detail': 'Already reported.'}, status=status.HTTP_409_CONFLICT)
+
+            sig = Signalement.objects.create(
+                auteur=request.user,
+                cible=cible,
+                raison=reason,
+                description=description or None,
+            )
+            return Response({'report_id': str(sig.id)}, status=status.HTTP_201_CREATED)
+        else:
+            # message / comment reports — no dedicated model yet; log the raison
+            if not reason:
+                return Response({'detail': 'reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'report_id': None}, status=status.HTTP_201_CREATED)
+
+
+# ===========================================================================
+# Candidate Skill Groups
+# ===========================================================================
+
+class CandidateSkillGroupsView(APIView):
+    """GET/POST /candidates/me/skill-groups"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.candidate_skill import CandidateSkillGroup
+        groups = CandidateSkillGroup.objects.filter(candidat=request.user.candidat).prefetch_related('skills')
+        return Response([
+            {
+                'id': g.id,
+                'title': g.title,
+                'order': g.order,
+                'skills': [{'id': s.id, 'name': s.name, 'level': s.level} for s in g.skills.all()],
+            }
+            for g in groups
+        ])
+
+    def post(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        title = request.data.get('title', '').strip()
+        if not title:
+            return Response({'detail': 'title is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        from apps.users.models.candidate_skill import CandidateSkillGroup
+        group = CandidateSkillGroup.objects.create(
+            candidat=request.user.candidat,
+            title=title,
+            order=request.data.get('order', 0),
+        )
+        return Response({'id': group.id, 'title': group.title, 'order': group.order, 'skills': []}, status=status.HTTP_201_CREATED)
+
+
+class CandidateSkillGroupDetailView(APIView):
+    """DELETE /candidates/me/skill-groups/:id"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.candidate_skill import CandidateSkillGroup
+        deleted, _ = CandidateSkillGroup.objects.filter(pk=id, candidat=request.user.candidat).delete()
+        if not deleted:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CandidateSkillsView(APIView):
+    """POST /candidates/me/skill-groups/:groupId/skills"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, group_id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.candidate_skill import CandidateSkillGroup, CandidateSkill
+        try:
+            group = CandidateSkillGroup.objects.get(pk=group_id, candidat=request.user.candidat)
+        except CandidateSkillGroup.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        name = request.data.get('name', '').strip()
+        level = request.data.get('level', 'debutant')
+        if not name:
+            return Response({'detail': 'name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        skill = CandidateSkill.objects.create(group=group, name=name, level=level)
+        return Response({'id': skill.id, 'name': skill.name, 'level': skill.level}, status=status.HTTP_201_CREATED)
+
+
+class CandidateSkillDetailView(APIView):
+    """DELETE /candidates/me/skill-groups/:groupId/skills/:skillId"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, group_id, skill_id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.candidate_skill import CandidateSkillGroup, CandidateSkill
+        try:
+            group = CandidateSkillGroup.objects.get(pk=group_id, candidat=request.user.candidat)
+        except CandidateSkillGroup.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        deleted, _ = CandidateSkill.objects.filter(pk=skill_id, group=group).delete()
+        if not deleted:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# Candidate Languages
+# ===========================================================================
+
+class CandidateLanguagesView(APIView):
+    """GET/POST /candidates/me/languages"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.candidate_language import CandidateLanguage
+        langs = CandidateLanguage.objects.filter(candidat=request.user.candidat)
+        return Response([{'id': l.id, 'name': l.name, 'proficiency': l.proficiency} for l in langs])
+
+    def post(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        name = request.data.get('name', '').strip()
+        proficiency = request.data.get('proficiency', '').strip()
+        if not name or not proficiency:
+            return Response({'detail': 'name and proficiency are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        from apps.users.models.candidate_language import CandidateLanguage
+        lang = CandidateLanguage.objects.create(candidat=request.user.candidat, name=name, proficiency=proficiency)
+        return Response({'id': lang.id, 'name': lang.name, 'proficiency': lang.proficiency}, status=status.HTTP_201_CREATED)
+
+
+class CandidateLanguageDetailView(APIView):
+    """DELETE /candidates/me/languages/:id"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.candidate_language import CandidateLanguage
+        deleted, _ = CandidateLanguage.objects.filter(pk=id, candidat=request.user.candidat).delete()
+        if not deleted:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# Candidate Tools
+# ===========================================================================
+
+class CandidateToolsView(APIView):
+    """GET/POST /candidates/me/tools"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.candidate_tool import CandidateTool
+        tools = CandidateTool.objects.filter(candidat=request.user.candidat)
+        return Response([{'id': t.id, 'name': t.name} for t in tools])
+
+    def post(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        name = request.data.get('name', '').strip()
+        if not name:
+            return Response({'detail': 'name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        from apps.users.models.candidate_tool import CandidateTool
+        tool = CandidateTool.objects.create(candidat=request.user.candidat, name=name)
+        return Response({'id': tool.id, 'name': tool.name}, status=status.HTTP_201_CREATED)
+
+
+class CandidateToolDetailView(APIView):
+    """DELETE /candidates/me/tools/:id"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.candidate_tool import CandidateTool
+        deleted, _ = CandidateTool.objects.filter(pk=id, candidat=request.user.candidat).delete()
+        if not deleted:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# CV Skills (simple endpoint — auto-assigns to a default group)
+# ===========================================================================
+
+class CandidateCvSkillsView(APIView):
+    """POST /candidates/me/cv/skills"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        name = request.data.get('name', '').strip()
+        level = request.data.get('level', 'debutant')
+        if not name:
+            return Response({'detail': 'name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        group, _ = CandidateSkillGroup.objects.get_or_create(
+            candidat=request.user.candidat,
+            title='Compétences',
+            defaults={'order': 0},
+        )
+        skill = CandidateSkill.objects.create(group=group, name=name, level=level)
+        return Response({'id': skill.id, 'name': skill.name, 'level': skill.level}, status=status.HTTP_201_CREATED)
+
+
+# ===========================================================================
+# CV Formations
+# ===========================================================================
+
+class CandidateCvFormationsView(APIView):
+    """GET/POST /candidates/me/cv/formations"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.cv_formation import CvFormation
+        formations = CvFormation.objects.filter(candidat=request.user.candidat)
+        return Response([{
+            'id': f.id, 'title': f.title, 'institution': f.institution,
+            'location': f.location, 'year': f.year, 'is_active': f.is_active,
+            'file_name': f.file_name, 'file_path': f.file_path,
+        } for f in formations])
+
+    def post(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        required = ['title', 'institution', 'location', 'year']
+        for field in required:
+            if not request.data.get(field):
+                return Response({'detail': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        from apps.users.models.cv_formation import CvFormation
+        f = CvFormation.objects.create(
+            candidat=request.user.candidat,
+            title=request.data['title'],
+            institution=request.data['institution'],
+            location=request.data['location'],
+            year=int(request.data['year']),
+            is_active=request.data.get('is_active', False),
+            file_name=request.data.get('file_name'),
+            file_path=request.data.get('file_path'),
+        )
+        return Response({
+            'id': f.id, 'title': f.title, 'institution': f.institution,
+            'location': f.location, 'year': f.year, 'is_active': f.is_active,
+            'file_name': f.file_name, 'file_path': f.file_path,
+        }, status=status.HTTP_201_CREATED)
+
+
+class CandidateCvFormationDetailView(APIView):
+    """PUT/DELETE /candidates/me/cv/formations/:id"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.cv_formation import CvFormation
+        try:
+            f = CvFormation.objects.get(pk=id, candidat=request.user.candidat)
+        except CvFormation.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        for field in ['title', 'institution', 'location', 'year', 'is_active', 'file_name', 'file_path']:
+            if field in request.data:
+                setattr(f, field, request.data[field])
+        f.save()
+        return Response({
+            'id': f.id, 'title': f.title, 'institution': f.institution,
+            'location': f.location, 'year': f.year, 'is_active': f.is_active,
+            'file_name': f.file_name, 'file_path': f.file_path,
+        })
+
+    def delete(self, request, id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.cv_formation import CvFormation
+        deleted, _ = CvFormation.objects.filter(pk=id, candidat=request.user.candidat).delete()
+        if not deleted:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# CV Experiences
+# ===========================================================================
+
+class CandidateCvExperiencesView(APIView):
+    """GET/POST /candidates/me/cv/experiences"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.cv_experience import CvExperience
+        exps = CvExperience.objects.filter(candidat=request.user.candidat)
+        return Response([{
+            'id': e.id, 'title': e.title, 'company': e.company,
+            'location': e.location, 'period': e.period, 'end_date': e.end_date,
+            'is_app_mission': e.is_app_mission, 'is_active': e.is_active,
+        } for e in exps])
+
+    def post(self, request):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        for field in ['title', 'company']:
+            if not request.data.get(field):
+                return Response({'detail': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        from apps.users.models.cv_experience import CvExperience
+        e = CvExperience.objects.create(
+            candidat=request.user.candidat,
+            title=request.data['title'],
+            company=request.data['company'],
+            location=request.data.get('location', ''),
+            period=request.data.get('period'),
+            end_date=request.data.get('end_date'),
+            is_app_mission=request.data.get('is_app_mission', False),
+            is_active=request.data.get('is_active', False),
+        )
+        return Response({
+            'id': e.id, 'title': e.title, 'company': e.company,
+            'location': e.location, 'period': e.period, 'end_date': e.end_date,
+            'is_app_mission': e.is_app_mission, 'is_active': e.is_active,
+        }, status=status.HTTP_201_CREATED)
+
+
+class CandidateCvExperienceDetailView(APIView):
+    """PUT/DELETE /candidates/me/cv/experiences/:id"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.cv_experience import CvExperience
+        try:
+            e = CvExperience.objects.get(pk=id, candidat=request.user.candidat)
+        except CvExperience.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        for field in ['title', 'company', 'location', 'period', 'end_date', 'is_app_mission', 'is_active']:
+            if field in request.data:
+                setattr(e, field, request.data[field])
+        e.save()
+        return Response({
+            'id': e.id, 'title': e.title, 'company': e.company,
+            'location': e.location, 'period': e.period, 'end_date': e.end_date,
+            'is_app_mission': e.is_app_mission, 'is_active': e.is_active,
+        })
+
+    def delete(self, request, id):
+        if not hasattr(request.user, 'candidat'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models.cv_experience import CvExperience
+        deleted, _ = CvExperience.objects.filter(pk=id, candidat=request.user.candidat).delete()
+        if not deleted:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# Review Reply
+# ===========================================================================
+
+class ReviewReplyView(APIView):
+    """PUT /users/:userId/reviews/:reviewId/reply"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, user_id, review_id):
+        try:
+            evaluation = Evaluation.objects.get(pk=review_id, evalue_id=user_id)
+        except Evaluation.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        # Only the subject of the review can reply (or their recruiter)
+        if request.user.pk != user_id:
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        reply = request.data.get('reply', '').strip()
+        recruiter_name = request.data.get('recruiter_name', '').strip()
+        if not reply:
+            return Response({'detail': 'reply is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        from django.utils import timezone as tz
+        evaluation.recruiter_reply = reply
+        evaluation.recruiter_reply_date = tz.now()
+        if recruiter_name:
+            evaluation.recruiter_name = recruiter_name
+        evaluation.save(update_fields=['recruiter_reply', 'recruiter_reply_date', 'recruiter_name'])
+        from apps.users.serializers import ReviewSerializer
+        return Response(ReviewSerializer(evaluation).data)
+
 
 # ===========================================================================
 # Stub for not-yet-implemented endpoints

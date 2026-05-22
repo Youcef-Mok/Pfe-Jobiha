@@ -16,7 +16,10 @@ class Evaluation(models.Model):
     note = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
-    commentaire     = models.TextField(blank=True, null=True)
+    commentaire          = models.TextField(blank=True, null=True)
+    recruiter_reply      = models.TextField(blank=True, null=True)
+    recruiter_reply_date = models.DateTimeField(blank=True, null=True)
+    recruiter_name       = models.CharField(max_length=200, blank=True, null=True)
     evaluateur      = models.ForeignKey(
         "users.Utilisateur",
         on_delete=models.CASCADE,

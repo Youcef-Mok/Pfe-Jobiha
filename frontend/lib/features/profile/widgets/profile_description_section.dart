@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
-import 'package:job_app/core/utils/icon_utils.dart';
 import 'package:job_app/core/utils/color_utils.dart';
 
 class ProfileDescriptionSection extends ConsumerWidget {
@@ -33,7 +32,9 @@ class ProfileDescriptionSection extends ConsumerWidget {
         : isRecruiterView
             ? ref.watch(employeeReviewsProvider)
             : ref.watch(candidateEmployeeReviewsProvider);
-    final jobsCount = ref.watch(jobsNotifierProvider).valueOrNull?.length ?? 0;
+    final jobsCount = isRecruiterView
+        ? ref.watch(jobsNotifierProvider).valueOrNull?.length ?? 0
+        : 0;
 
     return userAsync.when(
       loading: () => const Center(
@@ -77,10 +78,13 @@ class ProfileDescriptionSection extends ConsumerWidget {
                     else
                       _InfoChip(
                         circleColor: const Color(0xFFF3F3F3),
-                        icon: IconUtils.getSmartIcon(user.domain),
+                        icon: Icons.location_on_outlined,
                         iconColor: Colors.black,
-                        mainText: user.domain,
+                        mainText: user.location.trim().isEmpty
+                            ? 'Non renseigné'
+                            : user.location,
                         mainTextSize: 11,
+                        subText: 'Localisation',
                         iconSpacing: 6,
                       ),
                     const SizedBox(width: 13),

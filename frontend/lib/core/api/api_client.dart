@@ -13,7 +13,7 @@ class ApiClient {
 
   static final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://192.168.100.9:8000/api/v1', //for my phone linking (using same network as pc)
+      baseUrl: 'http://localhost:8000/api/v1',
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),

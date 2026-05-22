@@ -1,63 +1,19 @@
-// lib/features/settings/data/repositories/settings_repository.dart
+import 'package:job_app/features/settings/data/models/settings_model.dart';
 
-import 'package:dio/dio.dart';
-import '../../../../core/api/api_client.dart';
-import '../../../../core/api/api_endpoints.dart';
-import '../models/settings_model.dart';
+// TODO(API): Remplacer SettingsRepositoryMock par une implémentation HTTP.
+//            Endpoints attendus:
+//              GET  /api/settings        → getSettings()
+//              PUT  /api/settings/notifs → updateNotificationsEnabled()
+//              PUT  /api/settings/theme  → updateDarkMode()
+//              PUT  /api/settings/lang   → updateLanguage()
+//              POST /api/auth/logout     → logout()
+//              DELETE /api/account       → deleteAccount()
 
-class SettingsRepository {
-  final Dio _dio = ApiClient.instance;
-
-  // ── Push notification preference ───────────────────────────────────────────
-
-  Future<bool> getPushNotifPref() async {
-    final response = await _dio.get(ApiEndpoints.pushNotifPref);
-    return response.data['push_notif_enabled'] as bool;
-  }
-
-  Future<void> setPushNotifPref({required bool enabled}) async {
-    await _dio.patch(
-      ApiEndpoints.pushNotifPref,
-      data: {'push_notif_enabled': enabled},
-    );
-  }
-
-  // ── Blocked users ──────────────────────────────────────────────────────────
-
-  Future<List<BlockedUserModel>> getBlockedUsers() async {
-    final response = await _dio.get(ApiEndpoints.blockedUsers);
-    final List data = response.data as List;
-    return data
-        .cast<Map<String, dynamic>>()
-        .map(BlockedUserModel.fromJson)
-        .toList();
-  }
-
-  Future<void> blockUser(int userId) async {
-    await _dio.post(
-      ApiEndpoints.blockedUsers,
-      data: {'user_id': userId},
-    );
-  }
-
-  Future<void> unblockUser(int userId) async {
-    await _dio.delete('${ApiEndpoints.blockedUsers}/$userId');
-  }
-
-  // ── Deactivate account ─────────────────────────────────────────────────────
-
-  Future<void> deactivateAccount() async {
-    await _dio.post(ApiEndpoints.deactivateAccount);
-  }
-
-
-
-
-  // ── Delete account ─────────────────────────────────────────────────────────
-  // Backend endpoint to be added when permanent deletion is implemented.
-  Future<void> deleteAccount() async {
-   // await _dio.delete(ApiEndpoints.deleteAccount);
-  }
-
-
+abstract class SettingsRepository {
+  Future<AppSettings> getSettings();
+  Future<void> updateNotificationsEnabled(bool enabled);
+  Future<void> updateDarkMode(bool enabled);
+  Future<void> updateLanguage(String languageCode);
+  Future<void> logout();
+  Future<void> deleteAccount();
 }

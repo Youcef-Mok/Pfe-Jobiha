@@ -6,14 +6,16 @@ import 'package:job_app/features/jobs/domain/mission_entity.dart';
 import 'package:job_app/features/jobs/domain/jobs_controller.dart';
 import 'package:job_app/features/jobs/domain/recruiter_filters.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
-import 'package:job_app/features/jobs/data/repositories/jobs_repository_api.dart';
+import 'package:job_app/features/jobs/data/repositories/jobs_repository_http.dart';
+import 'package:job_app/features/applications/data/providers/applications_provider.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 
 // ─────────────────────────────────────────────
 // 1. Repository Provider
-//    → Uses real API implementation
+//    → Swapper mock par l'implémentation réelle ici
 // ─────────────────────────────────────────────
 final jobsRepositoryProvider = Provider<JobsRepository>(
-  (ref) => JobsRepositoryApi(),
+  (ref) => JobsRepositoryHttp(),
 );
 
 // ─────────────────────────────────────────────
@@ -106,6 +108,77 @@ final missionsNotifierProvider =
   (ref) => MissionsNotifier(ref.watch(jobsControllerProvider)),
 );
 
+// ── Feed candidat ─────────────────────────────────────────────────────────────
+// Appelle GET /jobs (toutes les offres publiées) — distinct de jobsNotifierProvider
+// qui appelle GET /jobs/mine (recruteur uniquement).
+class _AllJobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
+  final JobsController _controller;
+
+  _AllJobsNotifier(this._controller) : super(const AsyncValue.loading()) {
+    Future.microtask(() => fetch());
+  }
+
+  Future<void> fetch() async {
+    state = const AsyncValue.loading();
+    try {
+      final jobs = await _controller.fetchAllJobs();
+      state = AsyncValue.data(jobs);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+
+final allJobsNotifierProvider =
+    StateNotifierProvider<_AllJobsNotifier, AsyncValue<List<JobEntity>>>(
+  (ref) => _AllJobsNotifier(ref.watch(jobsControllerProvider)),
+);
+
+/// Toutes les offres publiées — pour le feed candidat (home + recherche).
+final candidateAllPublishedJobsProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
+  final jobsAsync = ref.watch(allJobsNotifierProvider);
+  final controller = ref.watch(jobsControllerProvider);
+  return jobsAsync.whenData(controller.filterPublished);
+});
+
+/// Offres proches du user — GPS live > coordonnées profil > wilaya.
+/// Réactif aux filtres actifs du candidat.
+final nearbyJobsProvider = FutureProvider<List<JobEntity>>((ref) async {
+  final gps = ref.watch(userGpsPositionProvider);
+  final user = ref.watch(candidateCurrentUserProvider).valueOrNull;
+  final filters = ref.watch(candidateFiltersProvider);
+
+  final lat = gps?.lat ?? user?.latitude;
+  final lng = gps?.lng ?? user?.longitude;
+  final hasGps = lat != null && lng != null;
+  final hasLocation = user?.location != null && user!.location.isNotEmpty;
+  final selectedLocation = (filters.location ?? '').trim();
+  final locationParam = selectedLocation.isNotEmpty
+      ? selectedLocation
+      : ((!hasGps && hasLocation) ? user.location : null);
+  final contractType = _mapContractTypeToApi(
+    filters.contractTypes.isNotEmpty ? filters.contractTypes.first : null,
+  );
+
+  return ref.read(jobsControllerProvider).fetchNearbyJobs(
+    lat: hasGps ? lat : null,
+    lng: hasGps ? lng : null,
+    location: locationParam,
+    category: filters.category,
+    contractType: contractType,
+  );
+});
+
+String? _mapContractTypeToApi(String? label) {
+  if (label == null) return null;
+  return switch (label.toLowerCase()) {
+    'cdi' => 'cdi',
+    'cdd' || 'mission' => 'mission',
+    'freelance' => 'freelance',
+    _ => null,
+  };
+}
+
 final filteredJobsProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
   final jobsAsync = ref.watch(jobsNotifierProvider);
   final filters = ref.watch(recruiterFiltersProvider);
@@ -159,6 +232,68 @@ final recruiterFilteredMissionsByNameProvider =
 
 final candidateJobSearchQueryProvider = StateProvider<String>((ref) => '');
 
+// Server-side search: fires GET /jobs?q=...&category=...&contract_type=...
+final jobSearchProvider = FutureProvider<List<JobEntity>>((ref) async {
+  final query = ref.watch(candidateJobSearchQueryProvider);
+  if (query.trim().isEmpty) return [];
+  final filters = ref.watch(candidateFiltersProvider);
+  return ref.read(jobsRepositoryProvider).searchJobs(
+    query,
+    category: filters.category,
+    contractTypes: filters.contractTypes.isEmpty ? null : filters.contractTypes,
+  );
+});
+
+// Recent searches notifier
+class RecentSearchNotifier extends StateNotifier<AsyncValue<List<String>>> {
+  final JobsRepository _repository;
+
+  RecentSearchNotifier(this._repository) : super(const AsyncValue.loading()) {
+    Future.microtask(_load);
+  }
+
+  Future<void> _load() async {
+    state = const AsyncValue.loading();
+    try {
+      final searches = await _repository.getRecentSearches();
+      state = AsyncValue.data(searches);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> addSearch(String query) async {
+    if (query.trim().isEmpty) return;
+    final current = state.valueOrNull ?? [];
+    if (!current.contains(query)) {
+      state = AsyncValue.data([query, ...current]);
+    }
+    try {
+      await _repository.addRecentSearch(query);
+    } catch (_) {}
+  }
+
+  void removeSearch(int index) {
+    final current = List<String>.from(state.valueOrNull ?? []);
+    if (index < current.length) {
+      current.removeAt(index);
+      state = AsyncValue.data(current);
+    }
+  }
+
+  Future<void> clearSearches() async {
+    state = const AsyncValue.data([]);
+    try {
+      await _repository.clearRecentSearches();
+    } catch (_) {}
+  }
+}
+
+final recentSearchesProvider =
+    StateNotifierProvider<RecentSearchNotifier, AsyncValue<List<String>>>(
+  (ref) => RecentSearchNotifier(ref.watch(jobsRepositoryProvider)),
+);
+
 final candidateJobSearchResultsProvider =
     Provider<AsyncValue<List<JobEntity>>>((ref) {
   final jobsAsync = ref.watch(jobsNotifierProvider);
@@ -209,10 +344,12 @@ final combinedJobsAndMissionsProvider =
   }
 
   // Handle errors
-  if (jobsAsync.hasError)
+  if (jobsAsync.hasError) {
     return AsyncValue.error(jobsAsync.error!, jobsAsync.stackTrace!);
-  if (missionsAsync.hasError)
+  }
+  if (missionsAsync.hasError) {
     return AsyncValue.error(missionsAsync.error!, missionsAsync.stackTrace!);
+  }
 
   // Otherwise standard loading
   return const AsyncValue.loading();
@@ -396,11 +533,9 @@ class CandidateMissionsNotifier extends StateNotifier<AsyncValue<List<MissionEnt
   Future<void> fetch() async {
     state = const AsyncValue.loading();
     try {
-      await Future.delayed(const Duration(milliseconds: 200));
+      // Endpoint is scoped by JWT user.
       final missions = await _ref.read(jobsRepositoryProvider).getMissions();
-      // TODO(API): GET /api/v1/missions retournera uniquement les missions du candidat connecté — supprimer ce filtre
-      final candidateMissions = missions.where((m) => m.candidateName == 'Farouja').toList();
-      state = AsyncValue.data(candidateMissions);
+      state = AsyncValue.data(missions);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -452,3 +587,4 @@ final recruiterFiltersProvider =
     StateNotifierProvider<RecruiterFiltersNotifier, RecruiterFilters>(
   (ref) => RecruiterFiltersNotifier(),
 );
+

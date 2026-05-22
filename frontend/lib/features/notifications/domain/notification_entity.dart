@@ -88,7 +88,7 @@ class NotificationEntity {
   final String title;
   final String? message;
   final NotificationType type;
-  final DateTime timestamp;
+  final DateTime dateCreation;
   final bool isRead;
   final String? jobTitle;
   final String? senderName;
@@ -101,7 +101,7 @@ class NotificationEntity {
     required this.title,
     this.message,
     required this.type,
-    required this.timestamp,
+    required this.dateCreation,
     this.isRead = false,
     this.jobTitle,
     this.senderName,
@@ -118,7 +118,7 @@ class NotificationEntity {
       title: title,
       message: message,
       type: type,
-      timestamp: timestamp,
+      dateCreation: dateCreation,
       isRead: isRead ?? this.isRead,
       jobTitle: jobTitle,
       senderName: senderName,

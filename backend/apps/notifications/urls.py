@@ -25,4 +25,7 @@ urlpatterns = [
 
     # GET  /notifications                 — paginated list (with optional filters)
     path('notifications', views.NotificationListView.as_view(), name='notifications-list'),
+
+    # POST /notifications/push/token      — register FCM/APNs push token
+    path('notifications/push/token', views.PushTokenView.as_view(), name='push-token'),
 ]

@@ -26,12 +26,12 @@ class CandidateSkill(models.Model):
     Individual skills within a skill group.
     """
     LEVEL_CHOICES = [
-        ("debutant", "Débutant"),
+        ("debutant",      "Débutant"),
         ("intermediaire", "Intermédiaire"),
-        ("avance", "Avancé"),
-        ("expert", "Expert"),
+        ("avance",        "Avancé"),
+        ("expert",        "Expert"),
     ]
-    
+
     group = models.ForeignKey(
         CandidateSkillGroup,
         on_delete=models.CASCADE,

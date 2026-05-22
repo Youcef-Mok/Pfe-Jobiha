@@ -8,7 +8,7 @@ class NotificationModel {
   final String title;
   final String? message;
   final String type; // maps to NotificationType enum
-  final String timestamp; // ISO 8601
+  final String dateCreation; // ISO 8601
   final bool isRead;
   final String? jobTitle;
   final String? senderName;
@@ -20,7 +20,7 @@ class NotificationModel {
     required this.title,
     this.message,
     required this.type,
-    required this.timestamp,
+    required this.dateCreation,
     required this.isRead,
     this.jobTitle,
     this.senderName,
@@ -34,7 +34,7 @@ class NotificationModel {
         title: json['title'] as String,
         message: json['message'] as String?,
         type: json['type'] as String? ?? 'system',
-        timestamp: json['timestamp'] as String,
+        dateCreation: json['date_creation'] as String,
         isRead: json['is_read'] as bool? ?? false,
         jobTitle: json['job_title'] as String?,
         senderName: json['sender_name'] as String?,
@@ -47,7 +47,7 @@ class NotificationModel {
         'title': title,
         'message': message,
         'type': type,
-        'timestamp': timestamp,
+        'date_creation': dateCreation,
         'is_read': isRead,
         'job_title': jobTitle,
         'sender_name': senderName,
@@ -60,7 +60,7 @@ class NotificationModel {
         title: title,
         message: message,
         type: _parseType(type),
-        timestamp: DateTime.parse(timestamp),
+        dateCreation: DateTime.parse(dateCreation),
         isRead: isRead,
         jobTitle: jobTitle,
         senderName: senderName,
@@ -74,7 +74,7 @@ class NotificationModel {
         title: e.title,
         message: e.message,
         type: e.type.name,
-        timestamp: e.timestamp.toIso8601String(),
+        dateCreation: e.dateCreation.toIso8601String(),
         isRead: e.isRead,
         jobTitle: e.jobTitle,
         senderName: e.senderName,
