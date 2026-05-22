@@ -8,6 +8,8 @@ class UserModel {
   final String domain;
   final String company;
   final String location;
+  final double? latitude;
+  final double? longitude;
   final String bio;
   final String? avatarUrl;
   final int followersCount;
@@ -22,6 +24,8 @@ class UserModel {
     required this.domain,
     required this.company,
     required this.location,
+    this.latitude,
+    this.longitude,
     required this.bio,
     this.avatarUrl,
     required this.followersCount,
@@ -34,10 +38,12 @@ class UserModel {
         id: json['id'] as String,
         name: json['name'] as String,
         role: json['role'] as String,
-        domain: json['domain'] as String? ?? 'Restauration',
+        domain: json['domain'] as String? ?? '',
         company: json['company'] as String,
-        location: json['location'] as String,
-        bio: json['bio'] as String,
+        location: json['location'] as String? ?? '',
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+        bio: json['bio'] as String? ?? '',
         avatarUrl: json['avatar_url'] as String?,
         followersCount: json['followers_count'] as int? ?? 0,
         missionsCount: json['missions_count'] as int? ?? 0,
@@ -52,6 +58,8 @@ class UserModel {
         'domain': domain,
         'company': company,
         'location': location,
+        'latitude': latitude,
+        'longitude': longitude,
         'bio': bio,
         'avatar_url': avatarUrl,
         'followers_count': followersCount,
@@ -67,6 +75,8 @@ class UserModel {
         domain: domain,
         company: company,
         location: location,
+        latitude: latitude,
+        longitude: longitude,
         bio: bio,
         avatarUrl: avatarUrl,
         followersCount: followersCount,
@@ -82,6 +92,8 @@ class UserModel {
         domain: entity.domain,
         company: entity.company,
         location: entity.location,
+        latitude: entity.latitude,
+        longitude: entity.longitude,
         bio: entity.bio,
         avatarUrl: entity.avatarUrl,
         followersCount: entity.followersCount,

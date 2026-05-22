@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
+import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/screens/candidate_filters_screen.dart';
 import 'package:job_app/features/jobs/widgets/candidate_job_card.dart';
 import 'package:job_app/features/jobs/screens/saved_jobs_screen.dart';
@@ -21,63 +24,60 @@ class CandidateSearchScreen extends ConsumerStatefulWidget {
 class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  // Fake recent searches state for demo purposes as shown in Figma
-  final List<Map<String, dynamic>> _recentSearches = [
-    {'type': 'query', 'title': 'Développeur Fullstack'},
-    {'type': 'query', 'title': 'serveur en salle'},
-    {'type': 'query', 'title': 'Developper frontend'},
-    {'type': 'job', 'title': 'Serveur en salle', 'company': 'TechCorp Solutions .', 'icon': Icons.restaurant},
-    {'type': 'job', 'title': 'Livreur pizzeria', 'company': 'TechCorp Solutions .', 'icon': Icons.delivery_dining},
-  ];
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      ref.read(candidateJobSearchQueryProvider.notifier).state =
-          _searchController.text;
-    });
-    // Request focus with microtask to prevent visual jank during route transition
+    _searchController.addListener(_onTextChanged);
     Future.microtask(() => _focusNode.requestFocus());
+  }
+
+  void _onTextChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        ref.read(candidateJobSearchQueryProvider.notifier).state =
+            _searchController.text;
+      }
+    });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchController.removeListener(_onTextChanged);
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  void _clearRecent() {
-    setState(() {
-      _recentSearches.clear();
-    });
-  }
-
-  void _removeRecent(int index) {
-    setState(() {
-      _recentSearches.removeAt(index);
-    });
+  void _onSubmitted(String val) {
+    _debounce?.cancel();
+    ref.read(candidateJobSearchQueryProvider.notifier).state = val;
+    if (val.trim().isNotEmpty) {
+      ref.read(recentSearchesProvider.notifier).addSearch(val.trim());
+    }
   }
 
   void _fillSearch(String text) {
     _searchController.text = text;
     _searchController.selection = TextSelection.fromPosition(
-      TextPosition(offset: _searchController.text.length),
+      TextPosition(offset: text.length),
     );
+    _onSubmitted(text);
   }
 
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(candidateJobSearchQueryProvider);
-    final jobsAsync = ref.watch(candidateJobSearchResultsProvider);
+    final jobsAsync = ref.watch(jobSearchProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Header: Back Button, Search Bar, Settings Icon
             Container(
               color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 6),
@@ -106,16 +106,7 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
                                 fontWeight: FontWeight.w500,
                                 color: Colors.black,
                               ),
-                              onSubmitted: (val) {
-                                if (val.trim().isNotEmpty) {
-                                  setState(() {
-                                    // Add to recent if not exists
-                                    if (!_recentSearches.any((s) => s['title'] == val)) {
-                                      _recentSearches.insert(0, {'type': 'query', 'title': val});
-                                    }
-                                  });
-                                }
-                              },
+                              onSubmitted: _onSubmitted,
                               decoration: InputDecoration(
                                 hintText: 'Rechercher par nom d\'emploi',
                                 hintStyle: GoogleFonts.poppins(
@@ -131,6 +122,7 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
                             GestureDetector(
                               onTap: () {
                                 _searchController.clear();
+                                ref.read(candidateJobSearchQueryProvider.notifier).state = '';
                               },
                               child: Container(
                                 margin: const EdgeInsets.only(right: 8),
@@ -159,8 +151,6 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
                 ],
               ),
             ),
-            
-            // Body Selection depending on query
             Expanded(
               child: query.isEmpty
                   ? _buildRecentSearches()
@@ -179,6 +169,8 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
   }
 
   Widget _buildRecentSearches() {
+    final searchesAsync = ref.watch(recentSearchesProvider);
+
     return Container(
       color: Colors.white,
       width: double.infinity,
@@ -200,7 +192,7 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: _clearRecent,
+                  onTap: () => ref.read(recentSearchesProvider.notifier).clearSearches(),
                   child: Text(
                     'Tout effacer',
                     style: GoogleFonts.plusJakartaSans(
@@ -214,79 +206,55 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: _recentSearches.length + 1,
-              itemBuilder: (context, index) {
-                if (index == _recentSearches.length) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 76, vertical: 24),
-                    child: Text(
-                      'voir plus de recherches recentes',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 16,
-                        color: AppColors.violet,
+            child: searchesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (searches) => ListView.builder(
+                itemCount: searches.length,
+                itemBuilder: (context, index) {
+                  final query = searches[index];
+                  return InkWell(
+                    onTap: () => _fillSearch(query),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFEDF2),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: const Icon(
+                              Icons.history,
+                              size: 18,
+                              color: Color(0xFF545665),
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Text(
+                              query,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 16,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(recentSearchesProvider.notifier)
+                                .removeSearch(index),
+                            child: const Icon(Icons.close, size: 16, color: Color(0xFFCBD5E1)),
+                          ),
+                        ],
                       ),
                     ),
                   );
-                }
-
-                final item = _recentSearches[index];
-                final isJob = item['type'] == 'job';
-
-                return InkWell(
-                  onTap: () => _fillSearch(item['title']),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFEDF2),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Icon(
-                            isJob ? item['icon'] : Icons.history,
-                            size: 18,
-                            color: isJob ? AppColors.violet : const Color(0xFF545665),
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item['title'],
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 16,
-                                  color: isJob ? AppColors.violet : Colors.black,
-                                ),
-                              ),
-                              if (isJob)
-                                Text(
-                                  item['company'],
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 14,
-                                    color: const Color(0xFF8D8DA6),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => _removeRecent(index),
-                          child: const Icon(Icons.close, size: 16, color: Color(0xFFCBD5E1)),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                },
+              ),
             ),
           ),
         ],
@@ -294,7 +262,7 @@ class _CandidateSearchScreenState extends ConsumerState<CandidateSearchScreen> {
     );
   }
 
-  Widget _buildSearchResults(AsyncValue jobsAsync) {
+  Widget _buildSearchResults(AsyncValue<List<JobEntity>> jobsAsync) {
     return Container(
       color: Colors.white,
       child: jobsAsync.when(
@@ -406,12 +374,9 @@ class _FilterChips extends ConsumerWidget {
     }
 
     // Default category chips
-    chips.add(_FilterChip(
-        label: 'Horaires', onTap: () => showAvailabilitySheet(context)));
-    chips.add(_FilterChip(
-        label: 'Contrat', onTap: () => showContractTypeSheet(context)));
-    chips.add(_FilterChip(
-        label: 'Localisation', onTap: () => showLocationSheet(context)));
+    chips.add(_FilterChip(label: 'Horaires', showArrow: true, onTap: () => showAvailabilitySheet(context)));
+    chips.add(_FilterChip(label: 'Contrat', showArrow: true, onTap: () => showContractTypeSheet(context)));
+    chips.add(_FilterChip(label: 'Localisation', showArrow: true, onTap: () => showLocationSheet(context)));
 
     return SizedBox(
       height: 41,
@@ -431,11 +396,13 @@ class _FilterChip extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
   final bool isSelected;
+  final bool showArrow;
   const _FilterChip({
     required this.label,
     this.onTap,
     this.onRemove,
     this.isSelected = false,
+    this.showArrow = false,
   });
 
   @override
@@ -463,12 +430,11 @@ class _FilterChip extends StatelessWidget {
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: onRemove ?? onTap,
-                child: const Icon(
-                  Icons.close,
-                  size: 14,
-                  color: Colors.white,
-                ),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
               ),
+            ] else if (showArrow) ...[
+              const SizedBox(width: 2),
+              const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.violet),
             ],
           ],
         ),

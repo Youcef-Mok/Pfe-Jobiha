@@ -773,8 +773,14 @@ class _ActionFooter extends StatelessWidget {
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text("Publier l'annonce",
-                                  style: AppTextStyles.publishBtn),
+                              Flexible(
+                                child: Text(
+                                  "Publier l'annonce",
+                                  style: AppTextStyles.publishBtn,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                               const SizedBox(width: 6),
                               const Icon(Icons.send_outlined,
                                   size: 14, color: Colors.white),

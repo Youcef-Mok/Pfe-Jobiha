@@ -429,6 +429,12 @@ class JobsRepositoryMock implements JobsRepository {
   }
 
   @override
+  Future<List<JobEntity>> getAllJobs() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    return _jobs.map((m) => m.toEntity()).toList();
+  }
+
+  @override
   Future<JobEntity> saveJob(JobEntity job) async {
     await Future.delayed(const Duration(milliseconds: 400));
     final model = JobModel.fromEntity(job);
@@ -561,6 +567,35 @@ class JobsRepositoryMock implements JobsRepository {
       return _missions[index].toEntity();
     }
     throw Exception('Mission not found');
+  }
+
+  final Set<String> _savedJobIds = {'4', '5'};
+
+  @override
+  Future<Set<String>> getSavedJobIds() async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    return Set<String>.from(_savedJobIds);
+  }
+
+  @override
+  Future<List<JobEntity>> getSavedJobs() async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    return _jobs
+        .where((j) => _savedJobIds.contains(j.id))
+        .map((j) => j.toEntity())
+        .toList();
+  }
+
+  @override
+  Future<void> saveJobById(String jobId) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    _savedJobIds.add(jobId);
+  }
+
+  @override
+  Future<void> unsaveJobById(String jobId) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    _savedJobIds.remove(jobId);
   }
 }
 

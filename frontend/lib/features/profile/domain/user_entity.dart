@@ -6,6 +6,8 @@ class UserEntity {
   final String domain; // Le domaine d'activité (ex: "Restauration", "Hôtellerie")
   final String company;
   final String location;
+  final double? latitude;
+  final double? longitude;
   final String bio;
   final String? avatarUrl;
   final int followersCount;
@@ -20,6 +22,8 @@ class UserEntity {
     required this.domain,
     required this.company,
     required this.location,
+    this.latitude,
+    this.longitude,
     required this.bio,
     this.avatarUrl,
     required this.followersCount,
@@ -45,6 +49,8 @@ class UserEntity {
     String? domain,
     String? company,
     String? location,
+    Object? latitude = _sentinel,
+    Object? longitude = _sentinel,
     String? bio,
     String? avatarUrl,
     int? followersCount,
@@ -59,6 +65,8 @@ class UserEntity {
       domain: domain ?? this.domain,
       company: company ?? this.company,
       location: location ?? this.location,
+      latitude: latitude == _sentinel ? this.latitude : latitude as double?,
+      longitude: longitude == _sentinel ? this.longitude : longitude as double?,
       bio: bio ?? this.bio,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       followersCount: followersCount ?? this.followersCount,
@@ -68,6 +76,8 @@ class UserEntity {
     );
   }
 }
+
+const Object _sentinel = Object();
 
 /// Entite pour un avis employe.
 class EmployeeReviewEntity {

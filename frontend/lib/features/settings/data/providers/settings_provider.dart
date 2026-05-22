@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/settings/data/models/settings_model.dart';
 import 'package:job_app/features/settings/data/repositories/settings_repository.dart';
-import 'package:job_app/features/settings/data/repositories/settings_repository_mock.dart';
+import 'package:job_app/features/settings/data/repositories/settings_repository_http.dart';
 import 'package:job_app/features/settings/domain/settings_controller.dart';
 
 // ─────────────────────────────────────────────
@@ -9,7 +9,7 @@ import 'package:job_app/features/settings/domain/settings_controller.dart';
 //    TODO(API): Remplace SettingsRepositoryMock par SettingsRepositoryHttp
 // ─────────────────────────────────────────────
 final settingsRepositoryProvider = Provider<SettingsRepository>(
-  (ref) => SettingsRepositoryMock(),
+  (ref) => SettingsRepositoryHttp(),
 );
 
 // ─────────────────────────────────────────────

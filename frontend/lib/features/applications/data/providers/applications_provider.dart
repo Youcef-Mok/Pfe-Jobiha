@@ -2,8 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/applications/domain/application_entity.dart';
 import 'package:job_app/features/applications/domain/applications_controller.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
+import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 import 'package:job_app/features/applications/data/repositories/applications_repository.dart';
-import 'package:job_app/features/applications/data/repositories/applications_repository_mock.dart';
+import 'package:job_app/features/applications/data/repositories/applications_repository_http.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 
 // ─────────────────────────────────────────────
@@ -11,7 +12,7 @@ import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 // ─────────────────────────────────────────────
 // TODO(API): Remplacer ApplicationsRepositoryMock par ApplicationsRepositoryHttp ici.
 final applicationsRepositoryProvider = Provider<ApplicationsRepository>(
-  (ref) => ApplicationsRepositoryMock(),
+  (ref) => ApplicationsRepositoryHttp(),
 );
 
 // ─────────────────────────────────────────────
@@ -158,14 +159,36 @@ final savedJobsFilterValuesProvider = StateProvider<Map<String, List<String>>>(
 // 4. Saved Jobs Provider (list of jobIds)
 // ─────────────────────────────────────────────
 class SavedJobsNotifier extends StateNotifier<Set<String>> {
-  // TODO(API): GET /api/v1/users/me/saved-jobs — remplacer les IDs hardcodés par un fetch au démarrage
-  SavedJobsNotifier() : super({'4', '5'});
+  final JobsRepository _repository;
+  SavedJobsNotifier(this._repository) : super({}) {
+    Future.microtask(_load);
+  }
 
-  void toggle(String jobId) {
+  Future<void> _load() async {
+    try {
+      state = await _repository.getSavedJobIds();
+    } catch (_) {
+      state = {};
+    }
+  }
+
+  Future<void> toggle(String jobId) async {
     if (state.contains(jobId)) {
+      final prev = state;
       state = {...state}..remove(jobId);
+      try {
+        await _repository.unsaveJobById(jobId);
+      } catch (_) {
+        state = prev;
+      }
     } else {
+      final prev = state;
       state = {...state, jobId};
+      try {
+        await _repository.saveJobById(jobId);
+      } catch (_) {
+        state = prev;
+      }
     }
   }
 
@@ -174,7 +197,7 @@ class SavedJobsNotifier extends StateNotifier<Set<String>> {
 
 final savedJobsProvider =
     StateNotifierProvider<SavedJobsNotifier, Set<String>>(
-  (ref) => SavedJobsNotifier(),
+  (ref) => SavedJobsNotifier(ref.watch(jobsRepositoryProvider)),
 );
 
 // ─────────────────────────────────────────────
@@ -252,16 +275,45 @@ final recentApplicationsProvider = Provider<AsyncValue<List<ApplicationEntity>>>
   return applicationsAsync.whenData(controller.filterRecent);
 });
 
+/// Jobs enregistrés côté backend (GET /candidats/me/saved).
+final savedJobsRemoteProvider = FutureProvider<List<JobEntity>>((ref) async {
+  return ref.read(jobsRepositoryProvider).getSavedJobs();
+});
+
 /// Jobs enregistrés filtrés + triés (écran Jobs enregistrés).
 final savedJobsDisplayProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
-  final jobsAsync = ref.watch(jobsNotifierProvider);
-  final savedIds = ref.watch(savedJobsProvider);
-  final filterValues = ref.watch(savedJobsFilterValuesProvider);
-  final chip = ref.watch(savedJobsActiveChipProvider);
-  final controller = ref.watch(jobsControllerProvider);
-  return jobsAsync.whenData((jobs) {
-    final saved = jobs.where((j) => savedIds.contains(j.id)).toList();
-    final filtered = controller.filterSavedJobs(saved, filterValues);
-    return controller.sortSavedJobs(filtered, chip);
+  final jobsAsync = ref.watch(savedJobsRemoteProvider);
+  final filters = ref.watch(candidateFiltersProvider);
+  return jobsAsync.whenData((savedJobs) {
+    return savedJobs.where((job) {
+      if (filters.category != null &&
+          !job.title.toLowerCase().contains(filters.category!.toLowerCase()) &&
+          !job.companyName
+              .toLowerCase()
+              .contains(filters.category!.toLowerCase())) {
+        return false;
+      }
+
+      if (filters.contractTypes.isNotEmpty) {
+        final ok = filters.contractTypes.any((c) {
+          return switch (c.toLowerCase()) {
+            'cdi' => job.contractType == ContractType.cdi,
+            'cdd' || 'mission' => job.contractType == ContractType.mission,
+            'freelance' => job.contractType == ContractType.freelance,
+            _ => true,
+          };
+        });
+        if (!ok) return false;
+      }
+
+      if (filters.location != null &&
+          filters.location!.isNotEmpty &&
+          !job.companyName
+              .toLowerCase()
+              .contains(filters.location!.toLowerCase())) {
+        return false;
+      }
+      return true;
+    }).toList();
   });
 });

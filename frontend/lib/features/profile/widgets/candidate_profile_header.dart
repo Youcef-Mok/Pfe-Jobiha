@@ -7,6 +7,7 @@ import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/core/utils/color_utils.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
+import 'package:job_app/features/profile/widgets/share_profile_overlay.dart';
 
 class CandidateProfileHeader extends ConsumerWidget {
   final UserEntity user;
@@ -29,8 +30,10 @@ class CandidateProfileHeader extends ConsumerWidget {
   Widget _buildProfileImage() {
     final avatarUrl = user.avatarUrl;
 
+    // Local file picked from gallery
     if (!kIsWeb &&
         avatarUrl != null &&
+        !avatarUrl.startsWith('http') &&
         !avatarUrl.startsWith('assets/') &&
         File(avatarUrl).existsSync()) {
       return ClipOval(
@@ -43,20 +46,40 @@ class CandidateProfileHeader extends ConsumerWidget {
       );
     }
 
-    return ClipOval(
-      child: Image.asset(
-        avatarUrl ?? 'assets/images/imageannonc(3).jpg',
-        fit: BoxFit.cover,
-        width: 108,
-        height: 108,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 108,
-            height: 108,
-            color: AppColors.background,
-            child: const Icon(Icons.person, size: 54, color: Colors.white),
-          );
-        },
+    // Network image from server
+    if (avatarUrl != null && avatarUrl.startsWith('http')) {
+      return ClipOval(
+        child: Image.network(
+          avatarUrl,
+          fit: BoxFit.cover,
+          width: 108,
+          height: 108,
+          errorBuilder: (_, __, ___) => _buildInitialsAvatar(108),
+        ),
+      );
+    }
+
+    // Initials fallback
+    return _buildInitialsAvatar(108);
+  }
+
+  Widget _buildInitialsAvatar(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: Color(0xFF401E66),
+      ),
+      child: Center(
+        child: Text(
+          user.initials,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
@@ -117,17 +140,25 @@ class CandidateProfileHeader extends ConsumerWidget {
                   Positioned(
                     left: 63,
                     top: 0,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFEDF2),
-                        borderRadius: BorderRadius.circular(8),
+                    child: GestureDetector(
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (_) => ShareProfileOverlay(user: user),
                       ),
-                      child: const Icon(
-                        Icons.share_outlined,
-                        size: 18,
-                        color: Color(0xFF401E66),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFEDF2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.share_outlined,
+                          size: 18,
+                          color: Color(0xFF401E66),
+                        ),
                       ),
                     ),
                   ),

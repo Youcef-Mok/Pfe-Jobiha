@@ -2,13 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/interviews/domain/interview_entity.dart';
 import 'package:job_app/features/interviews/domain/interviews_controller.dart';
 import 'package:job_app/features/interviews/data/repositories/interviews_repository.dart';
-import 'package:job_app/features/interviews/data/repositories/interviews_repository_mock.dart';
+import 'package:job_app/features/interviews/data/repositories/interviews_repository_http.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 
 // TODO(API): Remplacer InterviewsRepositoryMock par InterviewsRepositoryHttp.
 //            Voir API_SPEC.md section "INTERVIEWS".
 final interviewsRepositoryProvider = Provider<InterviewsRepository>((ref) {
-  return InterviewsRepositoryMock();
+  return InterviewsRepositoryHttp();
 });
 
 final interviewsControllerProvider = Provider<InterviewsController>((ref) {

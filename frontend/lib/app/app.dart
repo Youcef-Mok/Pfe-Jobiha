@@ -5,9 +5,12 @@ import 'package:job_app/features/jobs/screens/candidate_home_screen.dart';
 import 'package:job_app/features/jobs/screens/jobs_list_screen.dart';
 import 'package:job_app/features/auth/screens/welcome_screen.dart';
 import 'package:job_app/features/auth/screens/login_screen.dart';
+import 'package:job_app/features/auth/screens/verify_email_screen.dart';
 import 'package:job_app/features/auth/screens/signup_role_screen.dart';
 import 'package:job_app/features/auth/screens/signup_form_screen.dart';
 import 'package:job_app/features/auth/screens/signup_profile_screen.dart';
+import 'package:job_app/features/auth/screens/forgot_password_screen.dart';
+import 'package:job_app/features/auth/screens/preferences_screen.dart';
 import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
 import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/candidate_public_profile_screen.dart';
@@ -25,14 +28,20 @@ class _WebScrollBehavior extends MaterialScrollBehavior {
 }
 
 class App extends StatelessWidget {
-  const App({super.key});
+  final Widget initialScreen;
+
+  const App({super.key, required this.initialScreen});
 
   static final Map<String, WidgetBuilder> _routes = {
     '/welcome':           (_) => const WelcomeScreen(),
     '/login':             (_) => const LoginScreen(),
+    '/verify-email':      (_) => const VerifyEmailScreen(),
     '/signup':            (_) => const SignupRoleScreen(),
     '/signup-form':       (_) => const SignupFormScreen(),
     '/signup-profile':    (_) => const SignupProfileScreen(),
+    '/forgot-password':   (_) => const ForgotPasswordScreen(),
+    '/preferences':       (_) => const PreferencesScreen(),
+    '/home-recruteur':    (_) => const JobsListScreen(),
     '/recruiter-profile': (_) => const RecruiterProfileScreen(),
     '/recruiter-public-profile': (_) => const RecruiterPublicProfileScreen(),
     '/candidate-public-profile': (_) => const CandidatePublicProfileScreen(),
@@ -47,7 +56,7 @@ class App extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTextStyles.lightTheme,
       scrollBehavior: _WebScrollBehavior(),
-      home: const RoleSelectionScreen(),
+      home: initialScreen,
       routes: _routes,
       onGenerateRoute: (settings) {
         if (settings.name == '/report-comment') {

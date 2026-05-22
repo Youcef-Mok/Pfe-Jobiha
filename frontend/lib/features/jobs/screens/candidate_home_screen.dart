@@ -37,6 +37,7 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
   Widget build(BuildContext context) {
     // Removed full-screen watch to reduce rebuild scope.
     // Specific sections now use Consumer widgets.
+    final filteredJobsAsync = ref.watch(nearbyJobsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -54,7 +55,7 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
 
             // ── Featured horizontal cards ──────────
             SliverToBoxAdapter(
-              child: ref.watch(publishedJobsProvider).when(
+              child: filteredJobsAsync.when(
                     loading: () => _buildHeroShimmer(),
                     error: (_, __) => const SizedBox.shrink(),
                     data: (jobs) => _buildHeroCards(jobs),
@@ -75,8 +76,8 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
               ),
             ),
 
-            // Vertical job list
-            ref.watch(publishedJobsProvider).when(
+            // Vertical job list — jobs proches (GPS > profil > wilaya)
+            filteredJobsAsync.when(
                   loading: () =>
                       SliverToBoxAdapter(child: _buildSuggestedJobsShimmer()),
                   error: (_, __) => const SliverToBoxAdapter(
@@ -490,7 +491,7 @@ class _GlassButton extends StatelessWidget {
           child: Container(
             width: 32,
             height: 32,
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             alignment: Alignment.center,
             child: child,
           ),
@@ -567,12 +568,9 @@ class _FilterChips extends ConsumerWidget {
     }
 
     // Default category chips
-    chips.add(_FilterChip(
-        label: 'Horaires', onTap: () => showAvailabilitySheet(context)));
-    chips.add(_FilterChip(
-        label: 'Contrat', onTap: () => showContractTypeSheet(context)));
-    chips.add(_FilterChip(
-        label: 'Localisation', onTap: () => showLocationSheet(context)));
+    chips.add(_FilterChip(label: 'Horaires', showArrow: true, onTap: () => showAvailabilitySheet(context)));
+    chips.add(_FilterChip(label: 'Contrat', showArrow: true, onTap: () => showContractTypeSheet(context)));
+    chips.add(_FilterChip(label: 'Localisation', showArrow: true, onTap: () => showLocationSheet(context)));
 
     return SizedBox(
       height: 41,
@@ -593,11 +591,13 @@ class _FilterChip extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
   final bool isSelected;
+  final bool showArrow;
   const _FilterChip({
     required this.label,
     this.onTap,
     this.onRemove,
     this.isSelected = false,
+    this.showArrow = false,
   });
 
   @override
@@ -625,12 +625,11 @@ class _FilterChip extends StatelessWidget {
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: onRemove ?? onTap,
-                child: const Icon(
-                  Icons.close,
-                  size: 14,
-                  color: Colors.white,
-                ),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
               ),
+            ] else if (showArrow) ...[
+              const SizedBox(width: 2),
+              const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.violet),
             ],
           ],
         ),

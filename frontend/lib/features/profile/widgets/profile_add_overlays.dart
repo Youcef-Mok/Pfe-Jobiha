@@ -34,6 +34,7 @@ class _AddExperienceOverlayState extends ConsumerState<AddExperienceOverlay> {
   final _endDateController = TextEditingController();
   String? _startDateError;
   String? _endDateError;
+  bool _isSaving = false;
 
   final List<String> _jobTitles = [
     'Animateur professionnel',
@@ -83,8 +84,7 @@ class _AddExperienceOverlayState extends ConsumerState<AddExperienceOverlay> {
     super.dispose();
   }
 
-  void _saveExperience() {
-    // Validation des dates
+  Future<void> _saveExperience() async {
     setState(() {
       _startDateError = null;
       _endDateError = null;
@@ -93,60 +93,54 @@ class _AddExperienceOverlayState extends ConsumerState<AddExperienceOverlay> {
     bool hasError = false;
 
     if (_startDateController.text.isNotEmpty && !_isValidDate(_startDateController.text)) {
-      setState(() {
-        _startDateError = 'Date invalide';
-      });
+      setState(() => _startDateError = 'Date invalide');
       hasError = true;
     }
 
     if (_endDateController.text.isNotEmpty && !_isValidDate(_endDateController.text)) {
-      setState(() {
-        _endDateError = 'Date invalide';
-      });
+      setState(() => _endDateError = 'Date invalide');
       hasError = true;
     }
 
-    // Vérification que la date de fin est après la date de début
-    if (_startDateController.text.isNotEmpty && _endDateController.text.isNotEmpty && 
+    if (_startDateController.text.isNotEmpty && _endDateController.text.isNotEmpty &&
         _isValidDate(_startDateController.text) && _isValidDate(_endDateController.text)) {
       final startParts = _startDateController.text.split(' / ');
       final endParts = _endDateController.text.split(' / ');
-      
-      final startDate = DateTime(
-        int.parse(startParts[2]), 
-        int.parse(startParts[1]), 
-        int.parse(startParts[0])
-      );
-      final endDate = DateTime(
-        int.parse(endParts[2]), 
-        int.parse(endParts[1]), 
-        int.parse(endParts[0])
-      );
-      
+      final startDate = DateTime(int.parse(startParts[2]), int.parse(startParts[1]), int.parse(startParts[0]));
+      final endDate = DateTime(int.parse(endParts[2]), int.parse(endParts[1]), int.parse(endParts[0]));
       if (endDate.isBefore(startDate)) {
-        setState(() {
-          _endDateError = 'La date de fin doit être après la date de début';
-        });
+        setState(() => _endDateError = 'La date de fin doit être après la date de début');
         hasError = true;
       }
     }
 
-    if (hasError) return;
+    if (hasError || _selectedTitle == null || _companyController.text.isEmpty) return;
 
-    if (_selectedTitle != null && _companyController.text.isNotEmpty) {
-      final startDate = _startDateController.text.isNotEmpty ? _startDateController.text : '';
-      final endDate = _endDateController.text.isNotEmpty ? _endDateController.text : 'Présent';
-      final period = startDate.isNotEmpty ? '$startDate - $endDate' : endDate;
-      
-      final experience = CvExperienceEntity(
-        title: _selectedTitle!,
-        company: _companyController.text,
-        location: 'Alger',
-        period: period,
-        endDate: endDate,
-      );
-      ref.read(cvNotifierProvider.notifier).addExperience(experience);
-      Navigator.pop(context);
+    final startDate = _startDateController.text.isNotEmpty ? _startDateController.text : '';
+    final endDate = _endDateController.text.isNotEmpty ? _endDateController.text : 'Présent';
+    final period = startDate.isNotEmpty ? '$startDate - $endDate' : endDate;
+
+    final experience = CvExperienceEntity(
+      title: _selectedTitle!,
+      company: _companyController.text,
+      location: 'Alger',
+      period: period,
+      endDate: endDate,
+    );
+
+    setState(() => _isSaving = true);
+    try {
+      final saved = await ref.read(profileControllerProvider).addExperience(experience);
+      ref.read(cvNotifierProvider.notifier).addExperience(saved);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -260,7 +254,9 @@ class _AddExperienceOverlayState extends ConsumerState<AddExperienceOverlay> {
                 ),
               ),
               child: ElevatedButton(
-                onPressed: _selectedTitle != null && _companyController.text.isNotEmpty ? _saveExperience : null,
+                onPressed: !_isSaving && _selectedTitle != null && _companyController.text.isNotEmpty
+                    ? _saveExperience
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kViolet,
                   foregroundColor: Colors.white,
@@ -268,10 +264,12 @@ class _AddExperienceOverlayState extends ConsumerState<AddExperienceOverlay> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
                 ),
-                child: Text(
-                  'Confirmer',
-                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text('Confirmer', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
               ),
             ),
           ],
@@ -296,6 +294,7 @@ class _AddFormationOverlayState extends ConsumerState<AddFormationOverlay> {
   String? _uploadedFileName;
   String? _uploadedFilePath;
   String? _dateError;
+  bool _isSaving = false;
 
   final List<String> _formations = [
     'Licence en Informatique',
@@ -374,35 +373,43 @@ class _AddFormationOverlayState extends ConsumerState<AddFormationOverlay> {
     super.dispose();
   }
 
-  void _saveFormation() {
-    // Validation de la date
-    setState(() {
-      _dateError = null;
-    });
+  Future<void> _saveFormation() async {
+    setState(() => _dateError = null);
 
     if (_dateController.text.isNotEmpty && !_isValidDate(_dateController.text)) {
-      setState(() {
-        _dateError = 'Date invalide';
-      });
+      setState(() => _dateError = 'Date invalide');
       return;
     }
 
-    if (_selectedFormation != null && _institutionController.text.isNotEmpty) {
-      final year = _dateController.text.isNotEmpty 
-          ? int.tryParse(_dateController.text.split(' / ').last) ?? DateTime.now().year
-          : DateTime.now().year;
-      
-      final formation = CvFormationEntity(
-        title: _selectedFormation!,
-        institution: _institutionController.text,
-        location: _getInstitutionLocation(_institutionController.text),
-        year: year,
-        isActive: _uploadedFileName != null,
-        fileName: _uploadedFileName,
-        filePath: _uploadedFilePath,
-      );
-      ref.read(cvNotifierProvider.notifier).addFormation(formation);
-      Navigator.pop(context);
+    if (_selectedFormation == null || _institutionController.text.isEmpty) return;
+
+    final year = _dateController.text.isNotEmpty
+        ? int.tryParse(_dateController.text.split(' / ').last) ?? DateTime.now().year
+        : DateTime.now().year;
+
+    final formation = CvFormationEntity(
+      title: _selectedFormation!,
+      institution: _institutionController.text,
+      location: _getInstitutionLocation(_institutionController.text),
+      year: year,
+      isActive: _uploadedFileName != null,
+      fileName: _uploadedFileName,
+      filePath: _uploadedFilePath,
+    );
+
+    setState(() => _isSaving = true);
+    try {
+      final saved = await ref.read(profileControllerProvider).addFormation(formation);
+      ref.read(cvNotifierProvider.notifier).addFormation(saved);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -565,7 +572,9 @@ class _AddFormationOverlayState extends ConsumerState<AddFormationOverlay> {
                 ),
               ),
               child: ElevatedButton(
-                onPressed: _selectedFormation != null && _institutionController.text.isNotEmpty ? _saveFormation : null,
+                onPressed: !_isSaving && _selectedFormation != null && _institutionController.text.isNotEmpty
+                    ? _saveFormation
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kViolet,
                   foregroundColor: Colors.white,
@@ -573,10 +582,12 @@ class _AddFormationOverlayState extends ConsumerState<AddFormationOverlay> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
                 ),
-                child: Text(
-                  'Confirmer',
-                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text('Confirmer', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
               ),
             ),
           ],
@@ -597,6 +608,26 @@ class AddLanguageOverlay extends ConsumerStatefulWidget {
 class _AddLanguageOverlayState extends ConsumerState<AddLanguageOverlay> {
   String? _selectedLanguage;
   String? _selectedLevel;
+  bool _isSaving = false;
+
+  Future<void> _saveLanguage() async {
+    if (_selectedLanguage == null || _selectedLevel == null) return;
+    setState(() => _isSaving = true);
+    try {
+      final language = CvLanguageEntity(name: _selectedLanguage!, level: _selectedLevel!);
+      final saved = await ref.read(profileControllerProvider).addLanguage(language);
+      ref.read(cvNotifierProvider.notifier).addLanguage(saved);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   final Map<String, bool> _languages = {
     'Français': false,
@@ -793,16 +824,9 @@ class _AddLanguageOverlayState extends ConsumerState<AddLanguageOverlay> {
               
               // Bouton Confirmer
               ElevatedButton(
-                onPressed: () {
-                  if (_selectedLanguage != null && _selectedLevel != null) {
-                    final language = CvLanguageEntity(
-                      name: _selectedLanguage!,
-                      level: _selectedLevel!,
-                    );
-                    ref.read(cvNotifierProvider.notifier).addLanguage(language);
-                    Navigator.pop(context);
-                  }
-                },
+                onPressed: !_isSaving && _selectedLanguage != null && _selectedLevel != null
+                    ? _saveLanguage
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF401E66),
                   foregroundColor: Colors.white,
@@ -810,10 +834,12 @@ class _AddLanguageOverlayState extends ConsumerState<AddLanguageOverlay> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
                 ),
-                child: Text(
-                  'Confirmer',
-                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text('Confirmer', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -833,12 +859,13 @@ class AddSkillsAndLanguagesOverlay extends ConsumerStatefulWidget {
 
 class _AddSkillsAndLanguagesOverlayState extends ConsumerState<AddSkillsAndLanguagesOverlay> {
   int _currentTab = 0; // 0: Skills, 1: Languages
-  
+  bool _isSaving = false;
+
   // Skills state
   String? _selectedSkill;
   double _skillLevel = 0.5;
   int _selectedSegment = 1;
-  
+
   // Languages state
   String? _selectedLanguage;
   String? _selectedLevel;
@@ -918,26 +945,41 @@ class _AddSkillsAndLanguagesOverlayState extends ConsumerState<AddSkillsAndLangu
     });
   }
 
-  void _confirmSkill() {
-    if (_selectedSkill != null) {
-      final skill = CvSkillEntity(
-        name: _selectedSkill!,
-        levelLabel: _levelLabel,
-        progress: _skillLevel,
-      );
-      ref.read(cvNotifierProvider.notifier).addSkill(skill);
-      Navigator.pop(context);
+  Future<void> _confirmSkill() async {
+    if (_selectedSkill == null) return;
+    setState(() => _isSaving = true);
+    try {
+      final skill = CvSkillEntity(name: _selectedSkill!, levelLabel: _levelLabel, progress: _skillLevel);
+      final saved = await ref.read(profileControllerProvider).addSkill(skill);
+      ref.read(cvNotifierProvider.notifier).addSkill(saved);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  void _confirmLanguage() {
-    if (_selectedLanguage != null && _selectedLevel != null) {
-      final language = CvLanguageEntity(
-        name: _selectedLanguage!,
-        level: _selectedLevel!,
-      );
-      ref.read(cvNotifierProvider.notifier).addLanguage(language);
-      Navigator.pop(context);
+  Future<void> _confirmLanguage() async {
+    if (_selectedLanguage == null || _selectedLevel == null) return;
+    setState(() => _isSaving = true);
+    try {
+      final language = CvLanguageEntity(name: _selectedLanguage!, level: _selectedLevel!);
+      final saved = await ref.read(profileControllerProvider).addLanguage(language);
+      ref.read(cvNotifierProvider.notifier).addLanguage(saved);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 

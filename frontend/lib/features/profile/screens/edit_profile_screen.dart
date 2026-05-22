@@ -25,6 +25,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   
   String _selectedDomain = 'Restauration';
   IconData _selectedDomainIcon = Icons.restaurant;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -93,22 +94,41 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
-  void _saveProfile() {
-    // Save profile changes to state including domain
-    ref.read(candidateCurrentUserProvider.notifier).updateProfileInfo(
-      name: _nameController.text,
-      bio: _bioController.text,
-      location: _locationController.text,
-      domain: _selectedDomain, // Ajout du domaine
-    );
-    
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Profil mis à jour avec succès'),
-        backgroundColor: const Color(0xFF401E66),
-      ),
-    );
+  Future<void> _saveProfile() async {
+    final currentUser = ref.read(candidateCurrentUserProvider).valueOrNull;
+    if (currentUser == null) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final updatedUser = currentUser.copyWith(
+        name: _nameController.text.trim(),
+        bio: _bioController.text.trim(),
+        location: _locationController.text.trim(),
+        domain: _selectedDomain,
+      );
+      final saved = await ref.read(profileControllerProvider).updateProfile(updatedUser);
+      ref.read(candidateCurrentUserProvider.notifier).updateUser(saved);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil mis à jour avec succès'),
+            backgroundColor: Color(0xFF401E66),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur : $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   void _showDomainSelector() {
@@ -142,26 +162,37 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  Widget _buildProfileImage(String? avatarUrl) {
-    // Check if it's a local file path
-    if (avatarUrl != null && !avatarUrl.startsWith('assets/') && File(avatarUrl).existsSync()) {
-      return Image.file(
-        File(avatarUrl),
+  Widget _buildProfileImage(String? avatarUrl, String initials) {
+    // Local file picked from gallery
+    if (avatarUrl != null && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('assets/') && File(avatarUrl).existsSync()) {
+      return Image.file(File(avatarUrl), fit: BoxFit.cover, width: 96, height: 96);
+    }
+
+    // Network image from server
+    if (avatarUrl != null && avatarUrl.startsWith('http')) {
+      return Image.network(
+        avatarUrl,
         fit: BoxFit.cover,
         width: 96,
         height: 96,
+        errorBuilder: (_, __, ___) => _buildInitials(initials),
       );
     }
-    
-    // Use asset image
-    return Image.asset(
-      avatarUrl ?? 'assets/images/imageannonc(3).jpg',
-      fit: BoxFit.cover,
+
+    return _buildInitials(initials);
+  }
+
+  Widget _buildInitials(String initials) {
+    return Container(
       width: 96,
       height: 96,
-      errorBuilder: (context, error, stackTrace) {
-        return const Icon(Icons.person, size: 48, color: Colors.grey);
-      },
+      color: _kViolet,
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+        ),
+      ),
     );
   }
 
@@ -235,15 +266,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           
           // Bouton Terminé
           GestureDetector(
-            onTap: _saveProfile,
-            child: Text(
-              'Terminé',
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF513376),
-              ),
-            ),
+            onTap: _isSaving ? null : _saveProfile,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF513376),
+                    ),
+                  )
+                : Text(
+                    'Terminé',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF513376),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -273,7 +313,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             child: userAsync.when(
               data: (user) => ClipRRect(
                 borderRadius: BorderRadius.circular(9999),
-                child: _buildProfileImage(user.avatarUrl),
+                child: _buildProfileImage(user.avatarUrl, user.initials),
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => const Icon(Icons.person, size: 48),

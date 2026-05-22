@@ -17,4 +17,16 @@ abstract class UserRepository {
 
   /// Récupère les données CV d'un utilisateur
   Future<CvEntity> getCvData(String userId);
+
+  /// Ajoute une expérience au CV de l'utilisateur connecté
+  Future<CvExperienceEntity> addExperience(CvExperienceEntity exp);
+
+  /// Ajoute une formation au CV de l'utilisateur connecté
+  Future<CvFormationEntity> addFormation(CvFormationEntity formation);
+
+  /// Ajoute une langue au CV de l'utilisateur connecté
+  Future<CvLanguageEntity> addLanguage(CvLanguageEntity language);
+
+  /// Ajoute une compétence au CV de l'utilisateur connecté
+  Future<CvSkillEntity> addSkill(CvSkillEntity skill);
 }

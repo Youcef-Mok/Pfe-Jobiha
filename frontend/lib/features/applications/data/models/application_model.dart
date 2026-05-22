@@ -40,6 +40,26 @@ class ApplicationModel {
     this.motivationLetter,
   });
 
+  factory ApplicationModel.fromJson(Map<String, dynamic> json) => ApplicationModel(
+        id: json['id'] as String,
+        jobId: json['job_id'] as String? ?? '',
+        jobTitle: json['job_title'] as String? ?? '',
+        companyName: json['company_name'] as String? ?? '',
+        department: json['department'] as String? ?? 'IT',
+        logoAsset: json['logo_asset'] as String?,
+        status: json['status'] as String? ?? 'pending',
+        appliedAt: json['applied_at'] as String? ?? DateTime.now().toIso8601String(),
+        location: json['location'] as String? ?? '',
+        contractType: json['contract_type'] as String? ?? 'cdi',
+        scheduleLabel: json['schedule_label'] as String?,
+        interviewDate: json['interview_date'] as String?,
+        candidateName: json['candidate_name'] as String?,
+        candidateAvatar: json['candidate_avatar'] as String?,
+        candidateDomain: json['candidate_domain'] as String?,
+        candidateRating: (json['candidate_rating'] as num?)?.toDouble() ?? 0.0,
+        motivationLetter: json['motivation_letter'] as String?,
+      );
+
   ApplicationEntity toEntity() => ApplicationEntity(
         id: id,
         jobId: jobId,

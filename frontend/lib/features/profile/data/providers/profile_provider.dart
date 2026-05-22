@@ -3,13 +3,13 @@ import 'package:job_app/features/profile/domain/user_entity.dart';
 import 'package:job_app/features/profile/domain/cv_entity.dart';
 import 'package:job_app/features/profile/domain/profile_controller.dart';
 import 'package:job_app/features/profile/data/repositories/user_repository.dart';
-import 'package:job_app/features/profile/data/repositories/user_repository_mock.dart';
+import 'package:job_app/features/profile/data/repositories/user_repository_http.dart';
 
 // ─────────────────────────────────────────────
 // 1. Repository Provider
 // ─────────────────────────────────────────────
 final userRepositoryProvider = Provider<UserRepository>(
-  (ref) => UserRepositoryMock(),
+  (ref) => UserRepositoryHttp(),
 );
 
 final profileControllerProvider = Provider<ProfileController>(
@@ -20,31 +20,15 @@ final profileControllerProvider = Provider<ProfileController>(
 // 2. Current User Provider
 // ─────────────────────────────────────────────
 class UserNotifier extends StateNotifier<AsyncValue<UserEntity>> {
-  UserNotifier() : super(const AsyncValue.loading()) {
+  final ProfileController _controller;
+
+  UserNotifier(this._controller) : super(const AsyncValue.loading()) {
     _loadUser();
   }
 
   Future<void> _loadUser() async {
-    // TODO(API): GET /api/v1/users/me (avec token candidat)
-    //            Remplacer les données hardcodées ci-dessous par :
-    //            final user = await ref.read(profileControllerProvider).fetchCurrentUser();
-    //            Le backend retournera le bon profil selon le JWT (candidat ou recruteur).
     try {
-      await Future.delayed(const Duration(milliseconds: 250));
-      const user = UserEntity(
-        id: 'candidate_1',
-        name: 'Farouja',
-        role: 'Serveur',
-        domain: 'Restauration',
-        company: 'Restauration',
-        location: 'Alger Birlmouta',
-        bio: 'Specializing in scaling Series A-C startups with high-performing engineering teams. 12+ years of experience in the EMEA and US',
-        avatarUrl: 'assets/images/imageannonc(3).jpg',
-        followersCount: 0,
-        missionsCount: 120,
-        rating: 4.9,
-        accountType: 'candidate',
-      );
+      final user = await _controller.fetchCurrentUser();
       state = AsyncValue.data(user);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -121,15 +105,15 @@ final employeeReviewsProvider =
 // ─────────────────────────────────────────────
 class CvNotifier extends StateNotifier<AsyncValue<CvEntity>> {
   final ProfileController _controller;
-  final String _userId;
 
-  CvNotifier(this._controller, this._userId) : super(const AsyncValue.loading()) {
+  CvNotifier(this._controller) : super(const AsyncValue.loading()) {
     _loadCv();
   }
 
   Future<void> _loadCv() async {
     try {
-      final cv = await _controller.fetchCvData(_userId);
+      final user = await _controller.fetchCurrentUser();
+      final cv = await _controller.fetchCvData(user.id);
       state = AsyncValue.data(cv);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -191,8 +175,7 @@ final cvDataProvider = FutureProvider<CvEntity>((ref) async {
 });
 
 final cvNotifierProvider = StateNotifierProvider<CvNotifier, AsyncValue<CvEntity>>((ref) {
-  final controller = ref.watch(profileControllerProvider);
-  return CvNotifier(controller, 'candidate_1');
+  return CvNotifier(ref.watch(profileControllerProvider));
 });
 
 // ─────────────────────────────────────────────
@@ -212,19 +195,28 @@ final candidateProfileTabProvider =
     StateProvider<CandidateProfileTab>((ref) => CandidateProfileTab.description);
 
 final candidateCurrentUserProvider = StateNotifierProvider<UserNotifier, AsyncValue<UserEntity>>((ref) {
-  return UserNotifier();
+  return UserNotifier(ref.watch(profileControllerProvider));
 });
 
 final candidateEmployeeReviewsProvider =
     FutureProvider<List<EmployeeReviewEntity>>((ref) async {
   ref.keepAlive();
   final controller = ref.watch(profileControllerProvider);
-  // TODO(API): GET /api/v1/users/:userId/reviews — remplacer 'candidate_1' par l'ID de l'utilisateur authentifié
-  return await controller.fetchEmployeeReviews('candidate_1');
+  final user = await ref.watch(currentUserProvider.future);
+  return await controller.fetchEmployeeReviews(user.id);
 });
 
 final candidateCvDataProvider = FutureProvider<CvEntity>((ref) async {
   ref.keepAlive();
   final controller = ref.watch(profileControllerProvider);
-  return await controller.fetchCvData('candidate_1');
+  final user = await ref.watch(currentUserProvider.future);
+  return await controller.fetchCvData(user.id);
 });
+
+// ─────────────────────────────────────────────
+// Live GPS position — updated by the map screen when permission is granted.
+// Watched by nearbyJobsProvider and allMapJobsProvider as highest-priority
+// location source (overrides the profile's saved latitude/longitude).
+// ─────────────────────────────────────────────
+final userGpsPositionProvider =
+    StateProvider<({double lat, double lng})?>((ref) => null);

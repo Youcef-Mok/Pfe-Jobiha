@@ -1,17 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/map/domain/map_job_entity.dart';
 import 'package:job_app/features/map/domain/map_controller.dart';
 import 'package:job_app/features/map/data/repositories/map_repository.dart';
-import 'package:job_app/features/map/data/repositories/map_repository_mock.dart';
+import 'package:job_app/features/map/data/repositories/map_repository_http.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 
 // ─────────────────────────────────────────────
 // 1. Repository Provider
 // ─────────────────────────────────────────────
 // TODO(API): Remplacer MapRepositoryMock par MapRepositoryHttp ici.
 final mapRepositoryProvider = Provider<MapRepository>(
-  (ref) => MapRepositoryMock(),
+  (ref) => MapRepositoryHttp(),
 );
 
 // ─────────────────────────────────────────────
@@ -22,11 +25,56 @@ final mapControllerProvider = Provider<MapController>(
 );
 
 // ─────────────────────────────────────────────
-// 3. Map Jobs State (AsyncNotifier or similar)
+// 3. Map Jobs State — reactive to GPS, user profile, and active filters
 // ─────────────────────────────────────────────
 final allMapJobsProvider = FutureProvider<List<MapJobEntity>>((ref) async {
-  return ref.watch(mapControllerProvider).fetchMapJobs();
+  final gps = ref.watch(userGpsPositionProvider);
+  final user = ref.watch(candidateCurrentUserProvider).valueOrNull;
+  final mapFilters = ref.watch(mapFiltersProvider);
+  final query = ref.watch(mapSearchQueryProvider);
+  final candidateFilters = ref.watch(candidateFiltersProvider);
+
+  final lat = gps?.lat ?? user?.latitude;
+  final lng = gps?.lng ?? user?.longitude;
+  final location = user?.location;
+  double? maxDistanceKm;
+  String? category;
+  String? contractType;
+  if (mapFilters.containsKey('Emplacement')) {
+    final raw = mapFilters['Emplacement']!;
+    maxDistanceKm = double.tryParse(
+      raw.replaceAll('<', '').replaceAll('km', '').trim(),
+    );
+  }
+  if (mapFilters.containsKey('Domaine')) {
+    category = mapFilters['Domaine'];
+  } else if (candidateFilters.category != null &&
+      candidateFilters.category!.trim().isNotEmpty) {
+    category = candidateFilters.category;
+  }
+  if (mapFilters.containsKey('Categorie')) {
+    contractType = _contractFilterToApi(mapFilters['Categorie']!);
+  } else if (candidateFilters.contractTypes.isNotEmpty) {
+    contractType = _contractFilterToApi(candidateFilters.contractTypes.first);
+  }
+
+  return ref.read(mapControllerProvider).fetchMapJobs(
+    lat: lat,
+    lng: lng,
+    query: query,
+    location: location,
+    category: category,
+    contractType: contractType,
+    maxDistanceKm: maxDistanceKm,
+  );
 });
+
+String? _contractFilterToApi(String label) => switch (label.toLowerCase()) {
+      'cdi' => 'cdi',
+      'cdd' || 'mission' => 'mission',
+      'freelance' => 'freelance',
+      _ => null,
+    };
 
 // ─────────────────────────────────────────────
 // 4. Search & Filter State
@@ -35,23 +83,41 @@ final mapSearchQueryProvider = StateProvider<String>((ref) => '');
 
 final filteredMapJobsProvider = Provider<List<MapJobEntity>>((ref) {
   final jobsAsync = ref.watch(allMapJobsProvider);
-  final query = ref.watch(mapSearchQueryProvider);
-  final mapFilters = ref.watch(mapFiltersProvider);
-  final candidateFilters = ref.watch(candidateFiltersProvider);
-  final controller = ref.watch(mapControllerProvider);
+  final gps = ref.watch(userGpsPositionProvider);
+  final user = ref.watch(candidateCurrentUserProvider).valueOrNull;
+  final refLat = gps?.lat ?? user?.latitude;
+  final refLng = gps?.lng ?? user?.longitude;
 
   return jobsAsync.when(
-    data: (jobs) => controller.applyMapFilters(
-      jobs: jobs,
-      searchQuery: query,
-      mapFilters: mapFilters,
-      candidateCategory: candidateFilters.category,
-      candidateContractTypes: candidateFilters.contractTypes,
-    ),
+    data: (jobs) {
+      final filtered = jobs;
+      if (refLat == null || refLng == null) return filtered;
+      final sorted = List<MapJobEntity>.from(filtered);
+      sorted.sort((a, b) {
+        final da = _distanceKm(refLat, refLng, a.lat, a.lng);
+        final db = _distanceKm(refLat, refLng, b.lat, b.lng);
+        return da.compareTo(db);
+      });
+      return sorted;
+    },
     loading: () => [],
     error: (_, __) => [],
   );
 });
+
+double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
+  const double r = 6371.0;
+  final dLat = _degToRad(lat2 - lat1);
+  final dLng = _degToRad(lng2 - lng1);
+  final a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+      math.cos(_degToRad(lat1)) *
+          math.cos(_degToRad(lat2)) *
+          (math.sin(dLng / 2) * math.sin(dLng / 2));
+  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  return r * c;
+}
+
+double _degToRad(double deg) => deg * (3.141592653589793 / 180.0);
 
 // ─────────────────────────────────────────────
 // 5. Recent Searches State

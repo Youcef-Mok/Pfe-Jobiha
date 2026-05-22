@@ -34,4 +34,16 @@ class ProfileController {
     // TODO(API): PUT /api/v1/users/me
     return _repository.updateProfile(user);
   }
+
+  Future<CvExperienceEntity> addExperience(CvExperienceEntity exp) =>
+      _repository.addExperience(exp);
+
+  Future<CvFormationEntity> addFormation(CvFormationEntity formation) =>
+      _repository.addFormation(formation);
+
+  Future<CvLanguageEntity> addLanguage(CvLanguageEntity language) =>
+      _repository.addLanguage(language);
+
+  Future<CvSkillEntity> addSkill(CvSkillEntity skill) =>
+      _repository.addSkill(skill);
 }

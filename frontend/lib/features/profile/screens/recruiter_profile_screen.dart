@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/features/auth/providers/auth_providers.dart';
 
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/widgets/candidate_profile_header.dart';
@@ -34,6 +35,19 @@ class ProfileScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        tooltip: 'Logout',
+                        icon: const Icon(Icons.logout, size: 20, color: Color(0xFF401E66)),
+                        onPressed: () async {
+                          await ref.read(authProvider.notifier).logout();
+                          if (context.mounted) {
+                            Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+                          }
+                        },
+                      ),
+                    ),
                     CandidateProfileHeader(user: user, isRecruiterView: true),
                     const SizedBox(height: 2),
                   ],

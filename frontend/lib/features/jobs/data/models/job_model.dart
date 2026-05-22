@@ -169,11 +169,11 @@ class JobCandidateModel {
 
   factory JobCandidateModel.fromJson(Map<String, dynamic> json) =>
       JobCandidateModel(
-        initials: json['initials'] as String,
-        name: json['name'] as String,
-        role: json['role'] as String,
-        rating: (json['rating'] as num).toDouble(),
-        avatarUrl: json['avatarUrl'] as String?,
+        initials: json['initials'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        role: json['role'] as String? ?? '',
+        rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+        avatarUrl: json['avatar_url'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -223,13 +223,13 @@ class JobCommentModel {
 
   factory JobCommentModel.fromJson(Map<String, dynamic> json) =>
       JobCommentModel(
-        initials: json['initials'] as String,
-        authorName: json['authorName'] as String,
-        date: json['date'] as String,
-        question: json['question'] as String,
-        recruitorLabel: json['recruitorLabel'] as String,
-        recruitorDate: json['recruitorDate'] as String,
-        reply: json['reply'] as String,
+        initials: json['initials'] as String? ?? '',
+        authorName: (json['author_name'] ?? json['authorName'] ?? '') as String,
+        date: json['date'] as String? ?? '',
+        question: json['question'] as String? ?? '',
+        recruitorLabel: (json['recruitor_label'] ?? json['recruitorLabel'] ?? '') as String,
+        recruitorDate: (json['recruitor_date'] ?? json['recruitorDate'] ?? '') as String,
+        reply: json['reply'] as String? ?? '',
       );
 
   Map<String, dynamic> toJson() => {
