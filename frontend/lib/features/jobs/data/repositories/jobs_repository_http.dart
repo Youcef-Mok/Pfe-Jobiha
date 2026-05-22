@@ -224,7 +224,13 @@ class JobsRepositoryHttp implements JobsRepository {
   Future<List<JobEntity>> getSavedJobs() async {
     final resp = await _dio.get(ApiEndpoints.savedJobs);
     return _results(resp.data)
-        .map((j) => JobModel.fromJson(j as Map<String, dynamic>).toEntity())
+        .map((savedJob) {
+          // Backend returns: { id, offre: {...}, saved_at }
+          // We need to extract the 'offre' field
+          final savedJobMap = savedJob as Map<String, dynamic>;
+          final offreData = savedJobMap['offre'] as Map<String, dynamic>;
+          return JobModel.fromJson(offreData).toEntity();
+        })
         .toList();
   }
 

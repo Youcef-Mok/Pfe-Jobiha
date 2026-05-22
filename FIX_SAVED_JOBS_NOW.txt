@@ -1,0 +1,88 @@
+═══════════════════════════════════════════════════════════════
+  🔧 QUICK FIX - Saved Jobs "Erreur de chargement"
+═══════════════════════════════════════════════════════════════
+
+PROBLEM: Saved jobs screen shows "Erreur de chargement"
+
+SOLUTION: Fixed data parsing - backend returns nested structure,
+          Flutter needed to extract the 'offre' field.
+
+═══════════════════════════════════════════════════════════════
+  ⚡ APPLY FIX NOW (1 minute)
+═══════════════════════════════════════════════════════════════
+
+STEP 1: Restart Flutter App
+-----------------------------------
+# Stop Flutter app (Ctrl+C)
+# Then restart:
+
+flutter run
+
+# Or if issues:
+flutter clean && flutter pub get && flutter run
+
+
+STEP 2: Test Saved Jobs
+-----------------------------------
+Login: amina.demo@gmail.com / password123
+
+1. Go to "Posts sugérés"
+2. Tap bookmark icon on a few jobs
+3. Tap "Jobs enregistrés" chip at top
+4. Should see your saved jobs! ✅
+
+
+═══════════════════════════════════════════════════════════════
+  ✅ EXPECTED RESULTS
+═══════════════════════════════════════════════════════════════
+
+BEFORE:
+❌ "Erreur de chargement"
+
+AFTER:
+✅ "3 Jobs enregistrés"
+✅ List of saved job cards
+✅ Correct Algerian locations
+✅ Bookmark icons filled
+
+
+═══════════════════════════════════════════════════════════════
+  🔍 WHAT WAS CHANGED
+═══════════════════════════════════════════════════════════════
+
+File: frontend/lib/features/jobs/data/repositories/jobs_repository_http.dart
+Method: getSavedJobs()
+
+Changed to extract nested 'offre' field from backend response:
+Backend returns: { id, offre: {...}, saved_at }
+Flutter now extracts: offre field → JobModel
+
+
+═══════════════════════════════════════════════════════════════
+  🚨 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Still seeing error?
+→ Full restart required (not hot reload!)
+
+No saved jobs?
+→ Save some jobs first (tap bookmark icon)
+
+Backend not running?
+→ Check: http://10.0.2.2:8000/api/candidats/me/saved
+
+
+═══════════════════════════════════════════════════════════════
+  📚 MORE INFO
+═══════════════════════════════════════════════════════════════
+
+See: SAVED_JOBS_FIX.md for detailed explanation
+
+
+═══════════════════════════════════════════════════════════════
+  ✅ DONE!
+═══════════════════════════════════════════════════════════════
+
+After restarting Flutter, saved jobs should work! 🎉
+
+Note: Backend restart NOT required for this fix.

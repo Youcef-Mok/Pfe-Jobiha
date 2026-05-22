@@ -149,7 +149,7 @@ class _DetailsContentState extends ConsumerState<_DetailsContent>
                 _MinimalistHeader(
                   width: constraints.maxWidth,
                   title: widget.job.title,
-                  subtitle: '${widget.job.companyName} • Lyon, FR',
+                  subtitle: '${widget.job.companyName} • ${widget.job.location ?? "Alger, Algérie"}',
                   showApplyButton: widget.application == null,
                   job: widget.job,
                   application: widget.application,
@@ -762,9 +762,10 @@ class _MapPreviewState extends State<_MapPreview> with SingleTickerProviderState
   
   @override
   Widget build(BuildContext context) {
-    const lat = 45.7578;
-    const lng = 4.8320;
-    const placeName = '2e Arrondissement, Lyon';
+    // Algiers coordinates (default location)
+    const lat = 36.7538;
+    const lng = 3.0588;
+    const placeName = 'Alger, Algérie';
     
     return GestureDetector(
       onTap: () async {

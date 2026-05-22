@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/core/widgets/smart_image.dart';
 import 'package:job_app/features/applications/domain/application_entity.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
@@ -60,30 +61,11 @@ class CandidateJobCard extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: job.logoAsset != null
-                        ? Image.asset(
-                            job.logoAsset!,
-                            width: 68,
-                            height: 68,
-                            fit: BoxFit.cover,
-                            cacheWidth: 136,
-                          )
-                        : Container(
-                            width: 68,
-                            height: 68,
-                            color: AppColors.violetLight,
-                            alignment: Alignment.center,
-                            child: Text(
-                              job.title[0],
-                              style: const TextStyle(
-                                color: AppColors.violet,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 24,
-                              ),
-                            ),
-                          ),
+                  SmartLogo(
+                    imageUrl: job.logoAsset,
+                    size: 68,
+                    borderRadius: 10,
+                    fallbackText: job.title,
                   ),
                   const SizedBox(width: 20),
                   Expanded(
@@ -170,7 +152,7 @@ class CandidateJobCard extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 2),
                                 Text(
-                                  'Alger, Birkhadem',
+                                  job.location ?? 'Alger, Algérie',
                                   style: AppTextStyles.badge.copyWith(
                                     color: AppColors.violet,
                                   ),

@@ -12,6 +12,7 @@ class JobModel {
   final String recruiterRole;
   final String? recruiterAvatarAsset;
   final String department;
+  final String? location; // Added for Algerian cities
   final String contractType; // "cdi" | "mission" | "freelance"
   final String postedAt; // ISO 8601 depuis l'API
   final String status; // "active" | "draft" | "closed"
@@ -32,6 +33,7 @@ class JobModel {
     required this.recruiterRole,
     this.recruiterAvatarAsset,
     this.department = 'IT',
+    this.location, // Added
     required this.contractType,
     required this.postedAt,
     required this.status,
@@ -54,6 +56,7 @@ class JobModel {
         recruiterRole: json['recruiter_role'] as String? ?? '',
         recruiterAvatarAsset: json['recruiter_avatar_asset'] as String?,
         department: json['department'] as String? ?? 'IT',
+        location: json['location'] as String?, // Added
         contractType: json['contract_type'] as String? ?? 'cdi',
         postedAt: json['posted_at'] as String,
         status: json['status'] as String,
@@ -100,6 +103,7 @@ class JobModel {
         recruiterRole: recruiterRole,
         recruiterAvatarAsset: recruiterAvatarAsset,
         department: department,
+        location: location, // Added
         contractType: _parseContract(contractType),
         postedAt: DateTime.parse(postedAt),
         status: _parseStatus(status),
@@ -122,6 +126,7 @@ class JobModel {
         recruiterRole: entity.recruiterRole ?? '',
         recruiterAvatarAsset: entity.recruiterAvatarAsset,
         department: entity.department,
+        location: entity.location, // Added
         contractType: entity.contractType.name,
         postedAt: entity.postedAt.toIso8601String(),
         status: entity.status.name,

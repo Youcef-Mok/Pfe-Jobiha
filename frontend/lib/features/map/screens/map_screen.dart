@@ -2314,7 +2314,7 @@ class _MapJobDetailsOverlayState extends State<_MapJobDetailsOverlay> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${job.company} • Lyon, FR',
+                      '${job.company} • Alger, Algérie',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w500,

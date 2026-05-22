@@ -1,0 +1,143 @@
+═══════════════════════════════════════════════════════════════
+    JOBIHA - TEACHER PRESENTATION CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+🔑 LOGIN CREDENTIALS
+═══════════════════════════════════════════════════════════════
+👤 Candidat:  amina.demo@gmail.com / password123
+🏢 Recruteur: tech.demo@company.dz / password123
+
+
+⚡ SETUP STEPS (Night Before)
+═══════════════════════════════════════════════════════════════
+[ ] 1. Generate images: python create_placeholder_images.py
+[ ] 2. Execute demo_seed_data.sql in Neon
+[ ] 3. Test candidat login
+[ ] 4. Test recruteur login
+[ ] 5. Verify all features work
+[ ] 6. Charge laptop
+[ ] 7. Print this checklist
+
+
+📋 MORNING OF PRESENTATION
+═══════════════════════════════════════════════════════════════
+[ ] Start Django server: python manage.py runserver
+[ ] Test candidat login again
+[ ] Test recruteur login again
+[ ] Open both accounts in different tabs
+[ ] Have DEMO_QUICK_REFERENCE.md open
+[ ] Deep breath and relax!
+
+
+🎬 PRESENTATION FLOW (Check off as you go)
+═══════════════════════════════════════════════════════════════
+
+PART 1: CANDIDAT (Amina) - 10-15 minutes
+───────────────────────────────────────────────────────────────
+[ ] 1. Show complete profile (5 years exp, 20+ skills)
+[ ] 2. Browse jobs (5 offers visible)
+[ ] 3. Show saved jobs (3 saved)
+[ ] 4. Show job alerts (3 active)
+[ ] 5. Show applications (5 total: 2 accepted, 2 pending, 1 rejected)
+[ ] 6. Show interviews (3 total: 1 completed, 1 scheduled, 1 completed)
+[ ] 7. Show missions (2 total: 1 active SaaS, 1 completed PM)
+[ ] 8. Show conversations (3 chats with recruiter)
+[ ] 9. Show evaluations (2 five-star ratings)
+[ ] 10. Show notifications (10 rich notifications)
+
+PART 2: RECRUTEUR (Tech Innovate) - 10-15 minutes
+───────────────────────────────────────────────────────────────
+[ ] 1. Show company profile (4.7⭐ rating)
+[ ] 2. Show job offers (5 published: Full Stack, Mobile, DevOps, UI/UX, PM)
+[ ] 3. Show received applications (5 from Amina)
+[ ] 4. Show interviews (3 with Amina)
+[ ] 5. Show missions (2 tracking Amina's work)
+[ ] 6. Show conversations (3 with Amina)
+[ ] 7. Show evaluations (2 five-star ratings)
+[ ] 8. Show notifications (10 recruiter notifications)
+
+
+✨ KEY FEATURES TO EMPHASIZE
+═══════════════════════════════════════════════════════════════
+[ ] Complete workflow (search → apply → interview → hired → work → evaluate)
+[ ] Two perspectives (candidat + recruteur)
+[ ] Professional features (missions, evaluations, messaging)
+[ ] Real-time notifications
+[ ] Rich profiles and data
+[ ] Algerian context (cities, phone numbers)
+
+
+💡 TALKING POINTS
+═══════════════════════════════════════════════════════════════
+[ ] "Complete job marketplace for Algeria"
+[ ] "Two perspectives, one platform"
+[ ] "Professional features beyond basic job boards"
+[ ] "Real-world ready with Algerian context"
+[ ] "Every feature works end-to-end"
+
+
+🐛 EMERGENCY FIXES
+═══════════════════════════════════════════════════════════════
+Images not showing?
+→ python create_placeholder_images.py
+
+Can't login?
+→ Check: amina.demo@gmail.com / password123
+→ Check: tech.demo@company.dz / password123
+
+Server not starting?
+→ python manage.py runserver
+
+Data missing?
+→ Re-run demo_seed_data.sql
+
+
+📊 DATA SUMMARY (For Reference)
+═══════════════════════════════════════════════════════════════
+Candidat (Amina) has:
+• Complete profile (Senior Full Stack, 5 years)
+• 5 candidatures (2 accepted, 2 pending, 1 rejected)
+• 3 interviews
+• 2 missions (1 active, 1 completed)
+• 3 conversations
+• 2 evaluations (5 stars)
+• 10 notifications
+• 3 saved jobs
+• 3 alerts
+
+Recruteur (Tech Innovate) has:
+• Complete company profile (4.7⭐)
+• 5 job offers
+• 5 applications received
+• 3 interviews
+• 2 missions
+• 3 conversations
+• 2 evaluations (5 stars)
+• 10 notifications
+
+
+🎯 SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════
+[ ] Showed complete candidate journey
+[ ] Showed complete recruiter workflow
+[ ] Demonstrated all major features
+[ ] Told compelling story (Amina's journey)
+[ ] Answered questions confidently
+[ ] Showed professional, polished app
+
+
+🎉 FINAL REMINDERS
+═══════════════════════════════════════════════════════════════
+✓ You built something amazing
+✓ Every feature works
+✓ The data is professional and realistic
+✓ You know your app inside and out
+✓ Be confident and proud
+✓ Take your time
+✓ Breathe and relax
+✓ You got this! 🚀
+
+
+═══════════════════════════════════════════════════════════════
+    GOOD LUCK WITH YOUR PRESENTATION! 🎓
+═══════════════════════════════════════════════════════════════

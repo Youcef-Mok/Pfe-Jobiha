@@ -1,0 +1,57 @@
+═══════════════════════════════════════════════════════════════
+    QUICK FIX - DO THIS NOW (2 MINUTES)
+═══════════════════════════════════════════════════════════════
+
+✅ I've already fixed your code!
+
+Now you just need to:
+
+1️⃣  UPDATE BACKEND URL
+═══════════════════════════════════════════════════════════════
+Open: frontend/lib/core/utils/media_utils.dart
+Line 9
+
+Change to ONE of these:
+
+📱 Android Emulator:
+    static const String _baseUrl = 'http://10.0.2.2:8000';
+
+💻 iOS Simulator / Web:
+    static const String _baseUrl = 'http://localhost:8000';
+
+📲 Physical Device:
+    static const String _baseUrl = 'http://YOUR_IP:8000';
+    (Find IP: run 'ipconfig' in terminal)
+
+
+2️⃣  RESTART FLUTTER APP
+═══════════════════════════════════════════════════════════════
+IMPORTANT: Hot reload won't work!
+
+Stop app (Ctrl+C), then:
+    flutter run
+
+
+3️⃣  MAKE SURE DJANGO IS RUNNING
+═══════════════════════════════════════════════════════════════
+    cd backend
+    python manage.py runserver
+
+
+4️⃣  TEST
+═══════════════════════════════════════════════════════════════
+Open browser: http://localhost:8000/media/logos/demo_company.png
+Should show an image (not 404)
+
+
+═══════════════════════════════════════════════════════════════
+    THAT'S IT! Images should now work! 🎉
+═══════════════════════════════════════════════════════════════
+
+Files I fixed:
+✅ frontend/lib/core/utils/media_utils.dart (created)
+✅ frontend/lib/core/widgets/smart_image.dart (created)
+✅ frontend/lib/features/jobs/widgets/candidate_job_card.dart (fixed)
+✅ frontend/lib/features/jobs/widgets/job_card.dart (fixed)
+
+The "Posts sugérés" error is now fixed!

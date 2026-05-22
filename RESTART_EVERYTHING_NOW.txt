@@ -1,0 +1,148 @@
+═══════════════════════════════════════════════════════════════
+  🔄 RESTART EVERYTHING - Fix All Issues
+═══════════════════════════════════════════════════════════════
+
+You've made several fixes. To apply them ALL, you MUST restart
+both Django backend AND Flutter app.
+
+═══════════════════════════════════════════════════════════════
+  ⚡ DO THIS NOW (3 minutes)
+═══════════════════════════════════════════════════════════════
+
+STEP 1: Stop Everything
+-----------------------------------
+# Stop Django backend (Ctrl+C in backend terminal)
+# Stop Flutter app (Ctrl+C in Flutter terminal)
+
+
+STEP 2: Restart Django Backend
+-----------------------------------
+cd backend
+python manage.py runserver
+
+# Wait for: "Starting development server at http://127.0.0.1:8000/"
+# Keep this terminal open
+
+
+STEP 3: Clean & Restart Flutter
+-----------------------------------
+# In a NEW terminal:
+flutter clean
+flutter pub get
+flutter run
+
+# Wait for full rebuild (may take 2-3 minutes)
+# Keep this terminal open
+
+
+STEP 4: Test Saved Jobs
+-----------------------------------
+1. Login: amina.demo@gmail.com / password123
+
+2. Go to home screen (Posts sugérés)
+
+3. Click "Jobs enregistrés" chip (at the top)
+
+4. Should navigate to NEW screen showing:
+   ✅ Title: "Saved jobs"
+   ✅ Back arrow button
+   ✅ "3 Jobs enregistrés"
+   ✅ Three job cards:
+      - Senior Full Stack Developer React/Node
+      - Mobile Developer Flutter Senior
+      - UI/UX Designer Senior
+
+
+═══════════════════════════════════════════════════════════════
+  🎯 WHAT SHOULD HAPPEN
+═══════════════════════════════════════════════════════════════
+
+BEFORE CLICKING "Jobs enregistrés":
+Screen: Posts sugérés (Home)
+Shows: All 5 demo jobs
+Title: "Posts sugérés" or home icon
+
+AFTER CLICKING "Jobs enregistrés":
+Screen: Saved Jobs (NEW screen)
+Shows: Only 3 saved jobs
+Title: "Saved jobs"
+Has: Back arrow to return
+
+
+═══════════════════════════════════════════════════════════════
+  ❌ COMMON MISTAKES
+═══════════════════════════════════════════════════════════════
+
+MISTAKE 1: Hot Reload Instead of Full Restart
+❌ Pressing 'r' or 'R' in Flutter terminal
+✅ Stop app (Ctrl+C) then flutter run
+
+MISTAKE 2: Not Restarting Backend
+❌ Only restarting Flutter
+✅ Restart BOTH Django AND Flutter
+
+MISTAKE 3: Not Running flutter clean
+❌ Just flutter run
+✅ flutter clean THEN flutter pub get THEN flutter run
+
+
+═══════════════════════════════════════════════════════════════
+  🚨 IF STILL NOT WORKING
+═══════════════════════════════════════════════════════════════
+
+Problem: Still shows all jobs
+→ Check you're on the NEW screen (has back arrow)
+→ Check title says "Saved jobs" not "Posts sugérés"
+
+Problem: Shows "Erreur de chargement"
+→ Check Django backend is running
+→ Check no errors in Django console
+→ Verify seed data loaded: SELECT * FROM saved_job;
+
+Problem: Shows "Aucun job enregistré"
+→ Seed data not loaded
+→ Run: \i demo_seed_data.sql in Neon
+
+Problem: Can't click "Jobs enregistrés"
+→ Scroll the chips horizontally
+→ It's in the first position
+
+
+═══════════════════════════════════════════════════════════════
+  📊 FIXES APPLIED
+═══════════════════════════════════════════════════════════════
+
+✅ Backend location serializer - returns city names
+✅ Frontend saved jobs parsing - extracts offre field
+✅ All French locations → Algerian locations
+✅ Image loading with fallbacks
+✅ Seed data includes 3 saved jobs for demo account
+
+
+═══════════════════════════════════════════════════════════════
+  ✅ AFTER RESTART
+═══════════════════════════════════════════════════════════════
+
+You should have:
+✅ Posts sugérés shows Algerian cities (not coordinates)
+✅ Saved jobs screen works (shows 3 jobs)
+✅ Images load or show fallback letters
+✅ Map shows Algiers (not Lyon)
+✅ All locations are Algerian (not French)
+
+
+═══════════════════════════════════════════════════════════════
+  🎉 READY FOR PRESENTATION!
+═══════════════════════════════════════════════════════════════
+
+After restarting both servers, test everything once more:
+1. ✅ Login works
+2. ✅ Posts sugérés shows correct data
+3. ✅ Saved jobs navigation works
+4. ✅ Saved jobs shows only 3 jobs
+5. ✅ Locations are Algerian
+6. ✅ Images work
+
+Good luck tomorrow! 🚀
+
+═══════════════════════════════════════════════════════════════

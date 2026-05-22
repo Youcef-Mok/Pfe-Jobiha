@@ -78,9 +78,15 @@ class OffreSerializer(serializers.ModelSerializer):
         return obj.categorie or None
 
     def get_location(self, obj):
+        # Return the location field (city name) if available
+        # Only use lat/long as fallback if location is empty
+        location = getattr(obj, 'location', None)
+        if location:
+            return location
+        # Fallback to coordinates if no location text
         if obj.latitude is not None and obj.longitude is not None:
             return f"{obj.latitude}, {obj.longitude}"
-        return getattr(obj, 'location', None)
+        return None
 
     def get_schedule_label(self, obj):
         return getattr(obj, 'schedule_label', None) or obj.type_contrat or None

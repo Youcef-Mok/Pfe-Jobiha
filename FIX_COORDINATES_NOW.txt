@@ -1,0 +1,95 @@
+═══════════════════════════════════════════════════════════════
+  🔧 QUICK FIX - Show City Names Not Coordinates
+═══════════════════════════════════════════════════════════════
+
+PROBLEM: Showing "36.7538, 3.0588" instead of "Alger, Birkhadem"
+
+SOLUTION: Backend serializer was returning coordinates first.
+          Fixed to return city names first.
+
+═══════════════════════════════════════════════════════════════
+  ⚡ APPLY FIX NOW (2 minutes)
+═══════════════════════════════════════════════════════════════
+
+STEP 1: Restart Django Backend
+-----------------------------------
+# Stop your Django server (Ctrl+C in terminal)
+# Then restart:
+
+cd backend
+python manage.py runserver
+
+# Wait for: "Starting development server at http://127.0.0.1:8000/"
+
+
+STEP 2: Restart Flutter App
+-----------------------------------
+# Stop Flutter app (Ctrl+C)
+# Then restart:
+
+flutter run
+
+# Or if issues:
+flutter clean
+flutter pub get
+flutter run
+
+
+STEP 3: Test
+-----------------------------------
+Login: amina.demo@gmail.com / password123
+Check: Posts sugérés should show "Alger, Birkhadem" not coordinates
+
+
+═══════════════════════════════════════════════════════════════
+  ✅ EXPECTED RESULTS
+═══════════════════════════════════════════════════════════════
+
+BEFORE:
+📍 36.7538, 3.0588  ❌
+
+AFTER:
+📍 Alger, Birkhadem  ✅
+📍 Oran, Es Senia  ✅
+📍 Constantine, Centre-ville  ✅
+
+
+═══════════════════════════════════════════════════════════════
+  🔍 WHAT WAS CHANGED
+═══════════════════════════════════════════════════════════════
+
+File: backend/apps/jobs/serializers.py
+Method: get_location()
+
+Changed priority:
+1. Return location text (city name) ✅
+2. Fallback to coordinates if no text
+3. Return None if neither exists
+
+
+═══════════════════════════════════════════════════════════════
+  🚨 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Still seeing coordinates?
+→ Restart BOTH backend AND frontend
+
+API returns coordinates?
+→ Check Django reloaded (should see "Watching for file changes...")
+
+No location showing?
+→ Verify seed data loaded: demo_seed_data.sql
+
+
+═══════════════════════════════════════════════════════════════
+  📚 MORE INFO
+═══════════════════════════════════════════════════════════════
+
+See: BACKEND_LOCATION_FIX.md for detailed explanation
+
+
+═══════════════════════════════════════════════════════════════
+  ✅ DONE!
+═══════════════════════════════════════════════════════════════
+
+After restarting both servers, you should see city names! 🎉

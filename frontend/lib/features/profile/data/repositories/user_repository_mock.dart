@@ -55,7 +55,7 @@ class UserRepositoryMock implements UserRepository {
       role: 'Head of Design',
       domain: 'Design',
       company: 'Creative Agency',
-      location: 'Lyon, FR',
+      location: 'Alger, Algérie',
       bio: 'I build high-performing design teams and product design processes.',
       avatarUrl: 'assets/images/pdp_new.png',
       followersCount: 920,

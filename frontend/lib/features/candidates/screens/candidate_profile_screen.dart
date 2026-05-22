@@ -302,7 +302,7 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen> {
           iconBg: const Color(0xFFEFEDF2),
           icon: Icons.location_on,
           iconColor: const Color(0xFF401E66),
-          label: 'Paris, France',
+          label: 'Alger, Algérie',
         ),
         const SizedBox(width: 10),
         _buildInfoChip(

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/core/widgets/smart_image.dart';
 
 class JobCard extends StatelessWidget {
   final JobEntity job;
@@ -63,18 +64,11 @@ class JobCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Logo
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: job.logoAsset != null
-                          ? Image.asset(
-                              job.logoAsset!,
-                              width: 64,
-                              height: 64,
-                              fit: BoxFit.cover,
-                              cacheWidth: 112,
-                              errorBuilder: (_, __, ___) => _logoFallback(),
-                            )
-                          : _logoFallback(),
+                    SmartLogo(
+                      imageUrl: job.logoAsset,
+                      size: 64,
+                      borderRadius: 8,
+                      fallbackText: job.title,
                     ),
                     const SizedBox(width: 12),
                     // Infos

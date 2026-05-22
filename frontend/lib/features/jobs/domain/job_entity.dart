@@ -16,6 +16,7 @@ class JobEntity {
   final String? recruiterAvatarAsset;
   final ContractType contractType; // Ajouté
   final String department;
+  final String? location; // Added for Algerian cities
   final DateTime postedAt;
   final JobStatus status;
   final int candidateCount;
@@ -36,6 +37,7 @@ class JobEntity {
     this.recruiterAvatarAsset,
     required this.contractType, // Ajouté
     this.department = 'IT',
+    this.location, // Added
     required this.postedAt,
     required this.status,
     required this.candidateCount,
