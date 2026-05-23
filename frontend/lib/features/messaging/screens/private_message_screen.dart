@@ -29,14 +29,39 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
   bool _bannerVisible = false;
   MessageEntity? _replyingTo;
   Timer? _bannerTimer;
+  List<MessageEntity> _messages = [];
+  bool _loadingMessages = false;
 
   @override
   void initState() {
     super.initState();
+    _loadMessages();
     if (widget.conversation.isInvitation) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showInvitationSheet();
       });
+    }
+  }
+
+  Future<void> _loadMessages() async {
+    if (!mounted) return;
+    setState(() => _loadingMessages = true);
+    try {
+      final repo = ref.read(messagingRepositoryProvider);
+      final conv = await repo.getConversationById(widget.conversation.id);
+      if (mounted) {
+        setState(() {
+          _messages = conv.messages;
+          _loadingMessages = false;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingMessages = false);
     }
   }
 
@@ -80,11 +105,27 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    ref
-        .read(messagingControllerProvider.notifier)
-        .sendMessage(widget.conversation.id, text);
+
+    // Ajouter le message localement immédiatement
+    final tempMsg = MessageEntity(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      senderId: 'me',
+      content: text,
+      timestamp: DateTime.now(),
+      isRead: false,
+      isMine: true,
+      type: MessageType.text,
+    );
+    setState(() {
+      _messages = [..._messages, tempMsg];
+      _replyingTo = null;
+    });
     _controller.clear();
-    setState(() => _replyingTo = null);
+
+    // Envoyer au backend
+    ref.read(messagingControllerProvider.notifier)
+        .sendMessage(widget.conversation.id, text);
+
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -340,14 +381,20 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                ...conv.messages.map((msg) => _messageBubble(
-                      message: msg,
-                      avatarAsset: conv.contactAvatar,
-                      onReply: () {
-                        setState(() => _replyingTo = msg);
-                        _inputFocusNode.requestFocus();
-                      },
-                    )),
+                if (_loadingMessages)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else
+                  ..._messages.map((msg) => _messageBubble(
+                        message: msg,
+                        avatarAsset: conv.contactAvatar,
+                        onReply: () {
+                          setState(() => _replyingTo = msg);
+                          _inputFocusNode.requestFocus();
+                        },
+                      )),
               ],
             ),
           ),

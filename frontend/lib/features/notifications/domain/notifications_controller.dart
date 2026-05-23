@@ -66,6 +66,10 @@ class NotificationsController extends StateNotifier<NotificationsState> {
     state = state.copyWith(notifications: updated);
   }
 
+  void addNotification(NotificationEntity notif) {
+    state = state.copyWith(notifications: [notif, ...state.notifications]);
+  }
+
   int get unreadCount => state.notifications.where((n) => !n.isRead).length;
 
   List<NotificationEntity> get filteredNotifications {

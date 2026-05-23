@@ -5,6 +5,8 @@ import 'package:job_app/features/applications/domain/application_entity.dart';
 import 'package:job_app/features/applications/widgets/launch_mission_sheet.dart';
 import 'package:job_app/features/applications/widgets/schedule_interview_sheet.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
+import 'package:job_app/core/services/notification_toast_service.dart';
+import 'package:job_app/features/notifications/domain/notification_entity.dart';
 
 /// Overlay pour afficher les détails d'une candidature
 void showApplicationDetailsSheet(BuildContext context, ApplicationEntity application) {
@@ -107,9 +109,16 @@ class _ApplicationDetailsSheetState extends ConsumerState<ApplicationDetailsShee
                           child: ElevatedButton(
                             onPressed: isAccepted ? null : () async {
                               await ref.read(applicationsNotifierProvider.notifier).accept(widget.application.id);
-                              setState(() {
-                                isAccepted = true;
-                              });
+                              setState(() { isAccepted = true; });
+                              if (context.mounted) {
+                                ref.read(notificationToastServiceProvider).show(
+                                  context: context,
+                                  title: '${widget.application.candidateName} a validé sa candidature\npour "${widget.application.jobTitle}"',
+                                  type: NotificationType.interviewAccepted,
+                                  senderName: widget.application.candidateName,
+                                  jobTitle: widget.application.jobTitle,
+                                );
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isAccepted ? AppColors.slate200 : AppColors.violet,

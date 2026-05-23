@@ -14,6 +14,8 @@ import 'package:job_app/features/messaging/screens/private_message_screen.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/report_comment_screen.dart';
+import 'package:job_app/core/services/notification_toast_service.dart';
+import 'package:job_app/features/notifications/domain/notification_entity.dart';
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Thread / comment state provider
@@ -1531,27 +1533,37 @@ class _NestedReply extends StatelessWidget {
 }
 
 // Floating Apply Button
-class _InlineApplyButton extends ConsumerWidget {
+class _InlineApplyButton extends ConsumerStatefulWidget {
   final JobEntity job;
   const _InlineApplyButton({required this.job});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_InlineApplyButton> createState() => _InlineApplyButtonState();
+}
+
+class _InlineApplyButtonState extends ConsumerState<_InlineApplyButton> {
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
         final motivationLetter = await _showMotivationLetterOverlay(context);
         if (motivationLetter == null) return;
         ref
             .read(applicationsNotifierProvider.notifier)
-            .apply(job.id, motivationLetter: motivationLetter);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Candidature envoyee !'),
-              backgroundColor: AppColors.violet,
-            ),
-          );
-        }
+            .apply(widget.job.id, motivationLetter: motivationLetter);
+        // Ajouter la notif dans la liste candidat directement
+        ref.read(notificationToastServiceProvider).addCandidateNotification(
+          title: 'Votre candidature pour "${widget.job.title}" a été envoyée',
+          type: NotificationType.applicationAccepted,
+          jobTitle: widget.job.title,
+        );
+        // Afficher le toast si le widget est encore monté
+        if (!mounted) return;
+        ref.read(notificationToastServiceProvider).showToastOnly(
+          context: context,
+          title: 'Votre candidature pour "${widget.job.title}" a été envoyée',
+          type: NotificationType.applicationAccepted,
+        );
       },
       child: Container(
         width: 86,
