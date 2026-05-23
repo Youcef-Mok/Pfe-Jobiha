@@ -6,6 +6,7 @@ import 'package:job_app/features/applications/widgets/launch_mission_sheet.dart'
 import 'package:job_app/features/applications/widgets/schedule_interview_sheet.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
 import 'package:job_app/core/services/notification_toast_service.dart';
+import 'package:job_app/core/services/cross_user_notif_service.dart';
 import 'package:job_app/features/notifications/domain/notification_entity.dart';
 
 /// Overlay pour afficher les détails d'une candidature
@@ -110,6 +111,14 @@ class _ApplicationDetailsSheetState extends ConsumerState<ApplicationDetailsShee
                             onPressed: isAccepted ? null : () async {
                               await ref.read(applicationsNotifierProvider.notifier).accept(widget.application.id);
                               setState(() { isAccepted = true; });
+                              // Notif cross-user pour le candidat (localStorage)
+                              CrossUserNotifService.push(
+                                title: 'Votre candidature pour\n"${widget.application.jobTitle}" a été acceptée !',
+                                targetRole: 'candidat',
+                                type: NotificationType.applicationAccepted,
+                                jobTitle: widget.application.jobTitle,
+                                senderName: widget.application.candidateName,
+                              );
                               if (context.mounted) {
                                 ref.read(notificationToastServiceProvider).show(
                                   context: context,

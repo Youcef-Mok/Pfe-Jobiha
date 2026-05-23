@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
+import 'package:job_app/features/messaging/data/providers/messaging_providers.dart';
 import 'package:job_app/features/messaging/domain/message_entity.dart';
 import 'package:job_app/features/messaging/widgets/invitation_accept_sheet.dart';
 import 'package:job_app/features/messaging/widgets/message_actions_sheet.dart';
@@ -29,42 +30,22 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
   bool _bannerVisible = false;
   MessageEntity? _replyingTo;
   Timer? _bannerTimer;
-  List<MessageEntity> _messages = [];
-  bool _loadingMessages = false;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
     if (widget.conversation.isInvitation) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showInvitationSheet();
       });
     }
+    // Scroll to bottom when messages load
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
-  Future<void> _loadMessages() async {
-    if (!mounted) return;
-    setState(() => _loadingMessages = true);
-    try {
-      final repo = ref.read(messagingRepositoryProvider);
-      final conv = await repo.getConversationById(widget.conversation.id);
-      if (mounted) {
-        setState(() {
-          // Ne pas écraser si l'API retourne vide mais qu'on a déjà des messages locaux
-          if (conv.messages.isNotEmpty) {
-            _messages = conv.messages;
-          }
-          _loadingMessages = false;
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-          }
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loadingMessages = false);
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     }
   }
 
@@ -110,24 +91,12 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
     if (text.isEmpty) return;
 
     // Ajouter le message localement immédiatement
-    final tempMsg = MessageEntity(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      senderId: 'me',
-      content: text,
-      timestamp: DateTime.now(),
-      isRead: false,
-      isMine: true,
-      type: MessageType.text,
-    );
-    setState(() {
-      _messages = [..._messages, tempMsg];
-      _replyingTo = null;
-    });
+    setState(() => _replyingTo = null);
     _controller.clear();
 
-    // Envoyer au backend
-    ref.read(messagingControllerProvider.notifier)
-        .sendMessage(widget.conversation.id, text);
+    // Envoyer via activeChatProvider (gère local + backend + WebSocket)
+    final convId = int.tryParse(widget.conversation.id) ?? 0;
+    ref.read(activeChatProvider(convId).notifier).sendMessage(text);
 
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -384,20 +353,28 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                if (_loadingMessages)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else
-                  ..._messages.map((msg) => _messageBubble(
-                        message: msg,
-                        avatarAsset: conv.contactAvatar,
-                        onReply: () {
-                          setState(() => _replyingTo = msg);
-                          _inputFocusNode.requestFocus();
-                        },
-                      )),
+                Builder(builder: (context) {
+                  final convId = int.tryParse(widget.conversation.id) ?? 0;
+                  final chatState = ref.watch(activeChatProvider(convId));
+                  if (chatState.isLoading) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  // Scroll to bottom when new messages arrive
+                  WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                  return Column(
+                    children: chatState.messages.map((msg) => _messageBubble(
+                      message: msg,
+                      avatarAsset: conv.contactAvatar,
+                      onReply: () {
+                        setState(() => _replyingTo = msg);
+                        _inputFocusNode.requestFocus();
+                      },
+                    )).toList(),
+                  );
+                }),
               ],
             ),
           ),

@@ -256,7 +256,7 @@ class _ScheduleInterviewSheetState extends ConsumerState<ScheduleInterviewSheet>
                     // Créer l'entretien
                     final interview = InterviewEntity(
                       id: 'int_${DateTime.now().millisecondsSinceEpoch}',
-                      candidateId: 'cand_${widget.application.id}',
+                      candidateId: widget.application.id,
                       candidateName: widget.application.candidateName ?? 'Candidat',
                       candidateAvatar: widget.application.candidateAvatar,
                       jobId: widget.application.jobId,

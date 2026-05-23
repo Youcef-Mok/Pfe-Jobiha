@@ -1,17 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
+import 'package:job_app/core/services/cross_user_notif_service.dart';
 import '../data/providers/notifications_provider.dart';
 import '../domain/notification_entity.dart';
 import '../domain/notifications_controller.dart';
 import '../widgets/notification_card.dart';
 import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Lire les notifs cross-user destinées au recruteur
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final crossNotifs = CrossUserNotifService.pop('recruteur');
+      for (final notif in crossNotifs) {
+        ref.read(notificationsControllerProvider.notifier).addNotification(notif);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(notificationsControllerProvider);
     final controller = ref.read(notificationsControllerProvider.notifier);
 

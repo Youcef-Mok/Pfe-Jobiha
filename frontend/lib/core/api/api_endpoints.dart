@@ -10,7 +10,7 @@ class ApiEndpoints {
   // ── WebSocket base ─────────────────────────────────────────────────────────
   // Mirrors _base but uses ws:// scheme and no /api/v1 prefix.
   // static const String _wsBase = 'ws://10.0.2.2:8000';          // virtual device
-  static const String _wsBase = 'ws://192.168.100.9:8000';        // physical device
+  static const String _wsBase = 'ws://localhost:8000';            // web/local
   // static const String _wsBase = 'wss://api.petitsjobs.dz';     // production
 
   /// WebSocket URL for a chat session with [conversationId].

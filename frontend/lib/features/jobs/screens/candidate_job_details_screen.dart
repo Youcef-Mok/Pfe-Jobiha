@@ -15,6 +15,7 @@ import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/report_comment_screen.dart';
 import 'package:job_app/core/services/notification_toast_service.dart';
+import 'package:job_app/core/services/cross_user_notif_service.dart';
 import 'package:job_app/features/notifications/domain/notification_entity.dart';
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1555,6 +1556,13 @@ class _InlineApplyButtonState extends ConsumerState<_InlineApplyButton> {
         ref.read(notificationToastServiceProvider).addCandidateNotification(
           title: 'Votre candidature pour "${widget.job.title}" a été envoyée',
           type: NotificationType.applicationAccepted,
+          jobTitle: widget.job.title,
+        );
+        // Notif cross-user pour le recruteur (localStorage)
+        CrossUserNotifService.push(
+          title: 'Nouvelle candidature pour\n"${widget.job.title}"',
+          targetRole: 'recruteur',
+          type: NotificationType.newApplicants,
           jobTitle: widget.job.title,
         );
         // Afficher le toast si le widget est encore monté

@@ -226,6 +226,13 @@ class MessagingRepositoryMock implements MessagingRepository {
   }
 
   @override
+  Future<ConversationEntity> getConversationById(String conversationId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final conv = _conversations.firstWhere((c) => c.id == conversationId);
+    return conv.toEntity();
+  }
+
+  @override
   Future<List<ConversationEntity>> getInvitations() async {
     // TODO(API): GET /api/v1/conversations/invitations
     await Future.delayed(const Duration(milliseconds: 300));
