@@ -213,14 +213,23 @@ class _MissionHeader extends StatelessWidget {
               child: mission.imageUrl != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        mission.imageUrl!,
-                        width: 75,
-                        height: 75,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.restaurant, size: 32, color: AppColors.slate400),
-                      ),
+                      child: mission.imageUrl!.startsWith('http')
+                          ? Image.network(
+                              mission.imageUrl!,
+                              width: 75,
+                              height: 75,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.restaurant, size: 32, color: AppColors.slate400),
+                            )
+                          : Image.asset(
+                              mission.imageUrl!,
+                              width: 75,
+                              height: 75,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.restaurant, size: 32, color: AppColors.slate400),
+                            ),
                     )
                   : const Icon(Icons.restaurant,
                       size: 32, color: AppColors.slate400),

@@ -921,7 +921,7 @@ class _LocationFilterSheetState extends ConsumerState<_LocationFilterSheet> {
     final user = ref.watch(candidateCurrentUserProvider).valueOrNull;
     final candidateLocation = (user?.location ?? '').trim().isEmpty
         ? 'Localisation inconnue'
-        : user!.location!.trim();
+        : user!.location.trim();
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
       decoration: const BoxDecoration(

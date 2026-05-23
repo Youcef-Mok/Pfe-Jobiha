@@ -63,13 +63,21 @@ class MissionCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: mission.imageUrl != null
-          ? Image.asset(
-              mission.imageUrl!,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _logoPlaceholder(size),
-            )
+          ? (mission.imageUrl!.startsWith('http')
+              ? Image.network(
+                  mission.imageUrl!,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _logoPlaceholder(size),
+                )
+              : Image.asset(
+                  mission.imageUrl!,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _logoPlaceholder(size),
+                ))
           : _logoPlaceholder(size),
     );
   }

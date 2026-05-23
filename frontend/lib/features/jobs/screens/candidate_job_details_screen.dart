@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -48,12 +47,19 @@ class CandidateJobDetailsScreen extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 if (job.logoAsset != null)
-                  Image.asset(
-                    job.logoAsset!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        Container(color: const Color(0xFF334155)),
-                  )
+                  (job.logoAsset!.startsWith('http')
+                      ? Image.network(
+                          job.logoAsset!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Container(color: const Color(0xFF334155)),
+                        )
+                      : Image.asset(
+                          job.logoAsset!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Container(color: const Color(0xFF334155)),
+                        ))
                 else
                   Container(color: const Color(0xFF334155)),
               ],

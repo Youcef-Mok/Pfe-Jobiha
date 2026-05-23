@@ -500,7 +500,7 @@ class _LocationSheetState extends ConsumerState<_LocationSheet> {
     'Ouled Yaich (Blida - 09)'
   ];
   double _distance = 10;
-  bool _isCityExpanded = false;
+  final bool _isCityExpanded = false;
   String _searchQuery = '';
   final LayerLink _layerLink = LayerLink();
   LatLng? _pickedLatLng;
@@ -1200,7 +1200,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
   Tween<double>? _latTween, _lngTween, _zoomTween;
 
   final TextEditingController _searchCtrl = TextEditingController();
-  bool _showSearch = false;
+  final bool _showSearch = false;
 
   // The center of the map (updated on every camera-move event)
   LatLng _center = _defaultCenter;
@@ -1210,84 +1210,114 @@ class _LocationPickerPageState extends State<LocationPickerPage>
     final lat = p.latitude;
     final lng = p.longitude;
     // â”€â”€ Alger (36.6-36.85, 2.8-3.35) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 36.75 && lat < 36.80 && lng > 3.00 && lng < 3.06)
+    if (lat > 36.75 && lat < 36.80 && lng > 3.00 && lng < 3.06) {
       return 'Chéraga, Alger';
-    if (lat > 36.73 && lat < 36.77 && lng > 3.06 && lng < 3.12)
+    }
+    if (lat > 36.73 && lat < 36.77 && lng > 3.06 && lng < 3.12) {
       return 'Bab El Oued, Alger';
-    if (lat > 36.76 && lat < 36.80 && lng > 3.04 && lng < 3.10)
+    }
+    if (lat > 36.76 && lat < 36.80 && lng > 3.04 && lng < 3.10) {
       return 'El Biar, Alger';
-    if (lat > 36.77 && lat < 36.83 && lng > 3.07 && lng < 3.15)
+    }
+    if (lat > 36.77 && lat < 36.83 && lng > 3.07 && lng < 3.15) {
       return 'Rouïba, Alger';
-    if (lat > 36.74 && lat < 36.77 && lng > 3.06 && lng < 3.10)
+    }
+    if (lat > 36.74 && lat < 36.77 && lng > 3.06 && lng < 3.10) {
       return 'Sidi M\'Hamed, Alger';
-    if (lat > 36.72 && lat < 36.75 && lng > 3.05 && lng < 3.10)
+    }
+    if (lat > 36.72 && lat < 36.75 && lng > 3.05 && lng < 3.10) {
       return 'Hussein Dey, Alger';
-    if (lat > 36.70 && lat < 36.73 && lng > 3.08 && lng < 3.14)
+    }
+    if (lat > 36.70 && lat < 36.73 && lng > 3.08 && lng < 3.14) {
       return 'El Harrach, Alger';
-    if (lat > 36.74 && lat < 36.77 && lng > 2.96 && lng < 3.01)
+    }
+    if (lat > 36.74 && lat < 36.77 && lng > 2.96 && lng < 3.01) {
       return 'Zéralda, Alger';
-    if (lat > 36.71 && lat < 36.74 && lng > 2.93 && lng < 2.98)
+    }
+    if (lat > 36.71 && lat < 36.74 && lng > 2.93 && lng < 2.98) {
       return 'Sidi Abdallah, Alger';
-    if (lat > 36.67 && lat < 36.72 && lng > 3.01 && lng < 3.08)
+    }
+    if (lat > 36.67 && lat < 36.72 && lng > 3.01 && lng < 3.08) {
       return 'Bir Mourad Raïs, Alger';
-    if (lat > 36.76 && lat < 36.82 && lng > 3.12 && lng < 3.20)
+    }
+    if (lat > 36.76 && lat < 36.82 && lng > 3.12 && lng < 3.20) {
       return 'Dar El Beïda, Alger';
-    if (lat > 36.80 && lat < 36.86 && lng > 3.05 && lng < 3.15)
+    }
+    if (lat > 36.80 && lat < 36.86 && lng > 3.05 && lng < 3.15) {
       return 'Bordj El Kiffan, Alger';
-    if (lat > 36.83 && lat < 36.90 && lng > 3.13 && lng < 3.25)
+    }
+    if (lat > 36.83 && lat < 36.90 && lng > 3.13 && lng < 3.25) {
       return 'Bab Ezzouar, Alger';
+    }
     if (lat > 36.6 && lat < 36.9 && lng > 2.8 && lng < 3.35) return 'Alger';
     // â”€â”€ Oran (35.5-35.8, -0.7-0.8) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 35.60 && lat < 35.75 && lng > -0.68 && lng < -0.55)
+    if (lat > 35.60 && lat < 35.75 && lng > -0.68 && lng < -0.55) {
       return 'Oran Centre';
-    if (lat > 35.58 && lat < 35.65 && lng > -0.62 && lng < -0.54)
+    }
+    if (lat > 35.58 && lat < 35.65 && lng > -0.62 && lng < -0.54) {
       return 'Bir El Djir, Oran';
-    if (lat > 35.65 && lat < 35.72 && lng > -0.68 && lng < -0.60)
+    }
+    if (lat > 35.65 && lat < 35.72 && lng > -0.68 && lng < -0.60) {
       return 'Bir El Djir, Oran';
-    if (lat > 35.70 && lat < 35.78 && lng > -0.68 && lng < -0.58)
+    }
+    if (lat > 35.70 && lat < 35.78 && lng > -0.68 && lng < -0.58) {
       return 'Aïn El Turck, Oran';
+    }
     if (lat > 35.5 && lat < 35.8 && lng > -0.8 && lng < 0.0) return 'Oran';
     // â”€â”€ Constantine (36.3-36.5, 6.5-6.7) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 36.35 && lat < 36.42 && lng > 6.59 && lng < 6.66)
+    if (lat > 36.35 && lat < 36.42 && lng > 6.59 && lng < 6.66) {
       return 'Constantine Centre';
-    if (lat > 36.30 && lat < 36.38 && lng > 6.54 && lng < 6.63)
+    }
+    if (lat > 36.30 && lat < 36.38 && lng > 6.54 && lng < 6.63) {
       return 'El Khroub, Constantine';
-    if (lat > 36.28 && lat < 36.35 && lng > 6.56 && lng < 6.65)
+    }
+    if (lat > 36.28 && lat < 36.35 && lng > 6.56 && lng < 6.65) {
       return 'Hamma Bouziane';
-    if (lat > 36.2 && lat < 36.5 && lng > 6.4 && lng < 6.8)
+    }
+    if (lat > 36.2 && lat < 36.5 && lng > 6.4 && lng < 6.8) {
       return 'Constantine';
+    }
     // â”€â”€ Annaba (36.9-37.0, 7.7-7.9) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 36.88 && lat < 36.96 && lng > 7.74 && lng < 7.84)
+    if (lat > 36.88 && lat < 36.96 && lng > 7.74 && lng < 7.84) {
       return 'Annaba Centre';
+    }
     if (lat > 36.8 && lat < 37.0 && lng > 7.6 && lng < 8.0) return 'Annaba';
     // â”€â”€ Blida (36.4-36.5, 2.8-2.95) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 36.46 && lat < 36.52 && lng > 2.83 && lng < 2.92)
+    if (lat > 36.46 && lat < 36.52 && lng > 2.83 && lng < 2.92) {
       return 'Blida Centre';
-    if (lat > 36.50 && lat < 36.56 && lng > 2.86 && lng < 2.96)
+    }
+    if (lat > 36.50 && lat < 36.56 && lng > 2.86 && lng < 2.96) {
       return 'Ouled Yaïch, Blida';
+    }
     if (lat > 36.4 && lat < 36.6 && lng > 2.7 && lng < 3.0) return 'Blida';
     // â”€â”€ Tlemcen (34.8-35.0, -1.4--1.2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 34.86 && lat < 34.93 && lng > -1.35 && lng < -1.28)
+    if (lat > 34.86 && lat < 34.93 && lng > -1.35 && lng < -1.28) {
       return 'Tlemcen Centre';
+    }
     if (lat > 34.7 && lat < 35.1 && lng > -1.5 && lng < -1.1) return 'Tlemcen';
     // â”€â”€ Sétif (36.1-36.2, 5.4-5.5) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 36.17 && lat < 36.22 && lng > 5.39 && lng < 5.47)
+    if (lat > 36.17 && lat < 36.22 && lng > 5.39 && lng < 5.47) {
       return 'Sétif Centre';
+    }
     if (lat > 36.0 && lat < 36.4 && lng > 5.2 && lng < 5.7) return 'Sétif';
     // â”€â”€ Batna (35.5-35.6, 6.1-6.2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 35.54 && lat < 35.60 && lng > 6.14 && lng < 6.20)
+    if (lat > 35.54 && lat < 35.60 && lng > 6.14 && lng < 6.20) {
       return 'Batna Centre';
+    }
     if (lat > 35.4 && lat < 35.7 && lng > 5.9 && lng < 6.4) return 'Batna';
     // â”€â”€ Béjaïa (36.7-36.8, 5.0-5.1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 36.73 && lat < 36.77 && lng > 5.05 && lng < 5.10)
+    if (lat > 36.73 && lat < 36.77 && lng > 5.05 && lng < 5.10) {
       return 'Béjaïa Centre';
+    }
     if (lat > 36.6 && lat < 36.9 && lng > 4.9 && lng < 5.3) return 'Béjaïa';
     // â”€â”€ Fallback by wilaya zones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (lat > 33.0 && lat < 35.0 && lng > 5.0 && lng < 9.0)
+    if (lat > 33.0 && lat < 35.0 && lng > 5.0 && lng < 9.0) {
       return 'Biskra / Oasis';
+    }
     if (lat > 28.0 && lat < 33.0) return 'Sahara Algérien';
-    if (lat > 36.9 && lat < 37.2 && lng > 6.5 && lng < 9.0)
+    if (lat > 36.9 && lat < 37.2 && lng > 6.5 && lng < 9.0) {
       return 'Skikda / Nord-Est';
+    }
     return 'Algérie';
   }
 

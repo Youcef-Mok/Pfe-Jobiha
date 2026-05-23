@@ -151,7 +151,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final googleSignIn = GoogleSignIn(
         scopes: ['email'],
-        serverClientId: '39485857347-uisgnsfairc8gu33kuf1v9cv7uhr4dqk.apps.googleusercontent.com',
       );
  
       final account = await googleSignIn.signIn();

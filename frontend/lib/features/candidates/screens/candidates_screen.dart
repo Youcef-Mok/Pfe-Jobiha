@@ -1,4 +1,5 @@
 /// features/candidates/screens/candidates_screen.dart
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/candidates/domain/candidate_entity.dart';

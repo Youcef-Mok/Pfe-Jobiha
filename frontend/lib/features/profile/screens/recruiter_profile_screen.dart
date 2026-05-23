@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/auth/providers/auth_providers.dart';
 
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';

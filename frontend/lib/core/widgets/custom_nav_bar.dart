@@ -138,7 +138,7 @@ class CustomNavBar extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => onItemTapped(index),
-      child: Container(
+      child: SizedBox(
         width: 47,
         height: 85,
         child: Column(

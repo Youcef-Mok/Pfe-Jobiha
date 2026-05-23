@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
-import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/domain/job_entity.dart';
 import 'package:job_app/features/jobs/widgets/candidate_filter_sheets.dart';
 import 'package:job_app/features/jobs/widgets/candidate_job_card.dart';

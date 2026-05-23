@@ -50,25 +50,45 @@ class CompletedMissionCard extends StatelessWidget {
                 if (mission.imageUrl != null) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      mission.imageUrl!,
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F2F9),
-                          borderRadius: BorderRadius.circular(8),
+                    child: mission.imageUrl!.startsWith('http')
+                      ? Image.network(
+                          mission.imageUrl!,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F2F9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.description_outlined,
+                              size: 28,
+                              color: Color.fromARGB(255, 255, 255, 255),
+                            ),
+                          ),
+                        )
+                      : Image.asset(
+                          mission.imageUrl!,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F2F9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.description_outlined,
+                              size: 28,
+                              color: Color.fromARGB(255, 255, 255, 255),
+                            ),
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.description_outlined,
-                          size: 28,
-                          color: Color.fromARGB(255, 255, 255, 255),
-                        ),
-                      ),
-                    ),
                   ),
                   const SizedBox(width: 16),
                 ],
