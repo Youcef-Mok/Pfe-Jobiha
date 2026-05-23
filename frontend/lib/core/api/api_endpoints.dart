@@ -36,6 +36,7 @@ class ApiEndpoints {
   static const String resetPassword  = '$_base/auth/password/reset';
 
   // ── Users ───────────────────────────────────────────────────────────────────
+  static const String users             = '$_base/users';
   static const String me                = '$_base/users/me';
 
   // ── Candidat ────────────────────────────────────────────────────────────────
@@ -84,20 +85,36 @@ class ApiEndpoints {
   // ── Messagerie ───────────────────────────────────────────────────────────
   // Backend messaging URLs are mounted at /api/v1/ (no /messages/ prefix).
   // All paths match apps/messaging/urls.py exactly.
-  static const String conversations              = '$_base/conversations';
-  static String conversation(int convId)         => '$_base/conversations/$convId';
+  /// Public getter for WebSocket base URL
+  static String get wsBase => _wsBase;
+
+  static const String conversations                  = '$_base/conversations';
+  static String conversation(int convId)             => '$_base/conversations/$convId';
+  static const String conversationsInvitations       = '$_base/conversations/invitations';
+  static const String deleteConversations            = '$_base/conversations';
   // sendMessage: POST /conversations/<convId>/messages
-  static String sendMessage(int convId)          => '$_base/conversations/$convId/messages';
+  static String sendMessage(int convId)              => '$_base/conversations/$convId/messages';
+  static String sendImageMessage(int convId)         => '$_base/conversations/$convId/messages/image';
+  static String sendFileMessage(int convId)          => '$_base/conversations/$convId/messages/file';
+  static String acceptConversation(int convId)       => '$_base/conversations/$convId/accept';
+  static String declineConversation(int convId)      => '$_base/conversations/$convId/decline';
   // Backend uses 'read-all', not 'lire-tout'
-  static String marquerConvLue(int convId)       => '$_base/conversations/$convId/read-all';
-  static String getOrCreateDm(int userId)        => '$_base/conversations/dm/$userId';
+  static String marquerConvLue(int convId)           => '$_base/conversations/$convId/read-all';
+  static String getOrCreateDm(int userId)            => '$_base/conversations/dm/$userId';
   // Backend: POST /conversations/group
-  static const String createGroup                = '$_base/conversations/group';
-  static String groupMembers(int groupId)        => '$_base/conversations/$groupId/members';
+  static const String createGroup                    = '$_base/conversations/group';
+  static String groupMembers(int groupId)            => '$_base/conversations/$groupId/members';
   // No separate add-member endpoint — use members list URL (POST)
-  static String addGroupMember(int groupId)      => '$_base/conversations/$groupId/members';
+  static String addGroupMember(int groupId)          => '$_base/conversations/$groupId/members';
   // No separate remove-member endpoint — DELETE on members list
   static String removeGroupMember(int gId, int uId) => '$_base/conversations/$gId/members';
+  // Block / restrict contacts
+  static const String userBlocked                    = '$_base/users/me/blocked';
+  static String unblockUser(String contactId)        => '$_base/users/me/blocked/$contactId';
+  static String conversationBlock(int id)            => '$_base/conversations/$id/block';
+  static String conversationUnblock(int id)          => '$_base/conversations/$id/block';
+  static const String userRestricted                 = '$_base/users/me/restricted';
+  static String unrestrictUser(String contactId)     => '$_base/users/me/restricted/$contactId';
   static const String notifCount              = '$_base/notifications/non-lues/count';
   static String notificationRead(int id)      => '$_base/notifications/$id/read';
   static String notificationDelete(int id)    => '$_base/notifications/$id';

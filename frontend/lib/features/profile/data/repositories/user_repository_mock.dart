@@ -314,4 +314,16 @@ class UserRepositoryMock implements UserRepository {
     await Future.delayed(const Duration(milliseconds: 300));
     return _cvData;
   }
+
+  @override
+  Future<CvExperienceEntity> addExperience(CvExperienceEntity exp) async => exp;
+
+  @override
+  Future<CvFormationEntity> addFormation(CvFormationEntity formation) async => formation;
+
+  @override
+  Future<CvLanguageEntity> addLanguage(CvLanguageEntity language) async => language;
+
+  @override
+  Future<CvSkillEntity> addSkill(CvSkillEntity skill) async => skill;
 }

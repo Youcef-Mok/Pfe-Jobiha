@@ -430,7 +430,14 @@ class JobsRepositoryMock implements JobsRepository {
   }
 
   @override
-  Future<List<JobEntity>> getAllJobs() async {
+  Future<List<JobEntity>> getAllJobs({
+    double? lat,
+    double? lng,
+    double? maxDistanceKm,
+    String? location,
+    String? category,
+    String? contractType,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 800));
     return _jobs.map((m) => m.toEntity()).toList();
   }
@@ -650,5 +657,20 @@ class JobsRepositoryMock implements JobsRepository {
 
     return newComment.toEntity();
   }
+
+  @override
+  Future<List<JobEntity>> searchJobs(String query, {String? category, List<String>? contractTypes}) async => [];
+
+  @override
+  Future<List<String>> getRecentSearches() async => [];
+
+  @override
+  Future<void> addRecentSearch(String query) async {}
+
+  @override
+  Future<void> removeRecentSearch(String query) async {}
+
+  @override
+  Future<void> clearRecentSearches() async {}
 }
 

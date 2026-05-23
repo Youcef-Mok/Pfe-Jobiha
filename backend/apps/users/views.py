@@ -1859,6 +1859,32 @@ class ReviewReplyView(APIView):
 
 
 # ===========================================================================
+# User list — for messaging contact search
+# ===========================================================================
+
+class UserListView(APIView):
+    """GET /users — list all users (for messaging new-conversation search).
+    Optional ?role=candidat|recruteur filter.
+    Excludes the requesting user from results.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = (
+            Utilisateur.objects
+            .exclude(pk=request.user.pk)
+            .order_by('prenom', 'nom')
+        )
+        role = request.query_params.get('role')
+        if role:
+            queryset = queryset.filter(role=role)
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = UtilisateurSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+# ===========================================================================
 # Stub for not-yet-implemented endpoints
 # ===========================================================================
 

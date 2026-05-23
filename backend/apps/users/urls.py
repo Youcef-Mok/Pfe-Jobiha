@@ -26,6 +26,7 @@ urlpatterns = [
     path('auth/password/reset',  views.ResetPasswordView.as_view(),  name='reset-password'),
 
     # --- Users ---
+    path('users', views.UserListView.as_view(), name='user-list'),
     path('users/me', views.UserMeView.as_view(), name='user-me'),
     path('users/<int:id>/reviews', views.UserReviewsView.as_view(), name='user-reviews'),
     path('users/<int:id>/cv', views.UserCvView.as_view(), name='user-cv'),

@@ -722,7 +722,7 @@ class CreateGroupConversationView(APIView):
             except Utilisateur.DoesNotExist:
                 continue
 
-        serializer = ConversationDetailSerializer(conv)
+        serializer = ConversationSerializer(conv, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

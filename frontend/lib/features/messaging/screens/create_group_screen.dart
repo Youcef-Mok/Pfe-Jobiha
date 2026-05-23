@@ -106,11 +106,13 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   Future<void> _createGroup() async {
     if (_totalSelected < 1) return;
     final entries = _selectedEntries;
-    final names = entries.map((e) => e.contact.name).toList();
-    final avatars = entries.map((e) => e.contact.avatar).toList();
+    final memberIds = entries
+        .map((e) => e.contact.id)
+        .whereType<int>()
+        .toList();
     await ref
         .read(messagingControllerProvider.notifier)
-        .createGroup(_groupName, names, avatars);
+        .createGroup(_groupName, memberIds);
     if (mounted) Navigator.pop(context);
   }
 

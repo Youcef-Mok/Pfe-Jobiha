@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 // Data classes
 
 class ContactItem {
+  final int? id;
   final String name;
   final String role;
   final String? avatar;
@@ -10,6 +11,7 @@ class ContactItem {
   final bool isRecruiter;
 
   const ContactItem({
+    this.id,
     required this.name,
     required this.role,
     this.avatar,

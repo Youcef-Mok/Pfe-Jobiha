@@ -163,6 +163,8 @@ List<JobEntity> _applyCandidateFilters(
   List<JobEntity> jobs,
   CandidateFilters filters,
 ) {
+  final hasLocationPoint =
+      filters.locationLat != null && filters.locationLng != null;
   return jobs.where((job) {
     if (filters.category != null && filters.category!.trim().isNotEmpty) {
       if (!_matchesDomain(job, filters.category!)) return false;

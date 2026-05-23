@@ -233,12 +233,9 @@ class MessagingRepositoryMock implements MessagingRepository {
   }
 
   @override
-  Future<void> sendMessage(String conversationId, String content) async {
+  Future<MessageEntity> sendMessage(String conversationId, String content) async {
     // TODO(API): POST /api/v1/conversations/:conversationId/messages  body: { content, type: "text" }
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
-    if (idx == -1) return;
-
-    final conv = _conversations[idx];
     final newMsg = MessageModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       senderId: 'me',
@@ -249,17 +246,30 @@ class MessagingRepositoryMock implements MessagingRepository {
       type: MessageType.text,
     );
 
-    _conversations[idx] = ConversationModel(
-      id: conv.id,
-      contactName: conv.contactName,
-      contactRole: conv.contactRole,
-      contactAvatar: conv.contactAvatar,
-      isOnline: conv.isOnline,
-      lastMessage: content,
-      lastMessageTime: DateTime.now(),
-      isUnread: false,
-      isInvitation: conv.isInvitation,
-      messages: [...conv.messages, newMsg],
+    if (idx != -1) {
+      final conv = _conversations[idx];
+      _conversations[idx] = ConversationModel(
+        id: conv.id,
+        contactName: conv.contactName,
+        contactRole: conv.contactRole,
+        contactAvatar: conv.contactAvatar,
+        isOnline: conv.isOnline,
+        lastMessage: content,
+        lastMessageTime: DateTime.now(),
+        isUnread: false,
+        isInvitation: conv.isInvitation,
+        messages: [...conv.messages, newMsg],
+      );
+    }
+
+    return MessageEntity(
+      id: newMsg.id,
+      senderId: newMsg.senderId,
+      content: newMsg.content,
+      timestamp: newMsg.timestamp,
+      isRead: newMsg.isRead,
+      isMine: newMsg.isMine,
+      type: newMsg.type,
     );
   }
 
@@ -433,33 +443,32 @@ class MessagingRepositoryMock implements MessagingRepository {
   }
 
   @override
-  Future<void> createGroup(
+  Future<ConversationEntity> createGroup(
     String groupName,
-    List<String> memberNames,
-    List<String?> memberAvatars,
+    List<int> memberIds,
   ) async {
-    // TODO(API): POST /api/v1/conversations/group  body: { groupName, memberNames }
+    // TODO(API): POST /api/v1/conversations/group  body: { groupName, memberIds }
     final id = 'group_${DateTime.now().millisecondsSinceEpoch}';
-    final displayName = groupName.isNotEmpty
-        ? groupName
-        : memberNames.take(3).join(', ');
-    _conversations.insert(
-      0,
-      ConversationModel(
-        id: id,
-        contactName: displayName,
-        contactRole: '',
-        contactAvatar: null,
-        isOnline: false,
-        lastMessage: 'Groupe créé',
-        lastMessageTime: DateTime.now(),
-        isUnread: false,
-        isGroup: true,
-        groupName: groupName.isNotEmpty ? groupName : null,
-        memberAvatars: memberAvatars.whereType<String>().toList(),
-        memberNames: memberNames,
-      ),
+    final displayName = groupName.isNotEmpty ? groupName : 'Nouveau groupe';
+    final newConv = ConversationModel(
+      id: id,
+      contactName: displayName,
+      contactRole: '',
+      contactAvatar: null,
+      isOnline: false,
+      lastMessage: 'Groupe créé',
+      lastMessageTime: DateTime.now(),
+      isUnread: false,
+      isGroup: true,
+      groupName: groupName.isNotEmpty ? groupName : null,
     );
+    _conversations.insert(0, newConv);
+    return newConv.toEntity();
+  }
+
+  @override
+  Future<void> markAsRead(String conversationId) async {
+    // Mock: no-op
   }
 }
 

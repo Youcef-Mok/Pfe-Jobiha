@@ -92,13 +92,13 @@ class MessagingController extends StateNotifier<MessagingState> {
     await _load();
   }
 
-  Future<void> createGroup(
+  Future<ConversationEntity> createGroup(
     String groupName,
-    List<String> memberNames,
-    List<String?> memberAvatars,
+    List<int> memberIds,
   ) async {
-    await _repo.createGroup(groupName, memberNames, memberAvatars);
+    final conv = await _repo.createGroup(groupName, memberIds);
     await _load();
+    return conv;
   }
 
   Future<void> blockContact(String conversationId) async {
