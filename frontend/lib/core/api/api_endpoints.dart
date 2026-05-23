@@ -92,6 +92,8 @@ class ApiEndpoints {
   static String conversation(int convId)             => '$_base/conversations/$convId';
   static const String conversationsInvitations       = '$_base/conversations/invitations';
   static const String deleteConversations            = '$_base/conversations';
+  // getMessages: GET /conversations/<convId>/messages
+  static String getMessages(int convId)              => '$_base/conversations/$convId/messages';
   // sendMessage: POST /conversations/<convId>/messages
   static String sendMessage(int convId)              => '$_base/conversations/$convId/messages';
   static String sendImageMessage(int convId)         => '$_base/conversations/$convId/messages/image';

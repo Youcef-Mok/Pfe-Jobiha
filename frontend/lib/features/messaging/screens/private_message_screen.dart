@@ -51,7 +51,10 @@ class _PrivateMessageScreenState extends ConsumerState<PrivateMessageScreen> {
       final conv = await repo.getConversationById(widget.conversation.id);
       if (mounted) {
         setState(() {
-          _messages = conv.messages;
+          // Ne pas écraser si l'API retourne vide mais qu'on a déjà des messages locaux
+          if (conv.messages.isNotEmpty) {
+            _messages = conv.messages;
+          }
           _loadingMessages = false;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {

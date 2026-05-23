@@ -4,6 +4,8 @@ import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/applications/domain/application_entity.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/domain/create_mission_params.dart';
+import 'package:job_app/core/services/notification_toast_service.dart';
+import 'package:job_app/features/notifications/domain/notification_entity.dart';
 
 /// Overlay pour lancer une mission (statut initial : non confirmée).
 void showLaunchMissionSheet(
@@ -95,14 +97,17 @@ class _LaunchMissionSheetState extends ConsumerState<LaunchMissionSheet> {
           );
       await ref.read(missionsNotifierProvider.notifier).fetch();
       if (!mounted) return;
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Mission créée — en attente de confirmation avant la date de début',
-          ),
-        ),
+
+      // Notif recruteur
+      ref.read(notificationToastServiceProvider).show(
+        context: context,
+        title: 'Mission "${widget.application.jobTitle}" lancée\navec ${widget.application.candidateName}',
+        type: NotificationType.missionCompleted,
+        senderName: widget.application.candidateName,
+        jobTitle: widget.application.jobTitle,
       );
+
+      Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -4,6 +4,8 @@ import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/interviews/domain/interview_entity.dart';
 import 'package:job_app/features/interviews/data/providers/interviews_provider.dart';
 import 'package:job_app/features/applications/domain/application_entity.dart';
+import 'package:job_app/core/services/notification_toast_service.dart';
+import 'package:job_app/features/notifications/domain/notification_entity.dart';
 
 /// Overlay pour prévoir un entretien
 void showScheduleInterviewSheet(BuildContext context, ApplicationEntity application) {
@@ -270,14 +272,18 @@ class _ScheduleInterviewSheetState extends ConsumerState<ScheduleInterviewSheet>
                     );
                     
                     await ref.read(interviewsNotifierProvider.notifier).createInterview(interview);
-                    
+
+                    // Notif recruteur
+                    ref.read(notificationToastServiceProvider).show(
+                      context: context,
+                      title: 'Entretien prévu avec ${widget.application.candidateName}\npour "${widget.application.jobTitle}" le ${_formatDate(selectedDate)}',
+                      type: NotificationType.interviewAccepted,
+                      senderName: widget.application.candidateName,
+                      jobTitle: widget.application.jobTitle,
+                    );
+
                     if (context.mounted) {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Entretien prévu le ${_formatDate(selectedDate)} à ${_formatTime(selectedTime)}'),
-                        ),
-                      );
                     }
                   } : null,
                   style: ElevatedButton.styleFrom(

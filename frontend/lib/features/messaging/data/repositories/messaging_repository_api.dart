@@ -52,38 +52,20 @@ class MessagingRepositoryApi implements MessagingRepository {
     print('[MessagingRepositoryApi] getConversationById appelé avec id: $conversationId');
     try {
       final convId = int.parse(conversationId);
+      // Un seul appel API — GET /conversations/<id> retourne les messages paginés
       final result = await getMessages(convId, 1);
-      
-      // Get the conversation from the list to have the metadata
-      final conversations = await getConversations();
-      final conv = conversations.firstWhere(
-        (c) => c.id == conversationId,
-        orElse: () => ConversationEntity(
-          id: conversationId,
-          contactName: '',
-          contactRole: '',
-          contactAvatar: null,
-          isOnline: false,
-          lastMessage: '',
-          lastMessageTime: DateTime.now(),
-          isUnread: false,
-          isInvitation: false,
-          messages: const [],
-        ),
-      );
-
       print('[MessagingRepositoryApi] getConversationById returning ${result.messages.length} messages');
-
+      // On retourne la conv passée en paramètre avec les messages chargés
       return ConversationEntity(
-        id: conv.id,
-        contactName: conv.contactName,
-        contactRole: conv.contactRole,
-        contactAvatar: conv.contactAvatar,
-        isOnline: conv.isOnline,
-        lastMessage: conv.lastMessage,
-        lastMessageTime: conv.lastMessageTime,
-        isUnread: conv.isUnread,
-        isInvitation: conv.isInvitation,
+        id: conversationId,
+        contactName: '',
+        contactRole: '',
+        contactAvatar: null,
+        isOnline: false,
+        lastMessage: '',
+        lastMessageTime: DateTime.now(),
+        isUnread: false,
+        isInvitation: false,
         messages: result.messages,
       );
     } on DioException catch (e) {
