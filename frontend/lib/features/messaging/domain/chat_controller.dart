@@ -134,4 +134,10 @@ class MessagingController extends StateNotifier<MessagingState> {
     await _load();
     return conversation;
   }
+
+  Future<ConversationEntity> getOrCreateConversationById(int contactId) async {
+    final conversation = await _repo.getOrCreateConversationById(contactId);
+    await _load();
+    return conversation;
+  }
 }

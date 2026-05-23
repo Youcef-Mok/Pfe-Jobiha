@@ -8,6 +8,7 @@ import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
 import 'package:job_app/features/messaging/screens/messaging_screen.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/widgets/candidate_profile_header.dart';
+import 'package:job_app/features/profile/widgets/share_profile_overlay.dart';
 import 'package:job_app/features/profile/widgets/profile_description_section.dart';
 import 'package:job_app/features/profile/widgets/profile_tabs.dart';
 
@@ -48,12 +49,19 @@ class RecruiterPublicProfileScreen extends ConsumerWidget {
                         user: user,
                         isRecruiterView: true,
                         isPublicRecruiterView: true,
+                        onBackTap: () => Navigator.pop(context),
                         onMessageTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
                                 const MessagingScreen(isRecruiterView: true),
                           ),
+                        ),
+                        onShareTap: () => showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => ShareProfileOverlay(user: user),
                         ),
                         onMoreTap: () => _showMoreOptions(context),
                       ),
@@ -71,7 +79,6 @@ class RecruiterPublicProfileScreen extends ConsumerWidget {
               body: _PublicTabContent(
                 selectedTab: selectedTab,
                 recruiterId: recruiterId,
-                recruiterName: user.name,
               ),
             ),
           ),
@@ -105,11 +112,9 @@ class RecruiterPublicProfileScreen extends ConsumerWidget {
 class _PublicTabContent extends StatelessWidget {
   final ProfileTab selectedTab;
   final String recruiterId;
-  final String recruiterName;
   const _PublicTabContent({
     required this.selectedTab,
     required this.recruiterId,
-    required this.recruiterName,
   });
 
   @override
@@ -134,7 +139,7 @@ class _PublicTabContent extends StatelessWidget {
             const SliverToBoxAdapter(
               child: RecruiterFilterBar(forcedTab: JobsTab.missions),
             ),
-            _PublicMissionsSection(recruiterName: recruiterName),
+            _PublicMissionsSection(recruiterId: recruiterId),
           ],
         ),
     };
@@ -176,12 +181,12 @@ class _PublicAnnoncesSection extends ConsumerWidget {
 }
 
 class _PublicMissionsSection extends ConsumerWidget {
-  final String recruiterName;
-  const _PublicMissionsSection({required this.recruiterName});
+  final String recruiterId;
+  const _PublicMissionsSection({required this.recruiterId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(recruiterFilteredMissionsByNameProvider(recruiterName)).when(
+    return ref.watch(publicRecruiterMissionsProvider(recruiterId)).when(
           loading: () => const SliverToBoxAdapter(
             child: Center(child: Padding(
               padding: EdgeInsets.all(24),

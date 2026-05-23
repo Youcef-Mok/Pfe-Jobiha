@@ -257,7 +257,6 @@ class _EditInterviewSheetState extends ConsumerState<EditInterviewSheet> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: canUpdate ? () async {
-                    // Mettre à jour l'entretien
                     final updatedInterview = InterviewEntity(
                       id: widget.interview.id,
                       candidateId: widget.interview.candidateId,
@@ -274,10 +273,7 @@ class _EditInterviewSheetState extends ConsumerState<EditInterviewSheet> {
                       ),
                       status: widget.interview.status,
                     );
-                    
-                    // TODO: Implémenter la mise à jour dans le repository
-                    await ref.read(interviewsNotifierProvider.notifier).fetch();
-                    
+                    await ref.read(interviewsNotifierProvider.notifier).updateInterview(updatedInterview);
                     if (context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(

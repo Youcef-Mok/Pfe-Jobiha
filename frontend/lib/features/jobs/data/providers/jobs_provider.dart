@@ -10,6 +10,8 @@ import 'package:job_app/features/jobs/data/repositories/jobs_repository.dart';
 import 'package:job_app/features/jobs/data/repositories/jobs_repository_http.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:job_app/features/auth/providers/auth_providers.dart';
+import 'package:job_app/features/auth/data/models/auth_state.dart';
 
 // ─────────────────────────────────────────────
 // 1. Repository Provider
@@ -31,10 +33,17 @@ final jobsControllerProvider = Provider<JobsController>(
 //    → Gère loading / error / data + mutations
 // ─────────────────────────────────────────────
 class JobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
+  final Ref _ref;
   final JobsController _controller;
 
-  JobsNotifier(this._controller) : super(const AsyncValue.loading()) {
+  JobsNotifier(this._ref, this._controller) : super(const AsyncValue.loading()) {
     Future.microtask(() => fetch());
+    _ref.listen<AuthState>(authProvider, (prev, next) {
+      if (next.status == AuthStatus.authenticated &&
+          prev?.status != AuthStatus.authenticated) {
+        fetch();
+      }
+    });
   }
 
   Future<void> fetch() async {
@@ -59,14 +68,21 @@ class JobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
 
 final jobsNotifierProvider =
     StateNotifierProvider<JobsNotifier, AsyncValue<List<JobEntity>>>(
-  (ref) => JobsNotifier(ref.watch(jobsControllerProvider)),
+  (ref) => JobsNotifier(ref, ref.watch(jobsControllerProvider)),
 );
 
 class MissionsNotifier extends StateNotifier<AsyncValue<List<MissionEntity>>> {
+  final Ref _ref;
   final JobsController _controller;
 
-  MissionsNotifier(this._controller) : super(const AsyncValue.loading()) {
+  MissionsNotifier(this._ref, this._controller) : super(const AsyncValue.loading()) {
     Future.microtask(() => fetch());
+    _ref.listen<AuthState>(authProvider, (prev, next) {
+      if (next.status == AuthStatus.authenticated &&
+          prev?.status != AuthStatus.authenticated) {
+        fetch();
+      }
+    });
   }
 
   Future<void> fetch() async {
@@ -82,17 +98,24 @@ class MissionsNotifier extends StateNotifier<AsyncValue<List<MissionEntity>>> {
 
 final missionsNotifierProvider =
     StateNotifierProvider<MissionsNotifier, AsyncValue<List<MissionEntity>>>(
-  (ref) => MissionsNotifier(ref.watch(jobsControllerProvider)),
+  (ref) => MissionsNotifier(ref, ref.watch(jobsControllerProvider)),
 );
 
 // ── Feed candidat ─────────────────────────────────────────────────────────────
 // Appelle GET /jobs (toutes les offres publiées) — distinct de jobsNotifierProvider
 // qui appelle GET /jobs/mine (recruteur uniquement).
 class _AllJobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
+  final Ref _ref;
   final JobsController _controller;
 
-  _AllJobsNotifier(this._controller) : super(const AsyncValue.loading()) {
+  _AllJobsNotifier(this._ref, this._controller) : super(const AsyncValue.loading()) {
     Future.microtask(() => fetch());
+    _ref.listen<AuthState>(authProvider, (prev, next) {
+      if (next.status == AuthStatus.authenticated &&
+          prev?.status != AuthStatus.authenticated) {
+        fetch();
+      }
+    });
   }
 
   Future<void> fetch() async {
@@ -108,7 +131,7 @@ class _AllJobsNotifier extends StateNotifier<AsyncValue<List<JobEntity>>> {
 
 final allJobsNotifierProvider =
     StateNotifierProvider<_AllJobsNotifier, AsyncValue<List<JobEntity>>>(
-  (ref) => _AllJobsNotifier(ref.watch(jobsControllerProvider)),
+  (ref) => _AllJobsNotifier(ref, ref.watch(jobsControllerProvider)),
 );
 
 /// Toutes les offres publiées — pour le feed candidat (home + recherche).
@@ -291,8 +314,9 @@ final publishedJobsProvider = Provider<AsyncValue<List<JobEntity>>>((ref) {
 
 final recruiterPublishedJobsProvider =
     Provider.family<AsyncValue<List<JobEntity>>, String>((ref, recruiterId) {
-  final publishedAsync = ref.watch(publishedJobsProvider);
-  return publishedAsync.whenData(
+  // Uses public feed (GET /jobs) so candidates can view a recruiter's public profile
+  final allJobsAsync = ref.watch(candidateAllPublishedJobsProvider);
+  return allJobsAsync.whenData(
     (jobs) => jobs.where((j) => j.recruiterId == recruiterId).toList(),
   );
 });
@@ -315,6 +339,13 @@ final recruiterFilteredMissionsByNameProvider =
     final scoped = missions.where((m) => m.recruiterName == recruiterName).toList();
     return controller.filterMissions(scoped, filters);
   });
+});
+
+/// Missions publiques d'un recruteur — pour le profil public (GET /missions?recruiter_id=X).
+final publicRecruiterMissionsProvider =
+    FutureProvider.family<List<MissionEntity>, String>((ref, recruiterId) async {
+  final controller = ref.watch(jobsControllerProvider);
+  return await controller.fetchMissionsByRecruiterId(recruiterId);
 });
 
 final candidateJobSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -622,6 +653,12 @@ class CandidateMissionsNotifier extends StateNotifier<AsyncValue<List<MissionEnt
 
   CandidateMissionsNotifier(this._ref) : super(const AsyncValue.loading()) {
     Future.microtask(() => fetch());
+    _ref.listen<AuthState>(authProvider, (prev, next) {
+      if (next.status == AuthStatus.authenticated &&
+          prev?.status != AuthStatus.authenticated) {
+        fetch();
+      }
+    });
   }
 
   Future<void> fetch() async {

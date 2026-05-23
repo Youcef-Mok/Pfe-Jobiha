@@ -13,6 +13,7 @@ import 'package:job_app/features/jobs/screens/saved_jobs_screen.dart';
 import 'package:job_app/features/applications/screens/applications_screen.dart';
 import 'package:job_app/features/jobs/widgets/candidate_filter_sheets.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
+import 'package:job_app/features/interviews/screens/candidate_interviews_screen.dart';
 
 class CandidateSearchScreen extends ConsumerStatefulWidget {
   const CandidateSearchScreen({super.key});
@@ -339,6 +340,11 @@ class _FilterChips extends ConsumerWidget {
       onTap: () => Navigator.push(context,
           MaterialPageRoute(builder: (_) => const ApplicationsScreen())),
     ));
+    chips.add(_FilterChip(
+      label: 'Entretiens',
+      onTap: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const CandidateInterviewsScreen())),
+    ));
 
     // Selected Filters
     if (filters.category != null) {
@@ -381,6 +387,7 @@ class _FilterChips extends ConsumerWidget {
     }
 
     // Default category chips
+    chips.add(_FilterChip(label: 'Domaine', showArrow: true, onTap: () => showDomainSheet(context)));
     chips.add(_FilterChip(label: 'Horaires', showArrow: true, onTap: () => showAvailabilitySheet(context)));
     chips.add(_FilterChip(label: 'Contrat', showArrow: true, onTap: () => showContractTypeSheet(context)));
     chips.add(_FilterChip(label: 'Localisation', showArrow: true, onTap: () => showLocationSheet(context)));

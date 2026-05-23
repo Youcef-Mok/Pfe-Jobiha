@@ -64,6 +64,7 @@ class ApiEndpoints {
   // ── Offres ───────────────────────────────────────────────
   static String offreDetail(int id)        => '$_base/jobs/$id';
   static String jobComments(int id)        => '$_base/jobs/$id/comments';
+  static String jobCommentReply(int jobId, int commentId) => '$_base/jobs/$jobId/comments/$commentId/reply';
   static String fermerOffre(int id)        => '$_base/jobs/$id/close';
   static const String offres               = '$_base/jobs';
   static const String myOffres             = '$_base/jobs/mine';

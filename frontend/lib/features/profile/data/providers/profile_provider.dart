@@ -213,6 +213,13 @@ final candidateCvDataProvider = FutureProvider<CvEntity>((ref) async {
   return await controller.fetchCvData(user.id);
 });
 
+final publicCandidateCvProvider =
+    FutureProvider.family<CvEntity, String>((ref, candidateId) async {
+  ref.keepAlive();
+  final controller = ref.watch(profileControllerProvider);
+  return await controller.fetchCvData(candidateId);
+});
+
 // ─────────────────────────────────────────────
 // Live GPS position — updated by the map screen when permission is granted.
 // Watched by nearbyJobsProvider and allMapJobsProvider as highest-priority

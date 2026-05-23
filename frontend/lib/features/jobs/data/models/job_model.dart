@@ -292,6 +292,7 @@ class JobCandidateModel {
 }
 
 class JobCommentModel {
+  final String id;
   final String initials;
   final String authorName;
   final String date;
@@ -301,6 +302,7 @@ class JobCommentModel {
   final String reply;
 
   const JobCommentModel({
+    required this.id,
     required this.initials,
     required this.authorName,
     required this.date,
@@ -312,6 +314,7 @@ class JobCommentModel {
 
   factory JobCommentModel.fromJson(Map<String, dynamic> json) =>
       JobCommentModel(
+        id: json['id']?.toString() ?? '',
         initials: json['initials'] as String? ?? '',
         authorName: (json['author_name'] ?? json['authorName'] ?? '') as String,
         date: json['date'] as String? ?? '',
@@ -322,6 +325,7 @@ class JobCommentModel {
       );
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'initials': initials,
         'authorName': authorName,
         'date': date,
@@ -332,6 +336,7 @@ class JobCommentModel {
       };
 
   JobCommentEntity toEntity() => JobCommentEntity(
+        id: id,
         initials: initials,
         authorName: authorName,
         date: date,
@@ -343,6 +348,7 @@ class JobCommentModel {
 
   factory JobCommentModel.fromEntity(JobCommentEntity entity) =>
       JobCommentModel(
+        id: entity.id,
         initials: entity.initials,
         authorName: entity.authorName,
         date: entity.date,

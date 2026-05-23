@@ -85,6 +85,7 @@ class JobCandidateEntity {
 }
 
 class JobCommentEntity {
+  final String id;
   final String initials;
   final String authorName;
   final String date;
@@ -94,6 +95,7 @@ class JobCommentEntity {
   final String reply;
 
   const JobCommentEntity({
+    required this.id,
     required this.initials,
     required this.authorName,
     required this.date,

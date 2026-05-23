@@ -3,6 +3,7 @@
 import 'package:dio/dio.dart';
 import '../storage/token_storage.dart';
 import 'api_endpoints.dart';
+import 'session_event_bus.dart';
 
 class ApiClient {
   ApiClient._();
@@ -86,6 +87,7 @@ class _AuthInterceptor extends QueuedInterceptor {
       final hadSession = await TokenStorage.hasSession();
       if (hadSession) {
         await TokenStorage.clear();
+        SessionEventBus.forceLogout();
       }
       return handler.next(
         DioException(

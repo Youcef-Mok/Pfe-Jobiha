@@ -1,7 +1,10 @@
 // lib/features/auth/providers/auth_providers.dart
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../../../core/api/session_event_bus.dart';
 import '../data/auth_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/models/auth_state.dart';
@@ -21,9 +24,17 @@ final profileRepositoryProvider = Provider<ProfileRepository>((_) => ProfileRepo
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repo;
+  late final StreamSubscription<void> _sessionSub;
 
   AuthNotifier(this._repo) : super(const AuthState()) {
     _restoreSession();
+    _sessionSub = SessionEventBus.stream.listen((_) => logout());
+  }
+
+  @override
+  void dispose() {
+    _sessionSub.cancel();
+    super.dispose();
   }
 
   // ── Session restore (called once on app start) ─────────────────────────────

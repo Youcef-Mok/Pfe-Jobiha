@@ -450,6 +450,25 @@ class MessagingRepositoryMock implements MessagingRepository {
   }
 
   @override
+  Future<ConversationEntity> getOrCreateConversationById(int contactId) async {
+    final existing = _conversations.where((c) => !c.isGroup).firstOrNull;
+    if (existing != null) return existing.toEntity();
+    final newConv = ConversationModel(
+      id: 'conv_$contactId',
+      contactName: 'Recruteur',
+      contactRole: '',
+      contactAvatar: null,
+      isOnline: false,
+      lastMessage: '',
+      lastMessageTime: DateTime.now(),
+      isUnread: false,
+      messages: [],
+    );
+    _conversations.insert(0, newConv);
+    return newConv.toEntity();
+  }
+
+  @override
   Future<ConversationEntity> createGroup(
     String groupName,
     List<int> memberIds,

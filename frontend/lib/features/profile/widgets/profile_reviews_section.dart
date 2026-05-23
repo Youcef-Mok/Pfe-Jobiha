@@ -32,7 +32,17 @@ class _ProfileReviewsSectionState extends ConsumerState<ProfileReviewsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _RatingSummaryCard(),
+          reviewsAsync.when(
+            loading: () => const _RatingSummaryCard(rating: 0, count: 0),
+            error: (_, __) => const _RatingSummaryCard(rating: 0, count: 0),
+            data: (reviews) {
+              final count = reviews.length;
+              final avg = count == 0
+                  ? 0.0
+                  : reviews.map((r) => r.rating).reduce((a, b) => a + b) / count;
+              return _RatingSummaryCard(rating: avg, count: count);
+            },
+          ),
           const SizedBox(height: 16),
           // Liste horizontale de filtres
           SingleChildScrollView(
@@ -449,7 +459,9 @@ class _ReplyInput extends StatelessWidget {
 }
 
 class _RatingSummaryCard extends StatelessWidget {
-  const _RatingSummaryCard();
+  final double rating;
+  final int count;
+  const _RatingSummaryCard({required this.rating, required this.count});
 
   @override
   Widget build(BuildContext context) {
@@ -475,7 +487,7 @@ class _RatingSummaryCard extends StatelessWidget {
             const SizedBox(width: 8),
             // Note
             Text(
-              '4.8',
+              rating > 0 ? rating.toStringAsFixed(1) : '-',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w800,
                 fontSize: 25,
@@ -513,7 +525,7 @@ class _RatingSummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '10 AVIS VÉRIFIÉS',
+                    '$count AVIS VÉRIFIÉS',
                     style: GoogleFonts.inter(
                       fontWeight: FontWeight.w500,
                       fontSize: 10,

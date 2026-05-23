@@ -23,4 +23,5 @@ abstract class MessagingRepository {
     required String contactRole,
     String? contactAvatar,
   });
+  Future<ConversationEntity> getOrCreateConversationById(int contactId);
 }

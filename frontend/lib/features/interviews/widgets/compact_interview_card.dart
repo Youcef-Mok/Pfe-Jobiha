@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/features/interviews/domain/interview_entity.dart';
 import 'package:job_app/features/interviews/widgets/edit_interview_sheet.dart';
+import 'package:job_app/features/profile/screens/candidate_public_profile_screen.dart';
 
 /// Carte entretien compacte horizontale
 class CompactInterviewCard extends StatelessWidget {
@@ -36,20 +37,45 @@ class CompactInterviewCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Photo de profil
-            _buildAvatar(),
-            const SizedBox(width: 12),
+            // Photo de profil + nom candidat (tappable → profil public)
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CandidatePublicProfileScreen(
+                    candidateId: interview.candidateId,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildAvatar(),
+                  const SizedBox(width: 12),
+                ],
+              ),
+            ),
             // Informations
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Nom du candidat
-                  Text(
-                    interview.candidateName,
-                    style: AppTextStyles.labelBold.copyWith(
-                      fontSize: 15,
-                      color: AppColors.slate900,
+                  // Nom du candidat (tappable → profil public)
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CandidatePublicProfileScreen(
+                          candidateId: interview.candidateId,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      interview.candidateName,
+                      style: AppTextStyles.labelBold.copyWith(
+                        fontSize: 15,
+                        color: AppColors.slate900,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -142,16 +168,17 @@ class CompactInterviewCard extends StatelessWidget {
   }
 
   Widget _buildAvatar() {
-    if (interview.candidateAvatar != null) {
+    final avatar = interview.candidateAvatar;
+    if (avatar != null) {
+      final image = avatar.startsWith('http')
+          ? NetworkImage(avatar) as ImageProvider
+          : AssetImage(avatar);
       return Container(
         width: 48,
         height: 48,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          image: DecorationImage(
-            image: AssetImage(interview.candidateAvatar!),
-            fit: BoxFit.cover,
-          ),
+          image: DecorationImage(image: image, fit: BoxFit.cover),
         ),
       );
     }

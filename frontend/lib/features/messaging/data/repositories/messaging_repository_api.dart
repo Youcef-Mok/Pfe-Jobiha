@@ -367,6 +367,11 @@ class MessagingRepositoryApi implements MessagingRepository {
     return await _getOrCreateConversationInternal(user.id);
   }
 
+  @override
+  Future<ConversationEntity> getOrCreateConversationById(int contactId) async {
+    return await _getOrCreateConversationInternal(contactId);
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   MessageEntity _messageDtoToEntity(MessageDto dto) {

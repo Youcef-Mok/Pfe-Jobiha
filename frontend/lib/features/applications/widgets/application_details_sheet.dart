@@ -8,6 +8,7 @@ import 'package:job_app/features/applications/data/providers/applications_provid
 import 'package:job_app/core/services/notification_toast_service.dart';
 import 'package:job_app/core/services/cross_user_notif_service.dart';
 import 'package:job_app/features/notifications/domain/notification_entity.dart';
+import 'package:job_app/features/profile/screens/candidate_public_profile_screen.dart';
 
 /// Overlay pour afficher les détails d'une candidature
 void showApplicationDetailsSheet(BuildContext context, ApplicationEntity application) {
@@ -280,12 +281,23 @@ class _ApplicationDetailsView extends StatelessWidget {
 
 class _CandidateCard extends StatelessWidget {
   final ApplicationEntity application;
-  
+
   const _CandidateCard({required this.application});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: application.candidateId != null
+          ? () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CandidatePublicProfileScreen(
+                    candidateId: application.candidateId!,
+                  ),
+                ),
+              )
+          : null,
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -364,20 +376,22 @@ class _CandidateCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 
   Widget _buildAvatar() {
-    if (application.candidateAvatar != null) {
+    final avatar = application.candidateAvatar;
+    if (avatar != null) {
+      final image = avatar.startsWith('http')
+          ? NetworkImage(avatar) as ImageProvider
+          : AssetImage(avatar);
       return Container(
         width: 64,
         height: 64,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          image: DecorationImage(
-            image: AssetImage(application.candidateAvatar!),
-            fit: BoxFit.cover,
-          ),
+          image: DecorationImage(image: image, fit: BoxFit.cover),
         ),
       );
     }

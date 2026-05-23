@@ -6,6 +6,11 @@
 > Erreurs : `{ "detail": "message" }`
 > CSRF : désactivé (`CsrfViewMiddleware` retiré) — API JWT pure, pas de session browser
 > Packages requis : voir `requirements.txt` (`google-auth`, `requests`, `channels` requis en plus du core)
+>
+> **Seed DB** : `python manage.py seed_db` — peuple la BDD avec 5 recruteurs, 8 candidats, 10 offres, 10 candidatures, 3 missions, 5 entretiens, 5 commentaires.
+> Option `--flush` pour vider d'abord. Mot de passe universel : `Test1234!`
+> Emails recruteurs : `karim.benali@lezitoun.dz`, `sonia.rahmani@elaurassi.dz`, `mohamed.khelifi@tafna.dz`, `amira.boukhelifa@literati.dz`, `yacine.messaoudi@soleil-dor.dz`
+> Emails candidats : `amine.brahimi@gmail.com`, `nadia.ouali@gmail.com`, `sofiane.merad@gmail.com`, `yasmine.hadjadj@gmail.com`, `bilal.kaced@gmail.com`, `meriem.benzitouni@gmail.com`, `rami.slimani@gmail.com`, `lina.cherif@gmail.com`
 
 ---
 

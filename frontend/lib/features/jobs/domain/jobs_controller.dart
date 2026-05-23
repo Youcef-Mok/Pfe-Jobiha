@@ -45,6 +45,11 @@ class JobsController {
     return _repository.getMissions();
   }
 
+  /// Récupère les missions publiques d'un recruteur (pour son profil public).
+  Future<List<MissionEntity>> fetchMissionsByRecruiterId(String recruiterId) async {
+    return _repository.getMissionsByRecruiterId(recruiterId);
+  }
+
   Future<MissionEntity> createMission(CreateMissionParams params) =>
       _repository.createMission(params);
 
@@ -285,5 +290,9 @@ class JobsController {
   }
   Future<JobCommentEntity> addJobComment(String jobId, String question) async {
     return _repository.addJobComment(jobId, question);
+  }
+
+  Future<JobCommentEntity> replyToJobComment(String jobId, String commentId, String reply) async {
+    return _repository.replyToJobComment(jobId, commentId, reply);
   }
 }

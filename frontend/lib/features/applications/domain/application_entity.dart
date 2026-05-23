@@ -16,6 +16,7 @@ class ApplicationEntity {
   final String? scheduleLabel; // e.g. "10h-17h"
   final String? interviewDate; // e.g. "Entretien prévu le 18 Oct."
   // Informations du candidat
+  final String? candidateId;
   final String? candidateName;
   final String? candidateAvatar;
   final String? candidateDomain; // e.g. "Développement Web"
@@ -35,6 +36,7 @@ class ApplicationEntity {
     required this.contractType,
     this.scheduleLabel,
     this.interviewDate,
+    this.candidateId,
     this.candidateName,
     this.candidateAvatar,
     this.candidateDomain,

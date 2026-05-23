@@ -63,6 +63,7 @@ class JobsRepositoryMock implements JobsRepository {
       ],
       comments: [
         JobCommentModel(
+          id: 'c1',
           initials: 'SM',
           authorName: 'Sarah Miller',
           date: '14 Oct.',
@@ -74,6 +75,7 @@ class JobsRepositoryMock implements JobsRepository {
               "Bonjour Sarah, oui nous autorisons 2 jours de télétravail par semaine après la période d'intégration.",
         ),
         JobCommentModel(
+          id: 'c2',
           initials: 'JD',
           authorName: 'Jean Dupont',
           date: '12 Oct.',
@@ -84,6 +86,7 @@ class JobsRepositoryMock implements JobsRepository {
               'Absolument ! Les horaires de bureau sont flexibles entre 8h et 10h le matin.',
         ),
         JobCommentModel(
+          id: 'c3',
           initials: 'NL',
           authorName: 'Nadia Larbi',
           date: '11 Oct.',
@@ -620,6 +623,7 @@ class JobsRepositoryMock implements JobsRepository {
 
     const authorName = 'Vous';
     final newComment = JobCommentModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
       initials: 'V',
       authorName: authorName,
       date: 'À l\'instant',
@@ -656,6 +660,27 @@ class JobsRepositoryMock implements JobsRepository {
     );
 
     return newComment.toEntity();
+  }
+
+  @override
+  Future<JobCommentEntity> replyToJobComment(String jobId, String commentId, String reply) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    return JobCommentModel(
+      id: commentId,
+      initials: 'R',
+      authorName: 'Recruteur',
+      date: DateTime.now().toIso8601String(),
+      question: '',
+      recruitorLabel: 'Recruteur',
+      recruitorDate: DateTime.now().toIso8601String(),
+      reply: reply,
+    ).toEntity();
+  }
+
+  @override
+  Future<List<MissionEntity>> getMissionsByRecruiterId(String recruiterId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    return _missions.map((m) => m.toEntity()).toList();
   }
 
   @override
