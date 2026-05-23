@@ -198,16 +198,17 @@ class CompactApplicationCard extends StatelessWidget {
   }
 
   Widget _buildAvatar(double size) {
-    if (application.candidateAvatar != null) {
+    final avatar = application.candidateAvatar;
+    if (avatar != null) {
+      final image = avatar.startsWith('http')
+          ? NetworkImage(avatar) as ImageProvider
+          : AssetImage(avatar);
       return Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          image: DecorationImage(
-            image: AssetImage(application.candidateAvatar!),
-            fit: BoxFit.cover,
-          ),
+          image: DecorationImage(image: image, fit: BoxFit.cover),
         ),
       );
     }

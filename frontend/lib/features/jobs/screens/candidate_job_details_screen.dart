@@ -571,23 +571,29 @@ class _HiringManagerCard extends ConsumerWidget {
                       clipBehavior: Clip.none,
                       children: [
                         ClipOval(
-                          child: Image.asset(
-                            job.recruiterAvatarAsset ?? 'assets/images/pdp_1.png',
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                          child: Builder(builder: (_) {
+                            final avatar = job.recruiterAvatarAsset;
+                            final fallback = Container(
                               width: 56,
                               height: 56,
                               color: const Color(0xFFE9E6EC),
                               alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.person,
-                                size: 30,
-                                color: AppColors.violet,
-                              ),
-                            ),
-                          ),
+                              child: const Icon(Icons.person, size: 30, color: AppColors.violet),
+                            );
+                            if (avatar == null || avatar.isEmpty) return fallback;
+                            if (avatar.startsWith('http')) {
+                              return Image.network(
+                                avatar,
+                                width: 56, height: 56, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => fallback,
+                              );
+                            }
+                            return Image.asset(
+                              avatar,
+                              width: 56, height: 56, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => fallback,
+                            );
+                          }),
                         ),
                         Positioned(
                           right: -4,
@@ -635,31 +641,37 @@ class _HiringManagerCard extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.star, size: 12, color: Color(0xFF6F5D1D)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '4.9',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                height: 20 / 14,
-                                color: const Color(0xFF1D1B1F),
+                        Builder(builder: (context) {
+                          final recruiterAsync = ref.watch(publicRecruiterProvider(job.recruiterId));
+                          final reviewsAsync = ref.watch(publicRecruiterReviewsProvider(job.recruiterId));
+                          final rating = recruiterAsync.valueOrNull?.rating ?? 0.0;
+                          final reviewCount = reviewsAsync.valueOrNull?.length ?? 0;
+                          return Row(
+                            children: [
+                              const Icon(Icons.star, size: 12, color: Color(0xFF6F5D1D)),
+                              const SizedBox(width: 4),
+                              Text(
+                                rating > 0 ? rating.toStringAsFixed(1) : '-',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  height: 20 / 14,
+                                  color: const Color(0xFF1D1B1F),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '(42 reviews)',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w400,
-                                fontSize: 12,
-                                height: 16 / 12,
-                                color: const Color(0xFF7C7580),
+                              const SizedBox(width: 6),
+                              Text(
+                                '($reviewCount avis)',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 12,
+                                  height: 16 / 12,
+                                  color: const Color(0xFF7C7580),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          );
+                        }),
                       ],
                     ),
                   ),
@@ -672,11 +684,8 @@ class _HiringManagerCard extends ConsumerWidget {
           GestureDetector(
             onTap: () async {
               final messagingController = ref.read(messagingControllerProvider.notifier);
-              final conversation = await messagingController.getOrCreateConversation(
-                contactName: job.recruiterName,
-                contactRole: job.recruiterRole,
-                contactAvatar: job.recruiterAvatarAsset,
-              );
+              final contactId = int.tryParse(job.recruiterId) ?? 0;
+              final conversation = await messagingController.getOrCreateConversationById(contactId);
 
               if (context.mounted) {
                 Navigator.push(
@@ -982,6 +991,7 @@ class _CommentsTabState extends ConsumerState<_CommentsTab> {
                   padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
                   child: _CommentThread(
                     comment: comment,
+                    jobId: widget.job.id,
                     isExpanded: isExpanded,
                     isFirst: idx == 0,
                     onToggle: () {
@@ -1083,26 +1093,29 @@ class _CommentsTabState extends ConsumerState<_CommentsTab> {
   }
 }
 
-class _CommentThread extends StatefulWidget {
+class _CommentThread extends ConsumerStatefulWidget {
   final JobCommentEntity comment;
+  final String jobId;
   final bool isExpanded;
   final bool isFirst;
   final VoidCallback onToggle;
 
   const _CommentThread({
     required this.comment,
+    required this.jobId,
     required this.isExpanded,
     required this.isFirst,
     required this.onToggle,
   });
 
   @override
-  State<_CommentThread> createState() => _CommentThreadState();
+  ConsumerState<_CommentThread> createState() => _CommentThreadState();
 }
 
-class _CommentThreadState extends State<_CommentThread> {
+class _CommentThreadState extends ConsumerState<_CommentThread> {
   final _replyController = TextEditingController();
   final _focusNode = FocusNode();
+  bool _isSendingReply = false;
 
   @override
   void dispose() {
@@ -1193,7 +1206,7 @@ class _CommentThreadState extends State<_CommentThread> {
                                 ),
                               ),
                               Text(
-                                'Candidate • ${widget.comment.date}',
+                                'Candidate • ${_formatCommentDate(widget.comment.date)}',
                                 style: const TextStyle(
                                   fontFamily: 'Inter',
                                   fontWeight: FontWeight.w500,
@@ -1311,7 +1324,7 @@ class _CommentThreadState extends State<_CommentThread> {
                     _NestedReply(
                       name: widget.comment.recruitorLabel,
                       role: 'Recruteur',
-                      date: widget.comment.recruitorDate,
+                      date: _formatCommentDate(widget.comment.recruitorDate),
                       text: widget.comment.reply,
                       highlighted: true,
                     ),
@@ -1382,15 +1395,33 @@ class _CommentThreadState extends State<_CommentThread> {
                   ),
                   const SizedBox(width: 12),
                   GestureDetector(
-                    onTap: () {
-                      _replyController.clear();
-                      _focusNode.unfocus();
+                    onTap: _isSendingReply ? null : () async {
+                      final text = _replyController.text.trim();
+                      if (text.isEmpty) return;
+                      setState(() => _isSendingReply = true);
+                      try {
+                        await ref
+                            .read(jobsControllerProvider)
+                            .replyToJobComment(widget.jobId, widget.comment.id, text);
+                        _replyController.clear();
+                        _focusNode.unfocus();
+                      } catch (_) {
+                        // silent
+                      } finally {
+                        if (mounted) setState(() => _isSendingReply = false);
+                      }
                     },
-                    child: const Icon(
-                      Icons.attach_file_rounded,
-                      size: 24,
-                      color: Color(0xFF4A454F),
-                    ),
+                    child: _isSendingReply
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(
+                            Icons.send_rounded,
+                            size: 24,
+                            color: Color(0xFF401E66),
+                          ),
                   ),
                 ],
               ),
@@ -1399,6 +1430,16 @@ class _CommentThreadState extends State<_CommentThread> {
         ],
       ),
     );
+  }
+}
+
+String _formatCommentDate(String isoDate) {
+  try {
+    final dt = DateTime.parse(isoDate).toLocal();
+    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+    return '${dt.day} ${months[dt.month - 1]}';
+  } catch (_) {
+    return isoDate;
   }
 }
 

@@ -13,7 +13,6 @@ import 'package:job_app/features/auth/screens/forgot_password_screen.dart';
 import 'package:job_app/features/auth/screens/preferences_screen.dart';
 import 'package:job_app/features/auth/screens/recruiter_profile_screen.dart';
 import 'package:job_app/features/profile/screens/recruiter_public_profile_screen.dart';
-import 'package:job_app/features/profile/screens/candidate_public_profile_screen.dart';
 import 'package:job_app/features/profile/screens/edit_profile_screen.dart';
 import 'package:job_app/features/profile/screens/recruiter_edit_profile_screen.dart';
 import 'package:job_app/features/profile/screens/report_comment_screen.dart';
@@ -45,7 +44,6 @@ class App extends StatelessWidget {
     '/home-recruteur':    (_) => const JobsListScreen(),
     '/recruiter-profile': (_) => const RecruiterProfileScreen(),
     '/recruiter-public-profile': (_) => const RecruiterPublicProfileScreen(),
-    '/candidate-public-profile': (_) => const CandidatePublicProfileScreen(),
     '/edit-profile':      (_) => const EditProfileScreen(),
     '/edit-profile-recruiter': (_) => const RecruiterEditProfileScreen(),
     '/candidate-home':    (_) => const CandidateHomeScreen(),

@@ -53,6 +53,16 @@ class InterviewsNotifier extends StateNotifier<AsyncValue<List<InterviewEntity>>
       await fetch();
     } catch (_) {}
   }
+
+  Future<InterviewEntity?> updateInterview(InterviewEntity interview) async {
+    try {
+      final updated = await _controller.update(interview);
+      await fetch();
+      return updated;
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 final interviewsNotifierProvider =

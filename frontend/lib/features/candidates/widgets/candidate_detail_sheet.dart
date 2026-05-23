@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:job_app/features/candidates/domain/candidate_entity.dart';
 import 'package:job_app/features/candidates/data/providers/candidates_provider.dart';
+import 'package:job_app/features/profile/screens/candidate_public_profile_screen.dart';
 
 class CandidateDetailSheet extends ConsumerStatefulWidget {
   final CandidateEntity candidate;
@@ -55,7 +56,16 @@ class _CandidateDetailSheetState extends ConsumerState<CandidateDetailSheet> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Row(
+            child: GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CandidatePublicProfileScreen(
+                    candidateId: widget.candidate.id,
+                  ),
+                ),
+              ),
+              child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Photo et badge
@@ -167,6 +177,7 @@ class _CandidateDetailSheetState extends ConsumerState<CandidateDetailSheet> {
                   ),
                 ),
               ],
+            ),
             ),
           ),
           const SizedBox(height: 13),

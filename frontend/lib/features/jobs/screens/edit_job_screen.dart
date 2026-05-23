@@ -406,7 +406,12 @@ class _CoverImageSection extends StatelessWidget {
           height: 179,
           color: const Color(0xFFE2E8F0),
           child: imageAsset != null
-              ? Image.asset(imageAsset!, fit: BoxFit.cover)
+              ? (imageAsset!.startsWith('http')
+                  ? Image.network(imageAsset!, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.image_outlined, size: 40, color: AppColors.slate400),
+                      ))
+                  : Image.asset(imageAsset!, fit: BoxFit.cover))
               : const Center(
                   child: Icon(Icons.image_outlined,
                       size: 40, color: AppColors.slate400),

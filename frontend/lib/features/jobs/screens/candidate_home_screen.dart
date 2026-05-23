@@ -16,6 +16,7 @@ import 'package:job_app/features/jobs/widgets/candidate_filter_sheets.dart';
 import 'package:job_app/features/jobs/widgets/candidate_job_card.dart';
 import 'package:job_app/features/notifications/screens/candidate_notifications_screen.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
+import 'package:job_app/features/interviews/screens/candidate_interviews_screen.dart';
 
 class CandidateHomeScreen extends ConsumerStatefulWidget {
   const CandidateHomeScreen({super.key});
@@ -134,23 +135,12 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                          child: Column(
+                        child: Column(
                           children: list
                               .map((job) => CandidateJobCard(
                                     job: job,
                                     showApplyButton: true,
-                                    onApply: () async {
-                                      await ref
-                                          .read(applicationsNotifierProvider.notifier)
-                                          .apply(job.id);
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Candidature envoyee'),
-                                          backgroundColor: AppColors.violet,
-                                        ),
-                                      );
-                                    },
+                                    onApply: () => _showApplySheet(context, ref, job),
                                   ))
                               .toList(),
                         ),
@@ -286,7 +276,7 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Annonces populaires',
+            'Annonces récentes',
             style: AppTextStyles.h2Inter.copyWith(
               color: const Color.fromARGB(255, 26, 26, 27),
               fontSize: 20,
@@ -349,6 +339,89 @@ class _CandidateHomeScreenState extends ConsumerState<CandidateHomeScreen> {
 
   Widget _buildSuggestedJobsShimmer() {
     return const Center(child: CircularProgressIndicator());
+  }
+
+  void _showApplySheet(BuildContext context, WidgetRef ref, JobEntity job) {
+    final controller = TextEditingController();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20, right: 20, top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Postuler — ${job.title}',
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Color(0xFF1D1B1F),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: 'Lettre de motivation (optionnelle)…',
+                hintStyle: const TextStyle(color: Color(0xFF8D8DA6), fontSize: 14),
+                filled: true,
+                fillColor: const Color(0xFFEFEDF2),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.violet,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () async {
+                  final letter = controller.text.trim();
+                  Navigator.pop(ctx);
+                  await ref
+                      .read(applicationsNotifierProvider.notifier)
+                      .apply(job.id, motivationLetter: letter.isEmpty ? null : letter);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Candidature envoyée'),
+                        backgroundColor: AppColors.violet,
+                      ),
+                    );
+                  }
+                },
+                child: const Text(
+                  'Envoyer la candidature',
+                  style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -496,20 +569,23 @@ class _HeroJobCard extends ConsumerWidget {
                             color: Colors.white,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.violet,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Postuler',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: Colors.white,
+                        GestureDetector(
+                          onTap: () => _showApplySheet(context, ref, job),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.violet,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'Postuler',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -520,6 +596,89 @@ class _HeroJobCard extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showApplySheet(BuildContext context, WidgetRef ref, JobEntity job) {
+    final controller = TextEditingController();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20, right: 20, top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Postuler — ${job.title}',
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Color(0xFF1D1B1F),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: 'Lettre de motivation (optionnelle)…',
+                hintStyle: const TextStyle(color: Color(0xFF8D8DA6), fontSize: 14),
+                filled: true,
+                fillColor: const Color(0xFFEFEDF2),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.violet,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () async {
+                  final letter = controller.text.trim();
+                  Navigator.pop(ctx);
+                  await ref
+                      .read(applicationsNotifierProvider.notifier)
+                      .apply(job.id, motivationLetter: letter.isEmpty ? null : letter);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Candidature envoyée'),
+                        backgroundColor: AppColors.violet,
+                      ),
+                    );
+                  }
+                },
+                child: const Text(
+                  'Envoyer la candidature',
+                  style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -596,6 +755,11 @@ class _FilterChips extends ConsumerWidget {
       label: 'Candidatures',
       onTap: () => Navigator.push(context,
           MaterialPageRoute(builder: (_) => const ApplicationsScreen())),
+    ));
+    chips.add(_FilterChip(
+      label: 'Entretiens',
+      onTap: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const CandidateInterviewsScreen())),
     ));
 
     // Selected Filters

@@ -163,11 +163,6 @@ class _SavedFilterChips extends ConsumerWidget {
     }
 
     chips.add(_FilterChip(
-      label: 'Domaine',
-      showArrow: true,
-      onTap: () => showContractTypeSheet(context),
-    ));
-    chips.add(_FilterChip(
       label: 'Horaires',
       showArrow: true,
       onTap: () => showAvailabilitySheet(context),

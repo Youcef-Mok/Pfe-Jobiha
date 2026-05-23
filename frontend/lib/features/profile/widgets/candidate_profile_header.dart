@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/core/theme/app_theme.dart';
 import 'package:job_app/core/utils/color_utils.dart';
+import 'package:job_app/features/auth/providers/auth_providers.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/profile/domain/user_entity.dart';
 import 'package:job_app/features/profile/widgets/share_profile_overlay.dart';
@@ -15,7 +16,9 @@ class CandidateProfileHeader extends ConsumerWidget {
   final bool isPublicRecruiterView;
   final bool isPublicCandidateView;
   final VoidCallback? onMessageTap;
+  final VoidCallback? onShareTap;
   final VoidCallback? onMoreTap;
+  final VoidCallback? onBackTap;
 
   const CandidateProfileHeader({
     super.key,
@@ -24,7 +27,9 @@ class CandidateProfileHeader extends ConsumerWidget {
     this.isPublicRecruiterView = false,
     this.isPublicCandidateView = false,
     this.onMessageTap,
+    this.onShareTap,
     this.onMoreTap,
+    this.onBackTap,
   });
 
   Widget _buildProfileImage() {
@@ -106,6 +111,15 @@ class CandidateProfileHeader extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 10, bottom: 13),
       child: Column(
         children: [
+          if (onBackTap != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Color(0xFF1D1B1F)),
+                onPressed: onBackTap,
+                padding: const EdgeInsets.only(left: 8),
+              ),
+            ),
           SizedBox(
             height: 88,
             child: Stack(
@@ -141,17 +155,19 @@ class CandidateProfileHeader extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (!isPublicView)
+                if (!isPublicView || isPublicCandidateView || isPublicRecruiterView)
                   Positioned(
                     left: 63,
                     top: 0,
                     child: GestureDetector(
-                      onTap: () => showModalBottomSheet(
-                        context: context,
-                        backgroundColor: Colors.transparent,
-                        isScrollControlled: true,
-                        builder: (_) => ShareProfileOverlay(user: user),
-                      ),
+                      onTap: isPublicCandidateView || isPublicRecruiterView
+                          ? onShareTap
+                          : () => showModalBottomSheet(
+                                context: context,
+                                backgroundColor: Colors.transparent,
+                                isScrollControlled: true,
+                                builder: (_) => ShareProfileOverlay(user: user),
+                              ),
                       child: Container(
                         width: 40,
                         height: 40,
@@ -171,7 +187,15 @@ class CandidateProfileHeader extends ConsumerWidget {
                   right: 16,
                   top: 0,
                   child: GestureDetector(
-                    onTap: isPublicView ? onMoreTap : null,
+                    onTap: isPublicView
+                        ? onMoreTap
+                        : () async {
+                            await ref.read(authProvider.notifier).logout();
+                            if (context.mounted) {
+                              Navigator.pushNamedAndRemoveUntil(
+                                  context, '/login', (_) => false);
+                            }
+                          },
                     child: Container(
                       width: 40,
                       height: 40,
@@ -179,10 +203,9 @@ class CandidateProfileHeader extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        isPublicRecruiterView
-                            || isPublicCandidateView
+                        isPublicRecruiterView || isPublicCandidateView
                             ? Icons.more_horiz
-                            : Icons.settings_outlined,
+                            : Icons.logout,
                         size: 20,
                         color: Colors.black,
                       ),

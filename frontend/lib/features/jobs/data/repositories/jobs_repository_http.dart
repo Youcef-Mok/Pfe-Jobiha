@@ -269,6 +269,26 @@ class JobsRepositoryHttp implements JobsRepository {
     return JobCommentModel.fromJson(resp.data as Map<String, dynamic>).toEntity();
   }
 
+  @override
+  Future<JobCommentEntity> replyToJobComment(String jobId, String commentId, String reply) async {
+    final resp = await _dio.post(
+      ApiEndpoints.jobCommentReply(int.parse(jobId), int.parse(commentId)),
+      data: {'reply': reply},
+    );
+    return JobCommentModel.fromJson(resp.data as Map<String, dynamic>).toEntity();
+  }
+
+  @override
+  Future<List<MissionEntity>> getMissionsByRecruiterId(String recruiterId) async {
+    final resp = await _dio.get(
+      ApiEndpoints.missions,
+      queryParameters: {'recruiter_id': recruiterId},
+    );
+    return _results(resp.data)
+        .map((m) => _parseMission(m as Map<String, dynamic>))
+        .toList();
+  }
+
   String? _contractLabelToApi(String label) => switch (label.toLowerCase()) {
         'cdi' => 'cdi',
         'cdd' || 'mission' => 'mission',

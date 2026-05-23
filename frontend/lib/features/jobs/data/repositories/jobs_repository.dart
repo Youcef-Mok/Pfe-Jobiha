@@ -74,5 +74,11 @@ abstract class JobsRepository {
 
   /// Ajoute un commentaire candidat sur une offre.
   Future<JobCommentEntity> addJobComment(String jobId, String question);
+
+  /// Répond à un commentaire (recruteur).
+  Future<JobCommentEntity> replyToJobComment(String jobId, String commentId, String reply);
+
+  /// Retourne les missions publiques d'un recruteur (pour son profil public).
+  Future<List<MissionEntity>> getMissionsByRecruiterId(String recruiterId);
 }
 

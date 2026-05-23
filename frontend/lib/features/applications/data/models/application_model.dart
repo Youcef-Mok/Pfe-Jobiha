@@ -14,6 +14,7 @@ class ApplicationModel {
   final String contractType;
   final String? scheduleLabel;
   final String? interviewDate;
+  final String? candidateId;
   final String? candidateName;
   final String? candidateAvatar;
   final String? candidateDomain;
@@ -33,6 +34,7 @@ class ApplicationModel {
     required this.contractType,
     this.scheduleLabel,
     this.interviewDate,
+    this.candidateId,
     this.candidateName,
     this.candidateAvatar,
     this.candidateDomain,
@@ -77,6 +79,7 @@ class ApplicationModel {
       contractType: pickString([json['contract_type'], rawJob['contract_type']], fallback: 'cdi'),
       scheduleLabel: pickNullable([json['schedule_label'], rawJob['schedule_label']]),
       interviewDate: pickNullable([json['interview_date']]),
+      candidateId: pickNullable([json['candidate_id']]),
       candidateName: pickNullable([json['candidate_name']]),
       candidateAvatar: pickNullable([json['candidate_avatar']]),
       candidateDomain: pickNullable([json['candidate_domain']]),
@@ -98,6 +101,7 @@ class ApplicationModel {
         contractType: _parseContract(contractType),
         scheduleLabel: scheduleLabel,
         interviewDate: interviewDate,
+        candidateId: candidateId,
         candidateName: candidateName,
         candidateAvatar: candidateAvatar,
         candidateDomain: candidateDomain,

@@ -12,8 +12,6 @@ import 'package:job_app/features/jobs/screens/create_job_screen.dart';
 import 'package:job_app/features/jobs/screens/edit_job_screen.dart';
 import 'package:job_app/features/jobs/screens/job_details_screen.dart';
 import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
-import 'package:job_app/features/candidates/screens/candidates_screen.dart';
-import 'package:job_app/features/candidates/data/providers/candidates_provider.dart';
 import 'package:job_app/core/widgets/app_bottom_nav_bar.dart';
 import 'package:job_app/features/jobs/data/providers/analytics_provider.dart';
 import 'package:job_app/features/applications/data/providers/applications_provider.dart';
@@ -23,6 +21,7 @@ import 'package:job_app/features/interviews/data/providers/interviews_provider.d
 import 'package:job_app/features/interviews/widgets/compact_interview_card.dart';
 import 'package:job_app/core/widgets/svg_icon.dart';
 import 'package:job_app/features/jobs/widgets/recruiter_filter_bar.dart';
+import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 
 /// ────────────────
 /// JobsListScreen
@@ -61,18 +60,53 @@ class JobsListScreen extends ConsumerWidget {
 class _Header extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(currentUserProvider);
+    final userName = userAsync.whenOrNull(data: (u) => u.name) ?? '';
+    final avatarUrl = userAsync.whenOrNull(data: (u) => u.avatarUrl);
+    final initials = userName.isNotEmpty
+        ? userName.split(' ').map((n) => n[0]).take(2).join().toUpperCase()
+        : '';
+
     return Container(
       color: AppColors.background,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
+          // Avatar du recruteur
+          Container(
+            width: 40,
+            height: 40,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.violet,
+              image: avatarUrl != null && avatarUrl.startsWith('http')
+                  ? DecorationImage(
+                      image: NetworkImage(avatarUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: avatarUrl == null || !avatarUrl.startsWith('http')
+                ? Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : null,
+          ),
           // Texte
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bonjour Ahmed',
+                  userName.isNotEmpty ? 'Bonjour $userName' : 'Bonjour',
                   style: AppTextStyles.heading1.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
@@ -87,36 +121,6 @@ class _Header extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 12),
-          // Barre de recherche élargie (remplit l'espace laissé par l'avatar)
-          Expanded(
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFEDF2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                children: [
-                  SizedBox(width: 12),
-                  Icon(Icons.search, size: 18, color: Color(0xFF8D8DA6)),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Rechercher une annonce',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 13,
-                        color: Color(0xFF8D8DA6),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
           // Bouton Ajouter une offre
           GestureDetector(
             onTap: () {
@@ -757,14 +761,7 @@ class _JobsBodyState extends ConsumerState<_JobsBody> {
   }
 
   void _handleViewCandidates(BuildContext context, JobEntity job, WidgetRef ref) {
-    // 1. Définir le job courant dans le provider
-    ref.read(currentJobIdProvider.notifier).state = job.id;
-
-    // 2. Naviguer vers l'écran des candidats
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CandidatesScreen()),
-    );
+    showJobApplicationsOverlay(context, ref, job);
   }
 
   void _handleComplete(BuildContext context, JobEntity job) {

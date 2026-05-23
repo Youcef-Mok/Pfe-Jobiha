@@ -230,15 +230,29 @@ class MissionSerializer(serializers.ModelSerializer):
     summary = serializers.SerializerMethodField()
     team = serializers.SerializerMethodField()
 
+    job_id = serializers.SerializerMethodField()
+    recruiter_id = serializers.SerializerMethodField()
+    candidate_id = serializers.SerializerMethodField()
+
     class Meta:
         model  = Mission
         fields = [
-            'id', 'job_title', 'company_name', 'start_date', 'end_date',
+            'id', 'job_id', 'recruiter_id', 'candidate_id',
+            'job_title', 'company_name', 'start_date', 'end_date',
             'location', 'recruiter_name', 'candidate_name',
             'candidate_rating', 'recruiter_rating',
             'candidate_feedback', 'recruiter_feedback',
             'status', 'description', 'summary', 'image_url', 'team',
         ]
+
+    def get_job_id(self, obj):
+        return str(obj.candidature.offre.id)
+
+    def get_recruiter_id(self, obj):
+        return str(obj.candidature.offre.recruteur.id)
+
+    def get_candidate_id(self, obj):
+        return str(obj.candidature.candidat.id)
 
     _STATUS_MAP = {
         'en_attente': 'unconfirmed',

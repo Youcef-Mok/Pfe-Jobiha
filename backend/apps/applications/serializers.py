@@ -28,6 +28,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
     )
 
     # Candidate-derived fields
+    candidate_id = serializers.SerializerMethodField()
     candidate_name = serializers.SerializerMethodField()
     candidate_avatar = serializers.SerializerMethodField()
     candidate_domain = serializers.SerializerMethodField()
@@ -39,7 +40,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             'id', 'job_id', 'job_title', 'company_name', 'logo_asset',
             'status', 'applied_at', 'location', 'contract_type',
             'schedule_label', 'department', 'interview_date',
-            'candidate_name', 'candidate_avatar',
+            'candidate_id', 'candidate_name', 'candidate_avatar',
             'candidate_domain', 'candidate_rating', 'motivation_letter',
         ]
 
@@ -99,6 +100,9 @@ class ApplicationSerializer(serializers.ModelSerializer):
         return None
 
     # -- candidat-derived --
+    def get_candidate_id(self, obj):
+        return str(obj.candidat_id)
+
     def get_candidate_name(self, obj):
         c = obj.candidat
         return f"{c.prenom} {c.nom}"

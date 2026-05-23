@@ -333,7 +333,13 @@ class MissionListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if hasattr(request.user, 'candidat'):
+        recruiter_id = request.query_params.get('recruiter_id')
+        if recruiter_id:
+            # Public profile view: return that recruiter's missions
+            queryset = Mission.objects.filter(
+                candidature__offre__recruteur_id=recruiter_id
+            )
+        elif hasattr(request.user, 'candidat'):
             queryset = Mission.objects.filter(
                 candidature__candidat=request.user.candidat
             )

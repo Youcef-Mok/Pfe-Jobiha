@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:job_app/features/jobs/data/providers/jobs_provider.dart';
 import 'package:job_app/features/jobs/widgets/mission_card.dart';
 import 'package:job_app/features/jobs/widgets/mission_in_progress_sheet.dart';
-import 'package:job_app/features/messaging/screens/messaging_screen.dart';
+import 'package:job_app/features/messaging/data/providers/messaging_provider.dart';
+import 'package:job_app/features/messaging/screens/private_message_screen.dart';
 import 'package:job_app/features/profile/data/providers/profile_provider.dart';
 import 'package:job_app/features/profile/widgets/candidate_profile_header.dart';
 import 'package:job_app/features/profile/widgets/candidate_profile_tabs.dart';
@@ -15,7 +17,7 @@ class CandidatePublicProfileScreen extends ConsumerWidget {
 
   const CandidatePublicProfileScreen({
     super.key,
-    this.candidateId = 'candidate_1',
+    required this.candidateId,
   });
 
   @override
@@ -36,12 +38,28 @@ class CandidatePublicProfileScreen extends ConsumerWidget {
                 child: CandidateProfileHeader(
                   user: user,
                   isPublicCandidateView: true,
-                  onMessageTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MessagingScreen(isRecruiterView: true),
-                    ),
-                  ),
+                  onBackTap: () => Navigator.pop(context),
+                  onMessageTap: () async {
+                    final controller =
+                        ref.read(messagingControllerProvider.notifier);
+                    final conversation =
+                        await controller.getOrCreateConversation(
+                      contactName: user.name,
+                      contactRole: user.role,
+                      contactAvatar: user.avatarUrl,
+                    );
+                    if (context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PrivateMessageScreen(
+                            conversation: conversation,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  onShareTap: () => _shareProfile(context, user.name),
                   onMoreTap: () => _showMoreOptions(context),
                 ),
               ),
@@ -63,13 +81,27 @@ class CandidatePublicProfileScreen extends ConsumerWidget {
               if (selectedTab == CandidateProfileTab.competences)
                 SliverFillRemaining(
                   hasScrollBody: true,
-                  child: const ProfileCvSection(readOnly: true),
+                  child: ProfileCvSection(
+                    readOnly: true,
+                    cvProvider: publicCandidateCvProvider(candidateId),
+                  ),
                 ),
               if (selectedTab == CandidateProfileTab.missions)
                 _PublicCandidateMissionsSection(candidateName: user.name),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _shareProfile(BuildContext context, String name) {
+    final profileUrl = 'https://petitsjobs.dz/candidats/$candidateId';
+    Clipboard.setData(ClipboardData(text: profileUrl));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Lien du profil de $name copié'),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -88,7 +120,6 @@ class CandidatePublicProfileScreen extends ConsumerWidget {
             _OptionTile(icon: Icons.shield_moon_outlined, label: 'Restreindre'),
             _OptionTile(icon: Icons.flag_outlined, label: 'Signaler'),
             _OptionTile(icon: Icons.block_outlined, label: 'Bloquer'),
-            _OptionTile(icon: Icons.link_outlined, label: 'Copier l\'URL du profil'),
           ],
         ),
       ),
@@ -122,7 +153,16 @@ class _PublicCandidateMissionsSection extends ConsumerWidget {
           return const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.all(48),
-              child: Center(child: Text('Aucune mission')),
+              child: Center(
+                child: Text(
+                  'Aucune mission',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ),
             ),
           );
         }
@@ -144,9 +184,11 @@ class _PublicCandidateMissionsSection extends ConsumerWidget {
                     cardColor: const Color(0xFFEFEDF2),
                     onTap: () {
                       if (mission.isCompleted) {
-                        showCompletedMissionSheet(context, mission, isRecruiterView: false);
+                        showCompletedMissionSheet(context, mission,
+                            isRecruiterView: false);
                       } else {
-                        showMissionInProgressSheet(context, mission, isRecruiterView: false);
+                        showMissionInProgressSheet(context, mission,
+                            isRecruiterView: false);
                       }
                     },
                   ),
@@ -163,7 +205,6 @@ class _PublicCandidateMissionsSection extends ConsumerWidget {
 class _OptionTile extends StatelessWidget {
   final IconData icon;
   final String label;
-
   const _OptionTile({required this.icon, required this.label});
 
   @override
