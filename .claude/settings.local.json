@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3)",
+      "Bash(xargs grep *)",
+      "Bash(dart analyze *)",
+      "Bash(flutter analyze *)",
+      "Bash(findstr /N \"color: Colors.white\" frontend\\\\lib\\\\features\\\\profile\\\\widgets\\\\candidate_profile_tabs.dart)"
+    ]
+  }
+}

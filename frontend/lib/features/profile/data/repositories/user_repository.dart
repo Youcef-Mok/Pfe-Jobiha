@@ -1,0 +1,20 @@
+import 'package:job_app/features/profile/domain/user_entity.dart';
+import 'package:job_app/features/profile/domain/cv_entity.dart';
+
+/// Interface abstraite du repository utilisateur
+abstract class UserRepository {
+  /// Récupère le profil de l'utilisateur connecté
+  Future<UserEntity> getCurrentUser();
+  
+  /// Récupère un profil public par id (candidat/recruteur)
+  Future<UserEntity> getUserById(String userId);
+
+  /// Récupère les avis des employés pour un recruteur
+  Future<List<EmployeeReviewEntity>> getEmployeeReviews(String userId);
+
+  /// Met à jour le profil utilisateur
+  Future<UserEntity> updateProfile(UserEntity user);
+
+  /// Récupère les données CV d'un utilisateur
+  Future<CvEntity> getCvData(String userId);
+}

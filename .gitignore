@@ -1,0 +1,29 @@
+# Large files
+frontend.zip
+*.zip
+*.tar.gz
+*.rar
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*.DS_Store
+
+# OS related
+Thumbs.db
+Desktop.ini
+
+frontend/build/
+frontend/build - Copy/
+**/build/
+*.apk

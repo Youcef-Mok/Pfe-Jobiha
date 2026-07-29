@@ -1,0 +1,54 @@
+name: job_app
+description: "Application de recrutement pour petits jobs"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Formatting
+  intl: ^0.19.0
+
+  # Fonts
+  google_fonts: ^6.2.1
+
+  # Media & file pickers
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
+
+  # Map
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  dropdown_search: ^7.0.0
+  flutter_map_cancellable_tile_provider: ^3.0.2
+  url_launcher: ^6.3.1
+
+  # SVG support
+  flutter_svg: ^2.0.10
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Code generation Riverpod (optionnel, pour la v2 avec annotations)
+  riverpod_generator: ^2.4.0
+  build_runner: ^2.4.9
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Assets
+  assets:
+    - assets/images/
+    - assets/icons/
